@@ -40,7 +40,11 @@ async function GetUser(id) {
         await client.connect();
         const { rows } = await client.query(`SELECT * FROM users2 WHERE user_id=$1`, [id]);
         await client.end();
-        data = rows;
+        if(rows.length > 0){
+            data = rows[0];
+        }else{
+            throw new Error('User not found');
+        }
     } catch (err) {
         throw new Error(err.message);
     }

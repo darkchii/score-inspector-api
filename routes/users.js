@@ -78,8 +78,11 @@ router.get('/full/:id', async (req, res, next) => {
   let altUser;
 
   try {
+    console.log('osu api');
     osuUser = await GetOsuUser(req.params.id, 'osu', 'id');
+    console.log('daily api');
     dailyUser = await GetDailyUser(req.params.id, 0, 'id');
+    console.log('alt api');
     altUser = await GetAltUser(req.params.id);
   } catch (e) {
     res.json(e.message);

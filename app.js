@@ -9,6 +9,7 @@ var usersRouter = require('./routes/users');
 var beatmapsRouter = require('./routes/beatmaps');
 var scoresRouter = require('./routes/scores');
 var leaderboardsRouter = require('./routes/leaderboards');
+var loginRouter = require('./routes/login');
 
 var app = express();
 
@@ -27,6 +28,7 @@ app.use('/users', usersRouter);
 app.use('/beatmaps', beatmapsRouter);
 app.use('/scores', scoresRouter);
 app.use('/leaderboards', leaderboardsRouter);
+app.use('/login', loginRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

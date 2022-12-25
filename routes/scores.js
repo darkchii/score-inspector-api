@@ -1,6 +1,6 @@
 var express = require('express');
-var router = express.Router();
 var apicache = require('apicache');
+var router = express.Router();
 const { Client } = require('pg');
 const { GetBestScores, score_columns, score_columns_full, beatmap_columns } = require('../helpers/osualt');
 require('dotenv').config();
@@ -8,7 +8,7 @@ require('dotenv').config();
 let cache = apicache.middleware;
 
 /* Get the entire list of scores of a user */
-router.get('/user/:id', async function (req, res, next) {
+router.get('/user/:id', cache('1 hour'), async function (req, res, next) {
     const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
     await client.connect();
     const approved_query = `AND (beatmaps.approved = 1 OR beatmaps.approved = 2 ${req.query.loved === 'true' ? 'OR beatmaps.approved = 4' : ''})`;

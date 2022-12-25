@@ -1,8 +1,10 @@
 const express = require('express');
 const moment = require('moment');
 const mysql = require('mysql-await');
+var apicache = require('apicache');
 
 const router = express.Router();
+let cache = apicache.middleware;
 
 const connConfig = {
     host: process.env.MYSQL_HOST,
@@ -73,7 +75,7 @@ function buildQuery(req) {
     return [q, qVar];
 }
 
-router.get('/packs', async (req, res) => {
+router.get('/packs', cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
 
     connection.on('error', (err) => {
@@ -114,7 +116,7 @@ router.get('/packs', async (req, res) => {
     await connection.end();
 });
 
-router.get('/count', async (req, res) => {
+router.get('/count', cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
 
     connection.on('error', (err) => {
@@ -135,7 +137,7 @@ router.get('/count', async (req, res) => {
     await connection.end();
 });
 
-router.get('/stats', async (req, res) => {
+router.get('/stats', cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
 
     connection.on('error', (err) => {
@@ -184,7 +186,7 @@ router.get('/stats', async (req, res) => {
     await connection.end();
 });
 
-router.get('/all', async (req, res) => {
+router.get('/all', cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
 
     connection.on('error', (err) => {
@@ -205,7 +207,7 @@ router.get('/all', async (req, res) => {
     await connection.end();
 });
 
-router.get('/allsets', async (req, res) => {
+router.get('/allsets', cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
 
     connection.on('error', (err) => {
@@ -226,7 +228,7 @@ router.get('/allsets', async (req, res) => {
     await connection.end();
 });
 
-router.get('/monthly', async (req, res) => {
+router.get('/monthly', cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
     const mode = req.query.mode !== undefined ? req.query.mode : 0;
 
@@ -253,7 +255,7 @@ router.get('/monthly', async (req, res) => {
     await connection.end();
 });
 
-router.get('/yearly', async (req, res) => {
+router.get('/yearly', cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
     const mode = req.query.mode !== undefined ? req.query.mode : 0;
 
@@ -280,7 +282,7 @@ router.get('/yearly', async (req, res) => {
     await connection.end();
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
     const mode = req.query.mode !== undefined ? req.query.mode : 0;
 
@@ -297,7 +299,7 @@ router.get('/:id', async (req, res) => {
     connection.end();
 });
 
-router.get('/:id/maxscore', async (req, res) => {
+router.get('/:id/maxscore', cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
     const mode = req.query.mode !== undefined ? req.query.mode : 0;
 
@@ -314,7 +316,7 @@ router.get('/:id/maxscore', async (req, res) => {
     connection.end();
 });
 
-router.get('/ranges/:format', async (req, res) => {
+router.get('/ranges/:format', cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
 
     connection.on('error', (err) => {

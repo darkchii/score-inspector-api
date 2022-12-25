@@ -1,7 +1,9 @@
 var express = require('express');
+var apicache = require('apicache');
 var router = express.Router();
 const { Client } = require('pg');
 require('dotenv').config();
+let cache = apicache.middleware;
 
 function getQuery(stat, limit, offset, country, user_id) {
     let query = '';
@@ -47,7 +49,7 @@ function getQuery(stat, limit, offset, country, user_id) {
     return [query, queryData];
 }
 
-router.get('/:stat/:user_id', async function (req, res, next) {
+router.get('/:stat/:user_id', cache('1 hour'), async function (req, res, next) {
     try {
         let stat = req.params.stat;
         let user_id = parseInt(req.params.user_id);
@@ -68,7 +70,7 @@ router.get('/:stat/:user_id', async function (req, res, next) {
     }
 });
 
-router.get('/:stat', async function (req, res, next) {
+router.get('/:stat', cache('1 hour'), async function (req, res, next) {
     try {
         let stat = req.params.stat;
         let country = req.query.country;

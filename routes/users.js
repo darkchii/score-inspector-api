@@ -1,10 +1,12 @@
 const express = require('express');
+var apicache = require('apicache');
 const { GetUser: GetOsuUser, GetDailyUser } = require('../helpers/osu');
 const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser } = require('../helpers/osualt');
 
+let cache = apicache.middleware;
 const router = express.Router();
 
-router.get('/osu/:id', async (req, res) => {
+router.get('/osu/:id', cache('1 hour'),  async (req, res) => {
   const mode = req.query.mode !== undefined ? req.query.mode : 0;
   let user = null;
   try {
@@ -22,7 +24,7 @@ router.get('/osu/:id', async (req, res) => {
   // res.json(user);
 });
 
-router.get('/daily/:id', async (req, res) => {
+router.get('/daily/:id', cache('30 minutes'), async (req, res) => {
   const mode = req.query.mode !== undefined ? req.query.mode : 0;
   let user = null;
   try {
@@ -78,11 +80,11 @@ router.get('/full/:id', async (req, res, next) => {
   let altUser;
 
   try {
-    console.log('osu api');
+    // console.log('osu api');
     osuUser = await GetOsuUser(req.params.id, 'osu', 'id');
-    console.log('daily api');
+    // console.log('daily api');
     dailyUser = await GetDailyUser(req.params.id, 0, 'id');
-    console.log('alt api');
+    // console.log('alt api');
     altUser = await GetAltUser(req.params.id);
   } catch (e) {
     res.json(e.message);

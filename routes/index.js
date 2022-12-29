@@ -9,15 +9,4 @@ router.get('/proxy/:url', async (req, res) => {
   res.json(_res.data);
 });
 
-router.get('/osu_client_id', async (req, res) => {
-  let id = null;
-  if (process.env.NODE_ENV === 'development') {
-    id = process.env.OSU_CLIENT_ID_DEV;
-  } else {
-    id = process.env.OSU_CLIENT_ID;
-  }
-
-  res.json({ id: id });
-});
-
 module.exports = router;

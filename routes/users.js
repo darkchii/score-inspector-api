@@ -38,7 +38,7 @@ router.get('/daily/:id', cache('30 minutes'), async (req, res) => {
   // res.json(user);
 });
 
-router.get('/alt/registered/:id', async function (req, res, next) {
+router.get('/alt/registered/:id', cache('10 minutes'), async function (req, res, next) {
   try {
     const registered = await IsRegistered(req.params.id);
     res.json(registered);
@@ -47,7 +47,7 @@ router.get('/alt/registered/:id', async function (req, res, next) {
   }
 });
 
-router.get('/alt/registered', async function (req, res, next) {
+router.get('/alt/registered', cache('10 minutes'), async function (req, res, next) {
   try {
     const users = await GetAllUsers();
     res.json(users);
@@ -56,7 +56,7 @@ router.get('/alt/registered', async function (req, res, next) {
   }
 });
 
-router.get('/alt/get/:id', async function (req, res, next) {
+router.get('/alt/get/:id', cache('10 minutes'), async function (req, res, next) {
   try {
     const user = await GetAltUser(req.params.id);
     res.json(user);
@@ -65,7 +65,7 @@ router.get('/alt/get/:id', async function (req, res, next) {
   }
 });
 
-router.get('/alt/find/:query', async function (req, res, next) {
+router.get('/alt/find/:query', cache('10 minutes'), async function (req, res, next) {
   try {
     const users = await FindUser(req.params.query, req.query.single);
     res.json(users);
@@ -74,7 +74,7 @@ router.get('/alt/find/:query', async function (req, res, next) {
   }
 });
 
-router.get('/full/:id', async (req, res, next) => {
+router.get('/full/:id', cache('10 minutes'), async (req, res, next) => {
   let osuUser;
   let dailyUser;
   let altUser;

@@ -209,12 +209,15 @@ async function GetBestScores(period, stat, limit, loved = false) {
         const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
         await client.connect();
         const approved_query = `(beatmaps.approved = 1 OR beatmaps.approved = 2 ${loved ? 'OR beatmaps.approved = 4' : ''})`;
-        const { rows } = await client.query(`
-        SELECT ${score_columns}, users2.pp as user_pp, users2.username FROM scores 
-        LEFT JOIN beatmaps ON scores.beatmap_id = beatmaps.beatmap_id
-        LEFT JOIN moddedsr on beatmaps.beatmap_id = moddedsr.beatmap_id and moddedsr.mods_enum = (case when is_ht = 'true' then 256 else 0 end + case when is_dt = 'true' then 64 else 0 end + case when is_hr = 'true' then 16 else 0 end + case when is_ez = 'true' then 2 else 0 end + case when is_fl = 'true' then 1024 else 0 end) 
-        INNER JOIN users2 ON scores.user_id = users2.user_id 
-        WHERE ${period_check !== null ? `date_played > current_date - ${period_check} AND ` : ''} ${approved_query} ORDER BY scores.${stat} DESC LIMIT $1`, [limit]);
+        const query = `
+            SELECT ${score_columns}, users2.pp as user_pp, users2.username FROM scores 
+            LEFT JOIN beatmaps ON scores.beatmap_id = beatmaps.beatmap_id
+            LEFT JOIN moddedsr on beatmaps.beatmap_id = moddedsr.beatmap_id and moddedsr.mods_enum = (case when is_ht = 'true' then 256 else 0 end + case when is_dt = 'true' then 64 else 0 end + case when is_hr = 'true' then 16 else 0 end + case when is_ez = 'true' then 2 else 0 end + case when is_fl = 'true' then 1024 else 0 end) 
+            INNER JOIN users2 ON scores.user_id = users2.user_id 
+            WHERE ${period_check !== null ? `date_played > NOW() - INTERVAL '${period_check} day${period_check > 1 ? 's' : ''}' AND ` : ''} ${approved_query} ORDER BY scores.${stat} DESC LIMIT $1
+        `;
+        console.log(query);
+        const { rows } = await client.query(query, [limit]);
         await client.end();
         data = rows;
     } catch (err) {

@@ -4,7 +4,6 @@ const router = express.Router();
 const crypto = require("crypto");
 require('dotenv').config();
 const mysql = require('mysql-await');
-const isInspectorOrigin = require('../helpers/originChecker');
 // const SESSION_LENGTH = 60 * 60 * 24 * 3;
 const SESSION_DAYS = 3;
 
@@ -15,7 +14,7 @@ const connConfig = {
     password: process.env.MYSQL_PASS,
 };
 
-router.post('/', isInspectorOrigin, async (req, res, next) => {
+router.post('/', async (req, res, next) => {
     let authResponse = null;
     const auth_code = req.body.code;
     const dev_mode = req.body.is_dev;
@@ -133,7 +132,7 @@ router.post('/', isInspectorOrigin, async (req, res, next) => {
     await connection.end();
 });
 
-router.post('/validate_token', isInspectorOrigin, async (req, res, next) => {
+router.post('/validate_token', async (req, res, next) => {
     const session_token = req.body.token;
     const user_id = req.body.user_id;
 
@@ -161,7 +160,7 @@ router.post('/validate_token', isInspectorOrigin, async (req, res, next) => {
     await connection.end();
 });
 
-router.post('/logout', isInspectorOrigin, async (req, res, next) => {
+router.post('/logout', async (req, res, next) => {
     const session_token = req.body.token;
     const user_id = req.body.user_id;
 
@@ -192,7 +191,7 @@ router.post('/logout', isInspectorOrigin, async (req, res, next) => {
     await connection.end();
 });
 
-router.get('/get/:id', isInspectorOrigin, async (req, res, next) => {
+router.get('/get/:id', async (req, res, next) => {
     const user_id = req.params.id;
 
     if (user_id == null) {
@@ -219,7 +218,7 @@ router.get('/get/:id', isInspectorOrigin, async (req, res, next) => {
     await connection.end();
 });
 
-router.get('/visitors/:id', isInspectorOrigin, async (req, res, next) => {
+router.get('/visitors/:id', async (req, res, next) => {
     const user_id = req.params.id;
     const limit = req.query.limit || 10;
 
@@ -246,7 +245,7 @@ router.get('/visitors/:id', isInspectorOrigin, async (req, res, next) => {
     await connection.end();
 });
 
-router.post('/update_visitor', isInspectorOrigin, async (req, res, next) => {
+router.post('/update_visitor', async (req, res, next) => {
     const visitor_id = req.body.visitor;
     const target_id = req.body.target;
 
@@ -286,7 +285,7 @@ router.post('/update_visitor', isInspectorOrigin, async (req, res, next) => {
     await connection.end();
 });
 
-router.post('/update_profile', isInspectorOrigin, async (req, res, next) => {
+router.post('/update_profile', async (req, res, next) => {
     const user_id = req.body.user_id;
     const token = req.body.token;
     const data = req.body.data;

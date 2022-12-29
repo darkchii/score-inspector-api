@@ -4,7 +4,8 @@ const router = express.Router();
 const crypto = require("crypto");
 require('dotenv').config();
 const mysql = require('mysql-await');
-const SESSION_LENGTH = 60 * 60 * 24 * 7;
+// const SESSION_LENGTH = 60 * 60 * 24 * 3;
+const SESSION_DAYS = 3;
 
 const connConfig = {
     host: process.env.MYSQL_HOST,
@@ -73,7 +74,7 @@ router.post('/', async (req, res) => {
     });
 
     //clear out old tokens
-    await connection.awaitQuery(`DELETE FROM inspector_tokens WHERE date_created<subdate(current_date, ${SESSION_LENGTH})`);
+    await connection.awaitQuery(`DELETE FROM inspector_tokens WHERE date_created<subdate(current_date, ${SESSION_DAYS})`);
 
     //check if user exists in db
     const user = await connection.awaitQuery(`SELECT * FROM inspector_users WHERE osu_id = ${user_id}`);
@@ -148,7 +149,7 @@ router.post('/validate_token', async (req, res) => {
         });
     });
 
-    let result = await connection.awaitQuery(`SELECT * FROM inspector_tokens WHERE token = ? AND osu_id = ? AND date_created>subdate(current_date, ${SESSION_LENGTH})`, [session_token, user_id]);
+    let result = await connection.awaitQuery(`SELECT * FROM inspector_tokens WHERE token = ? AND osu_id = ? AND date_created>subdate(current_date, ${SESSION_DAYS})`, [session_token, user_id]);
     if (result.length === 0) {
         res.json({ valid: false });
         await connection.end();
@@ -156,6 +157,37 @@ router.post('/validate_token', async (req, res) => {
     }
 
     res.json({ valid: true });
+    await connection.end();
+});
+
+router.post('/logout', async (req, res) => {
+    const session_token = req.body.token;
+    const user_id = req.body.user_id;
+
+    if (session_token == null || user_id == null) {
+        res.status(401).json({ error: 'Invalid token' });
+        return;
+    }
+
+    const connection = mysql.createConnection(connConfig);
+    connection.on('error', (err) => {
+        res.json({
+            message: 'Unable to connect to database',
+            error: err,
+        });
+    });
+
+    let result = await connection.awaitQuery(`
+        DELETE FROM inspector_tokens 
+        WHERE token = ? 
+        OR (osu_id = ? AND date_created<subdate(current_date, ${SESSION_DAYS}))`, [session_token, user_id]);
+    if (result.length === 0) {
+        res.json({ result: false });
+        await connection.end();
+        return;
+    }
+
+    res.json({ result: true });
     await connection.end();
 });
 

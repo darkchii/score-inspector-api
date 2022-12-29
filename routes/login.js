@@ -218,4 +218,71 @@ router.get('/get/:id', async (req, res) => {
     await connection.end();
 });
 
+router.get('/visitors/:id', async (req, res) => {
+    const user_id = req.params.id;
+    const limit = req.query.limit || 10;
+
+    if (user_id == null) {
+        res.status(401).json({ error: 'Invalid user id' });
+        return;
+    }
+
+    const connection = mysql.createConnection(connConfig);
+    connection.on('error', (err) => {
+        res.json({
+            message: 'Unable to connect to database',
+            error: err,
+        });
+    });
+
+    let result = await connection.awaitQuery(`
+        SELECT * FROM inspector_visitors a
+        LEFT JOIN inspector_users b ON a.visitor_id = b.osu_id
+        WHERE target_id = ? ORDER BY last_visit DESC LIMIT ?
+    `, [user_id, limit]);
+
+    res.json(result);
+    await connection.end();
+});
+
+router.post('/update_visitor', async (req, res) => {
+    const visitor_id = req.body.visitor;
+    const target_id = req.body.target;
+
+    if((visitor_id!==null && isNaN(visitor_id)) || isNaN(target_id)) {
+        res.status(401).json({ error: 'Invalid visitor or target ID' });
+        return;
+    }
+
+    if(visitor_id!==null && Number(visitor_id) === Number(target_id)) {
+        res.json({ error: 'Visitor is same as target. Ignoring.' });
+        return;
+    }
+
+    if (target_id == null) {
+        res.status(401).json({ error: 'Invalid target ID' });
+        return;
+    }
+
+    const connection = mysql.createConnection(connConfig);
+    connection.on('error', (err) => {
+        res.json({
+            message: 'Unable to connect to database',
+            error: err,
+        });
+    });
+
+    //check if visitor already visited target
+    let result = await connection.awaitQuery(`SELECT * FROM inspector_visitors WHERE (visitor_id = ?${visitor_id === null ? ' OR visitor_id IS NULL' : ''}) AND target_id = ?`, [visitor_id, target_id]);
+    if (result.length > 0) {
+        //update visit date
+        await connection.awaitQuery(`UPDATE inspector_visitors SET last_visit = ?, count = count+1 WHERE (visitor_id = ?${visitor_id === null ? ' OR visitor_id IS NULL' : ''}) AND target_id = ?`, [new Date(), visitor_id, target_id]);
+    } else {
+        result = await connection.awaitQuery(`INSERT INTO inspector_visitors (visitor_id, target_id, last_visit) VALUES (?,?,?)`, [visitor_id, target_id, new Date()]);
+    }
+
+    res.json({});
+    await connection.end();
+});
+
 module.exports = router;

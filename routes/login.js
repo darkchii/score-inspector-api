@@ -249,12 +249,12 @@ router.post('/update_visitor', async (req, res) => {
     const visitor_id = req.body.visitor;
     const target_id = req.body.target;
 
-    if((visitor_id!==null && isNaN(visitor_id)) || isNaN(target_id)) {
+    if ((visitor_id !== null && isNaN(visitor_id)) || isNaN(target_id)) {
         res.status(401).json({ error: 'Invalid visitor or target ID' });
         return;
     }
 
-    if(visitor_id!==null && Number(visitor_id) === Number(target_id)) {
+    if (visitor_id !== null && Number(visitor_id) === Number(target_id)) {
         res.json({ error: 'Visitor is same as target. Ignoring.' });
         return;
     }
@@ -280,6 +280,55 @@ router.post('/update_visitor', async (req, res) => {
     } else {
         result = await connection.awaitQuery(`INSERT INTO inspector_visitors (visitor_id, target_id, last_visit) VALUES (?,?,?)`, [visitor_id, target_id, new Date()]);
     }
+
+    res.json({});
+    await connection.end();
+});
+
+router.post('/update_profile', async (req, res) => {
+    const user_id = req.body.user_id;
+    const token = req.body.token;
+    const data = req.body.data;
+
+    console.log(data);
+
+    if (user_id == null || token == null || data == null) {
+        res.status(401).json({ error: 'Invalid token' });
+        return;
+    }
+
+    const connection = mysql.createConnection(connConfig);
+    connection.on('error', (err) => {
+        res.json({
+            message: 'Unable to connect to database',
+            error: err,
+        });
+    });
+
+    //check if token is valid
+    let result = await connection.awaitQuery(`SELECT * FROM inspector_tokens WHERE token = ? AND osu_id = ? AND date_created>subdate(current_date, ${SESSION_DAYS})`, [token, user_id]);
+    if (result.length === 0) {
+        res.status(401).json({ error: 'Invalid token' });
+        await connection.end();
+        return;
+    }
+
+    //check if user exists
+    result = await connection.awaitQuery(`SELECT * FROM inspector_users WHERE osu_id = ?`, [user_id]);
+    if (result.length === 0) {
+        res.status(401).json({ error: 'Invalid user' });
+        await connection.end();
+        return;
+    }
+
+    //secure data
+    if (data.osu_id !== undefined) { data.osu_id = undefined; }
+    if (data.id !== undefined) { data.id = undefined; }
+    if (data.known_username !== undefined) { data.known_username = undefined; }
+    if (data.roles !== undefined) { data.roles = undefined; }
+
+    //update user
+    await connection.awaitQuery(`UPDATE inspector_users SET ? WHERE osu_id = ?`, [data, user_id]);
 
     res.json({});
     await connection.end();

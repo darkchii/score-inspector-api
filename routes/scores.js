@@ -3,12 +3,20 @@ var apicache = require('apicache');
 var router = express.Router();
 const { Client } = require('pg');
 const { GetBestScores, score_columns, score_columns_full, beatmap_columns } = require('../helpers/osualt');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+
+const limiter = rateLimit({
+	windowMs: 60 * 1000, // 15 minutes
+	max: 60, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
 
 let cache = apicache.middleware;
 
 /* Get the entire list of scores of a user */
-router.get('/user/:id', cache('1 hour'), async function (req, res, next) {
+router.get('/user/:id', limiter, cache('1 hour'), async function (req, res, next) {
     const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
     await client.connect();
     const approved_query = `AND (beatmaps.approved = 1 OR beatmaps.approved = 2 ${req.query.loved === 'true' ? 'OR beatmaps.approved = 4' : ''})`;
@@ -25,7 +33,7 @@ router.get('/user/:id', cache('1 hour'), async function (req, res, next) {
 
 const valid_periods = ['all', 'year', 'month', 'week', 'day'];
 const valid_stats = ['pp', 'score'];
-router.get('/best', cache('1 hour'), async function (req, res, next) {
+router.get('/best', limiter, cache('1 hour'), async function (req, res, next) {
     const period = req.query.period || 'all';
     const stat = req.query.stat || 'pp';
     const limit = req.query.limit || 5;
@@ -57,7 +65,7 @@ router.get('/best', cache('1 hour'), async function (req, res, next) {
 const STAT_PERIODS = [
     '24h', 'all'
 ]
-router.get('/stats', cache('1 hour'), async function (req, res, next) {
+router.get('/stats', limiter, cache('1 hour'), async function (req, res, next) {
     //stats from today
     const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
     await client.connect();

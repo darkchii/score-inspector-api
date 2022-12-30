@@ -2,9 +2,17 @@ const express = require('express');
 const moment = require('moment');
 const mysql = require('mysql-await');
 var apicache = require('apicache');
+const rateLimit = require('express-rate-limit');
 
 const router = express.Router();
 let cache = apicache.middleware;
+
+const limiter = rateLimit({
+	windowMs: 60 * 1000, // 15 minutes
+	max: 60, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
 
 const connConfig = {
     host: process.env.MYSQL_HOST,
@@ -75,7 +83,7 @@ function buildQuery(req) {
     return [q, qVar];
 }
 
-router.get('/packs', cache('1 hour'), async (req, res) => {
+router.get('/packs', limiter, cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
 
     connection.on('error', (err) => {
@@ -116,7 +124,7 @@ router.get('/packs', cache('1 hour'), async (req, res) => {
     await connection.end();
 });
 
-router.get('/count', cache('1 hour'), async (req, res) => {
+router.get('/count', limiter, cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
 
     connection.on('error', (err) => {
@@ -137,7 +145,7 @@ router.get('/count', cache('1 hour'), async (req, res) => {
     await connection.end();
 });
 
-router.get('/stats', cache('1 hour'), async (req, res) => {
+router.get('/stats', limiter, cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
 
     connection.on('error', (err) => {
@@ -186,7 +194,7 @@ router.get('/stats', cache('1 hour'), async (req, res) => {
     await connection.end();
 });
 
-router.get('/all', cache('1 hour'), async (req, res) => {
+router.get('/all', limiter, cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
 
     connection.on('error', (err) => {
@@ -207,7 +215,7 @@ router.get('/all', cache('1 hour'), async (req, res) => {
     await connection.end();
 });
 
-router.get('/allsets', cache('1 hour'), async (req, res) => {
+router.get('/allsets', limiter, cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
 
     connection.on('error', (err) => {
@@ -228,7 +236,7 @@ router.get('/allsets', cache('1 hour'), async (req, res) => {
     await connection.end();
 });
 
-router.get('/monthly', cache('1 hour'), async (req, res) => {
+router.get('/monthly', limiter, cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
     const mode = req.query.mode !== undefined ? req.query.mode : 0;
 
@@ -255,7 +263,7 @@ router.get('/monthly', cache('1 hour'), async (req, res) => {
     await connection.end();
 });
 
-router.get('/yearly', cache('1 hour'), async (req, res) => {
+router.get('/yearly', limiter, cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
     const mode = req.query.mode !== undefined ? req.query.mode : 0;
 
@@ -282,7 +290,7 @@ router.get('/yearly', cache('1 hour'), async (req, res) => {
     await connection.end();
 });
 
-router.get('/:id', cache('1 hour'), async (req, res) => {
+router.get('/:id', limiter, cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
     const mode = req.query.mode !== undefined ? req.query.mode : 0;
 
@@ -299,7 +307,7 @@ router.get('/:id', cache('1 hour'), async (req, res) => {
     connection.end();
 });
 
-router.get('/:id/maxscore', cache('1 hour'), async (req, res) => {
+router.get('/:id/maxscore', limiter, cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
     const mode = req.query.mode !== undefined ? req.query.mode : 0;
 
@@ -316,7 +324,7 @@ router.get('/:id/maxscore', cache('1 hour'), async (req, res) => {
     connection.end();
 });
 
-router.get('/ranges/:format', cache('1 hour'), async (req, res) => {
+router.get('/ranges/:format', limiter, cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
 
     connection.on('error', (err) => {

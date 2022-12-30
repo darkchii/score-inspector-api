@@ -2,8 +2,16 @@ var express = require('express');
 var apicache = require('apicache');
 var router = express.Router();
 const { Client } = require('pg');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 let cache = apicache.middleware;
+
+const limiter = rateLimit({
+	windowMs: 60 * 1000, // 15 minutes
+	max: 200, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
 
 function getQuery(stat, limit, offset, country, user_id) {
     let query = '';
@@ -49,7 +57,7 @@ function getQuery(stat, limit, offset, country, user_id) {
     return [query, queryData];
 }
 
-router.get('/:stat/:user_id', cache('1 hour'), async function (req, res, next) {
+router.get('/:stat/:user_id', limiter, cache('1 hour'), async function (req, res, next) {
     try {
         let stat = req.params.stat;
         let user_id = parseInt(req.params.user_id);
@@ -70,7 +78,7 @@ router.get('/:stat/:user_id', cache('1 hour'), async function (req, res, next) {
     }
 });
 
-router.get('/:stat', cache('1 hour'), async function (req, res, next) {
+router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
     try {
         let stat = req.params.stat;
         let country = req.query.country;

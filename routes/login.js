@@ -4,6 +4,15 @@ const router = express.Router();
 const crypto = require("crypto");
 require('dotenv').config();
 const mysql = require('mysql-await');
+const rateLimit = require('express-rate-limit');
+
+const update_Limiter = rateLimit({
+	windowMs: 60 * 1000, // 15 minutes
+	max: 60, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
 // const SESSION_LENGTH = 60 * 60 * 24 * 3;
 const SESSION_DAYS = 3;
 
@@ -245,7 +254,7 @@ router.get('/visitors/:id', async (req, res, next) => {
     await connection.end();
 });
 
-router.post('/update_visitor', async (req, res, next) => {
+router.post('/update_visitor', update_Limiter, async (req, res, next) => {
     const visitor_id = req.body.visitor;
     const target_id = req.body.target;
 
@@ -285,7 +294,7 @@ router.post('/update_visitor', async (req, res, next) => {
     await connection.end();
 });
 
-router.post('/update_profile', async (req, res, next) => {
+router.post('/update_profile', update_Limiter, async (req, res, next) => {
     const user_id = req.body.user_id;
     const token = req.body.token;
     const data = req.body.data;

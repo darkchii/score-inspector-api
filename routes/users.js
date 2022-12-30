@@ -2,11 +2,19 @@ const express = require('express');
 var apicache = require('apicache');
 const { GetUser: GetOsuUser, GetDailyUser } = require('../helpers/osu');
 const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser } = require('../helpers/osualt');
+const rateLimit = require('express-rate-limit');
 
 let cache = apicache.middleware;
 const router = express.Router();
 
-router.get('/osu/:id', cache('1 hour'),  async (req, res) => {
+const limiter = rateLimit({
+	windowMs: 60 * 1000, // 15 minutes
+	max: 200, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
+router.get('/osu/:id', limiter, cache('1 hour'),  async (req, res) => {
   const mode = req.query.mode !== undefined ? req.query.mode : 0;
   let user = null;
   try {
@@ -24,7 +32,7 @@ router.get('/osu/:id', cache('1 hour'),  async (req, res) => {
   // res.json(user);
 });
 
-router.get('/daily/:id', cache('30 minutes'), async (req, res) => {
+router.get('/daily/:id', limiter, cache('30 minutes'), async (req, res) => {
   const mode = req.query.mode !== undefined ? req.query.mode : 0;
   let user = null;
   try {
@@ -38,7 +46,7 @@ router.get('/daily/:id', cache('30 minutes'), async (req, res) => {
   // res.json(user);
 });
 
-router.get('/alt/registered/:id', cache('10 minutes'), async function (req, res, next) {
+router.get('/alt/registered/:id', limiter, cache('10 minutes'), async function (req, res, next) {
   try {
     const registered = await IsRegistered(req.params.id);
     res.json(registered);
@@ -47,7 +55,7 @@ router.get('/alt/registered/:id', cache('10 minutes'), async function (req, res,
   }
 });
 
-router.get('/alt/registered', cache('10 minutes'), async function (req, res, next) {
+router.get('/alt/registered', limiter, cache('10 minutes'), async function (req, res, next) {
   try {
     const users = await GetAllUsers();
     res.json(users);
@@ -56,7 +64,7 @@ router.get('/alt/registered', cache('10 minutes'), async function (req, res, nex
   }
 });
 
-router.get('/alt/get/:id', cache('10 minutes'), async function (req, res, next) {
+router.get('/alt/get/:id', limiter, cache('10 minutes'), async function (req, res, next) {
   try {
     const user = await GetAltUser(req.params.id);
     res.json(user);
@@ -65,7 +73,7 @@ router.get('/alt/get/:id', cache('10 minutes'), async function (req, res, next) 
   }
 });
 
-router.get('/alt/find/:query', cache('10 minutes'), async function (req, res, next) {
+router.get('/alt/find/:query', limiter, cache('10 minutes'), async function (req, res, next) {
   try {
     const users = await FindUser(req.params.query, req.query.single);
     res.json(users);
@@ -74,7 +82,7 @@ router.get('/alt/find/:query', cache('10 minutes'), async function (req, res, ne
   }
 });
 
-router.get('/full/:id', cache('10 minutes'), async (req, res, next) => {
+router.get('/full/:id', limiter, cache('10 minutes'), async (req, res, next) => {
   let osuUser;
   let dailyUser;
   let altUser;

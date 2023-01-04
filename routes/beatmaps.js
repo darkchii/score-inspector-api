@@ -208,7 +208,13 @@ router.get('/all', limiter, cache('1 hour'), async (req, res) => {
     const q = _res[0];
     const qVar = _res[1];
 
-    const result = await connection.awaitQuery(`SELECT * FROM beatmap ${q}`, qVar);
+    let querySelector = `*`;
+
+    if(req.query.compact) {
+        querySelector = 'beatmap_id, beatmapset_id, artist, title, version, approved';
+    }
+
+    const result = await connection.awaitQuery(`SELECT ${querySelector} FROM beatmap ${q}`, qVar);
 
     res.json(result);
 

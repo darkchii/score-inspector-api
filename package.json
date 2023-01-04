@@ -19,6 +19,7 @@
     "moment": "^2.29.4",
     "morgan": "~1.9.1",
     "mysql-await": "^2.2.3",
-    "pg": "^8.8.0"
+    "pg": "^8.8.0",
+    "systeminformation": "^5.16.9"
   }
 }

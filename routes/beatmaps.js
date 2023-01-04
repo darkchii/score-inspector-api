@@ -23,7 +23,7 @@ const connConfig = {
 
 function buildQuery(req) {
     const mode = req.query.mode !== undefined ? req.query.mode : 0;
-    let q = `WHERE mode=? AND (approved=1 OR approved=2${(req.query.include_loved !== undefined && req.query.include_loved === 'true') ? ' OR approved=4' : ''})`;
+    let q = `WHERE mode=? AND (approved=1 OR approved=2${(req.query.include_qualified !== undefined && req.query.include_qualified === 'true') ? ' OR approved=3' : ''}${(req.query.include_loved !== undefined && req.query.include_loved === 'true') ? ' OR approved=4' : ''})`;
     const qVar = [mode];
 
     if (req.query.stars_min) {

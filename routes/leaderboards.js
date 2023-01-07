@@ -3,14 +3,16 @@ var apicache = require('apicache');
 var router = express.Router();
 const { Client } = require('pg');
 const rateLimit = require('express-rate-limit');
+const { GetUsers } = require('../helpers/osu');
+const { HasScores } = require('../helpers/osualt');
 require('dotenv').config();
 let cache = apicache.middleware;
 
 const limiter = rateLimit({
-	windowMs: 60 * 1000, // 15 minutes
-	max: 200, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
-	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    windowMs: 60 * 1000, // 15 minutes
+    max: 200, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
 function getQuery(stat, limit, offset, country, user_id) {
@@ -51,7 +53,12 @@ function getQuery(stat, limit, offset, country, user_id) {
             queryData.push(country);
         }
 
-        query = `select data.*, (select count(*) from users2 ${_where}) as total_users from (select rank, ${requiredFields}, tracked, stat from (select ${requiredFields}, tracked, stat, ROW_NUMBER() OVER(order by stat desc) as rank from (select ${requiredFields}, (select count(*)>0 from priorityuser where priorityuser.user_id = users2.user_id) as tracked, ${_stat} as stat from users2) base) r order by rank) data ${_where} limit $1 offset $2;`
+        query = `
+        select data.*, (select count(*) from users2 
+        ${_where}) as total_users 
+        from (select rank, ${requiredFields}, tracked, stat from (select ${requiredFields}, tracked, stat, ROW_NUMBER() OVER(order by stat desc) as rank from (select ${requiredFields}, 
+            (select count(*)>0 from priorityuser where priorityuser.user_id = users2.user_id) as tracked, 
+            ${_stat} as stat from users2) base) r order by rank) data ${_where} limit $1 offset $2;`
     }
 
     return [query, queryData];
@@ -87,7 +94,7 @@ router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
         if (limit > 100) limit = 100;
         if (offset < 0) offset = 0;
         offset = offset * limit;
-        const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
+        const client = new Client({ query_timeout: 10000, user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
         await client.connect();
 
         const queryInfo = getQuery(stat, limit, offset, country);
@@ -98,8 +105,21 @@ router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
         rows.forEach(row => {
             row.total_users = undefined;
         });
-
         await client.end();
+
+        try {
+            const { users } = await GetUsers(rows.map(row => row.user_id));
+            if (users) {
+                users.forEach(osu_user => {
+                    const row = rows.find(row => row.user_id === osu_user.id);
+                    row.osu_user = osu_user;
+                });
+            }
+        } catch (e) {
+            console.log(e);
+            res.json({ error: e });
+        }
+
         res.json({
             result_users: total_users,
             leaderboard: rows

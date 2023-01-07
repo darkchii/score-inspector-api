@@ -75,6 +75,18 @@ async function GetUser(username, mode = 'osu', key = 'username', timeout = 10000
     }
 }
 
+module.exports.GetUsers = GetUsers;
+async function GetUsers(id_array, timeout) {
+    const url = `https://osu.ppy.sh/api/v2/users?ids[]=${id_array.join('&ids[]=')}`;
+    // console.log(url);
+    const res = await AuthorizedApiCall(url, 'get', null, timeout);
+    try {
+        return res.data;
+    } catch (err) {
+        throw new Error('Unable to get users: ' + err.message);
+    }
+}
+
 module.exports.GetDailyUser = GetDailyUser;
 async function GetDailyUser(user_id, mode = 0, key = 'id', timeout = 1000) {
     const res = await axios.get(`https://osudaily.net/api/user.php?k=${process.env.OSUDAILY_API}&u=${user_id}&m=${mode}&min=0`, { timeout });

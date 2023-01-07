@@ -1,6 +1,6 @@
 const express = require('express');
 var apicache = require('apicache');
-const { GetUser: GetOsuUser, GetDailyUser } = require('../helpers/osu');
+const { GetUser: GetOsuUser, GetDailyUser, GetUsers } = require('../helpers/osu');
 const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser } = require('../helpers/osualt');
 const rateLimit = require('express-rate-limit');
 
@@ -14,7 +14,7 @@ const limiter = rateLimit({
 	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
-router.get('/osu/:id', limiter, cache('1 hour'),  async (req, res) => {
+router.get('/osu/id/:id', limiter, cache('1 hour'),  async (req, res) => {
   const mode = req.query.mode !== undefined ? req.query.mode : 0;
   let user = null;
   try {
@@ -30,6 +30,33 @@ router.get('/osu/:id', limiter, cache('1 hour'),  async (req, res) => {
     res.json(user);
   }
   // res.json(user);
+});
+
+router.get('/osu/ids', limiter, cache('1 hour'),  async (req, res) => {
+  const ids = req.query.id;
+  const mode = req.query.mode !== undefined ? req.query.mode : 0;
+  let data;
+  try{
+    data = await GetUsers(ids);
+  }catch(err){
+    res.json({error: 'Unable to get users'});
+    return;
+  }
+
+  let end_data = [];
+  ids.forEach(id => {
+    let user = data?.users.find(user => user.id == id);
+    if(user){
+      end_data.push(user);
+    }else{
+      end_data.push({
+        id: id,
+        error: 'Unable to get user'
+      });
+    }
+  });
+
+  res.json(end_data)
 });
 
 router.get('/daily/:id', limiter, cache('30 minutes'), async (req, res) => {

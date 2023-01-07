@@ -2,7 +2,10 @@ var express = require('express');
 var router = express.Router();
 const si = require('systeminformation');
 const mysql = require('mysql-await');
+const { IsReachable } = require('../helpers/inspector');
+var apicache = require('apicache');
 require('dotenv').config();
+let cache = apicache.middleware;
 
 const connConfig = {
     host: process.env.MYSQL_HOST,
@@ -11,7 +14,7 @@ const connConfig = {
     password: process.env.MYSQL_PASS,
 };
 
-router.get('/', async (req, res) => {
+router.get('/', cache('30 minutes'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
     connection.on('error', (err) => { });
 
@@ -44,6 +47,19 @@ router.get('/', async (req, res) => {
             },
         }
     });
+});
+
+router.get('/status/', cache('1 hour'), async (req, res) => {
+    const status = {};
+
+    //check osualt database
+    status.osualt = await IsReachable('osualt');
+    status.osuv2 = await IsReachable('osuv2');
+    status.beatmaps = await IsReachable('beatmaps');
+    status.scorerank = await IsReachable('scorerank');
+    status.osudaily = await IsReachable('osudaily');
+
+    res.json(status);
 });
 
 module.exports = router;

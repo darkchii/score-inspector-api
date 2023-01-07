@@ -24,7 +24,7 @@ async function Login(client_id, client_secret) {
     }
 }
 
-async function AuthorizedApiCall(url, type = 'get', api_version = null) {
+async function AuthorizedApiCall(url, type = 'get', api_version = null, timeout = 10000) {
     if (stored_token === null || refetch_token === null || refetch_token < Date.now()) {
         try {
             stored_token = await Login(process.env.OSU_CLIENT_ID, process.env.OSU_CLIENT_SECRET);
@@ -51,7 +51,8 @@ async function AuthorizedApiCall(url, type = 'get', api_version = null) {
     switch (type) {
         case 'get':
             res = await axios.get(url, {
-                headers
+                headers,
+                timeout
             });
             break;
         case 'post':
@@ -65,8 +66,8 @@ async function AuthorizedApiCall(url, type = 'get', api_version = null) {
 }
 
 module.exports.GetUser = GetUser;
-async function GetUser(username, mode = 'osu', key = 'username') {
-    const res = await AuthorizedApiCall(`https://osu.ppy.sh/api/v2/users/${username}/${mode}?key=${key}`);
+async function GetUser(username, mode = 'osu', key = 'username', timeout = 10000) {
+    const res = await AuthorizedApiCall(`https://osu.ppy.sh/api/v2/users/${username}/${mode}?key=${key}`, 'get', null, timeout);
     try {
         return res.data;
     } catch (err) {
@@ -75,8 +76,8 @@ async function GetUser(username, mode = 'osu', key = 'username') {
 }
 
 module.exports.GetDailyUser = GetDailyUser;
-async function GetDailyUser(user_id, mode = 0, key = 'id') {
-    const res = await axios.get(`https://osudaily.net/api/user.php?k=${process.env.OSUDAILY_API}&u=${user_id}&m=${mode}&min=0`);
+async function GetDailyUser(user_id, mode = 0, key = 'id', timeout = 1000) {
+    const res = await axios.get(`https://osudaily.net/api/user.php?k=${process.env.OSUDAILY_API}&u=${user_id}&m=${mode}&min=0`, { timeout });
     try {
         return res.data;
     } catch (err) {

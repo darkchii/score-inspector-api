@@ -1,4 +1,5 @@
 const { default: axios } = require('axios');
+const { Client } = require("pg");
 const express = require('express');
 const router = express.Router();
 const crypto = require("crypto");
@@ -7,10 +8,10 @@ const mysql = require('mysql-await');
 const rateLimit = require('express-rate-limit');
 
 const update_Limiter = rateLimit({
-	windowMs: 60 * 1000, // 15 minutes
-	max: 60, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
-	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    windowMs: 60 * 1000, // 15 minutes
+    max: 60, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
 // const SESSION_LENGTH = 60 * 60 * 24 * 3;
@@ -227,7 +228,78 @@ router.get('/get/:id', async (req, res, next) => {
     await connection.end();
 });
 
-router.get('/visitors/:id', async (req, res, next) => {
+const allowed_visitor_order_by = ['count', 'last_visit'];
+router.get('/visitors/get', async (req, res, next) => {
+    const order_by = req.query.order_by || 'count';
+    const limit = Number(req.query.limit || 10);
+
+    if (!allowed_visitor_order_by.includes(order_by)) {
+        res.status(401).json({ error: 'Invalid order_by' });
+        return;
+    }
+
+    const connection = mysql.createConnection(connConfig);
+    connection.on('error', (err) => {
+        res.json({
+            message: 'Unable to connect to database',
+            error: err,
+        });
+    });
+
+    let visitor_lbs;
+    try {
+        visitor_lbs = await connection.awaitQuery(
+            `SELECT t.* FROM 
+                (
+                    SELECT target_id as osu_id, sum(count) as count, roles, known_username, max(last_visit) as last_visit
+                    FROM inspector_visitors 
+                    LEFT JOIN inspector_users ON inspector_users.osu_id = inspector_visitors.target_id
+                    GROUP BY target_id
+                ) as t
+            ORDER BY t.${order_by} DESC
+            LIMIT ?`, [limit]);
+    } catch (err) {
+        res.json({
+            message: 'Unable to get visitors',
+            error: err,
+        });
+        return;
+    }
+
+    //attempt to get usernames for each user
+    let user_ids = visitor_lbs.map((row) => row.osu_id);
+    let data;
+    try {
+        const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
+        await client.connect();
+        // const { rows } = await client.query('SELECT count(*) FROM priorityuser WHERE user_id = $1', [id]);
+        const { rows } = await client.query(`SELECT user_id, username FROM users2 WHERE user_id IN (${user_ids.join(',')})`);
+        // const { rows } = await client.query('SELECT count(*) FROM priorityuser');
+        await client.end();
+        data = rows;
+    } catch (err) {
+        res.json({
+            message: 'Unable to get usernames',
+            error: err,
+        });
+        return;
+    }
+
+    //merge the two arrays
+    for (let i = 0; i < visitor_lbs.length; i++) {
+        if (visitor_lbs[i].known_username) continue;
+        for (let j = 0; j < data.length; j++) {
+            if (visitor_lbs[i].osu_id == data[j].user_id) {
+                visitor_lbs[i].known_username = data[j].username;
+            }
+        }
+    }
+
+    res.json(visitor_lbs);
+    await connection.end();
+});
+
+router.get('/visitors/get/:id', async (req, res, next) => {
     const user_id = req.params.id;
     const limit = req.query.limit || 10;
 

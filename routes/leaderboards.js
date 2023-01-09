@@ -5,6 +5,8 @@ const { Client } = require('pg');
 const rateLimit = require('express-rate-limit');
 const { GetUsers } = require('../helpers/osu');
 const { HasScores } = require('../helpers/osualt');
+const { GetBeatmapCount } = require('../helpers/inspector');
+const e = require('express');
 require('dotenv').config();
 let cache = apicache.middleware;
 
@@ -15,51 +17,116 @@ const limiter = rateLimit({
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
-function getQuery(stat, limit, offset, country, user_id) {
-    let query = '';
+async function checkTables(stat) {
     let _stat = 'ssh_count+ss_count';
-    let _country = '';
+    let beatmapCount = (await GetBeatmapCount()) ?? 0;
 
-    let queryData = [];
+    console.log(`${beatmapCount} beatmaps`);
 
     switch (stat) {
-        case 'pp': _stat = 'pp'; break;
+        case 'pp': _stat = 'users2.pp'; break;
         case 'ss': _stat = 'ssh_count+ss_count'; break;
         case 's': _stat = 'sh_count+s_count'; break;
         case 'a': _stat = 'a_count'; break;
+        case 'b': _stat = 'count(*) filter (where scores.rank = \'B\')'; break;
+        case 'c': _stat = 'count(*) filter (where scores.rank = \'C\')'; break;
+        case 'd': _stat = 'count(*) filter (where scores.rank = \'D\')'; break;
         case 'playcount': _stat = 'playcount'; break;
-        case 'clears': _stat = 'ssh_count+ss_count+sh_count+s_count+a_count'; break;
+        case 'clears': _stat = 'count(*)'; break;
         case 'playtime': _stat = 'playtime'; break;
         case 'followers': _stat = 'follower_count'; break;
         case 'replays_watched': _stat = 'replays_watched'; break;
         case 'ranked_score': _stat = 'ranked_score'; break;
         case 'total_score': _stat = 'total_score'; break;
+        case 'top_score': _stat = 'max(scores.score)'; break;
         case 'total_hits': _stat = 'total_hits'; break;
         case 'scores_first_count': _stat = 'scores_first_count'; break;
         case 'post_count': _stat = 'post_count'; break;
         case 'ranked_beatmapset_count': _stat = 'ranked_beatmapset_count'; break;
+        case 'total_pp': _stat = 'sum(nullif(scores.pp, \'nan\'))'; break;
+        case 'top_pp': _stat = 'max(nullif(scores.pp, \'nan\'))'; break;
+        case 'avg_pp': _stat = 'avg(nullif(scores.pp, \'nan\'))'; break;
+        case 'avg_score': _stat = 'sum(scores.score)/count(*)'; break;
+        case 'completion': _stat = `${beatmapCount > 0 ? `100.0/${beatmapCount}*count(*)` : `0`}`; break;
+        case 'avg_acc': _stat = `avg(nullif(scores.accuracy, \'nan\'))`; break;
+        case 'acc': _stat = `hit_accuracy`; break;
     }
 
-    const requiredFields = 'user_id, username, country_code'
-    if (user_id !== undefined) {
-        query = `select * from (select ${requiredFields}, stat, ROW_NUMBER() OVER (order by stat desc) as rank from (select ${requiredFields}, ${_stat} as stat from users2) base) r where user_id = $1`;
-        queryData = [user_id];
+    const base = `
+    (
+        select 
+        users2.user_id, users2.username, users2.country_code, ${_stat} as stat
+        from 
+          scores 
+          inner join beatmaps on scores.beatmap_id = beatmaps.beatmap_id 
+          inner join users2 on scores.user_id = users2.user_id 
+      GROUP BY 
+          users2.user_id
+      ) base
+    `;
+
+    return base;
+}
+
+async function checkArrays(table) {
+    const base = `
+    (
+        select 
+        users2.user_id, users2.username, users2.country_code, count(*) as stat
+        from 
+          ${table} 
+          inner join users2 on ${table}.user_id = users2.user_id 
+      GROUP BY 
+          users2.user_id
+      ) base
+    `;
+
+    return base;
+}
+
+async function getQuery(stat, limit, offset, country) {
+    let query = '';
+    let queryData = [];
+    let _where = '';
+
+    queryData = [limit, offset];
+    if (country !== undefined && country !== null) {
+        _where = `where country_code ILIKE $3`;
+        queryData.push(country);
+    }
+
+    let base;
+
+    if (stat == 'user_achievements' || stat == 'user_badges') {
+        base = await checkArrays(stat);
     } else {
-        let _where = '';
-
-        queryData = [limit, offset];
-        if (country !== undefined && country !== null) {
-            _where = `where country_code ILIKE $3`;
-            queryData.push(country);
-        }
-
-        query = `
-        select data.*, (select count(*) from users2 
-        ${_where}) as total_users 
-        from (select rank, ${requiredFields}, tracked, stat from (select ${requiredFields}, tracked, stat, ROW_NUMBER() OVER(order by stat desc) as rank from (select ${requiredFields}, 
-            (select count(*)>0 from priorityuser where priorityuser.user_id = users2.user_id) as tracked, 
-            ${_stat} as stat from users2) base) r order by rank) data ${_where} limit $1 offset $2;`
+        base = await checkTables(stat, limit, offset);
     }
+
+    query = `
+        select 
+        data.*, 
+        (
+          select 
+            count(*) 
+          from 
+            users2
+        ) as total_users 
+      from 
+        (
+          select 
+            rank, username, user_id, country_code, stat
+          from 
+            (
+              select user_id, username, country_code, stat, ROW_NUMBER() over(order by stat desc) as rank 
+              from ${base} ${_where}
+            ) r 
+          order by 
+            rank 
+          LIMIT 
+            $1 OFFSET $2
+        ) data
+        `;
 
     return [query, queryData];
 }
@@ -94,10 +161,10 @@ router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
         if (limit > 100) limit = 100;
         if (offset < 0) offset = 0;
         offset = offset * limit;
-        const client = new Client({ query_timeout: 10000, user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
+        const client = new Client({ query_timeout: 30000, user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
         await client.connect();
 
-        const queryInfo = getQuery(stat, limit, offset, country);
+        const queryInfo = await getQuery(stat, limit, offset, country);
 
         const { rows } = await client.query(queryInfo[0], queryInfo[1]);
 

@@ -3,6 +3,7 @@ const moment = require('moment');
 const mysql = require('mysql-await');
 var apicache = require('apicache');
 const rateLimit = require('express-rate-limit');
+const { buildQuery } = require('../helpers/inspector');
 
 const router = express.Router();
 let cache = apicache.middleware;
@@ -20,68 +21,6 @@ const connConfig = {
     database: process.env.MYSQL_DB,
     password: process.env.MYSQL_PASS,
 };
-
-function buildQuery(req) {
-    const mode = req.query.mode !== undefined ? req.query.mode : 0;
-    let q = `WHERE mode=? AND (approved=1 OR approved=2${(req.query.include_qualified !== undefined && req.query.include_qualified === 'true') ? ' OR approved=3' : ''}${(req.query.include_loved !== undefined && req.query.include_loved === 'true') ? ' OR approved=4' : ''})`;
-    const qVar = [mode];
-
-    if (req.query.stars_min) {
-        q += ' AND star_rating>=?';
-        qVar.push(req.query.stars_min);
-    }
-    if (req.query.stars_max) {
-        q += ' AND star_rating<?';
-        qVar.push(req.query.stars_max);
-    }
-    if (req.query.ar_min) {
-        q += ' AND ar>=?';
-        qVar.push(req.query.ar_min);
-    }
-    if (req.query.ar_max) {
-        q += ' AND ar<?';
-        qVar.push(req.query.ar_max);
-    }
-    if (req.query.od_min) {
-        q += ' AND od>=?';
-        qVar.push(req.query.od_min);
-    }
-    if (req.query.od_max) {
-        q += ' AND od<?';
-        qVar.push(req.query.od_max);
-    }
-    if (req.query.cs_min) {
-        q += ' AND cs>=?';
-        qVar.push(req.query.cs_min);
-    }
-    if (req.query.cs_max) {
-        q += ' AND cs<?';
-        qVar.push(req.query.cs_max);
-    }
-    if (req.query.hp_min) {
-        q += ' AND hp>=?';
-        qVar.push(req.query.hp_min);
-    }
-    if (req.query.hp_max) {
-        q += ' AND hp<?';
-        qVar.push(req.query.hp_max);
-    }
-    if (req.query.length_min) {
-        q += ' AND total_length>=?';
-        qVar.push(req.query.length_min);
-    }
-    if (req.query.length_max) {
-        q += ' AND total_length<?';
-        qVar.push(req.query.length_max);
-    }
-    if (req.query.pack) {
-        q += ` AND 
-      (packs LIKE '${req.query.pack},%' or packs LIKE '%,${req.query.pack},%' or packs LIKE '%,${req.query.pack}' or packs = '${req.query.pack}')
-    `;
-    }
-
-    return [q, qVar];
-}
 
 router.get('/packs', limiter, cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);

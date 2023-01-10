@@ -7,6 +7,7 @@ const { GetUsers } = require('../helpers/osu');
 const { HasScores } = require('../helpers/osualt');
 const { GetBeatmapCount } = require('../helpers/inspector');
 const e = require('express');
+const { parse } = require('../helpers/misc');
 require('dotenv').config();
 let cache = apicache.middleware;
 
@@ -17,49 +18,14 @@ const limiter = rateLimit({
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
-async function checkTables(stat) {
-    let _stat = 'ssh_count+ss_count';
-    let beatmapCount = (await GetBeatmapCount()) ?? 0;
-
-    console.log(`${beatmapCount} beatmaps`);
-
-    switch (stat) {
-        case 'pp': _stat = 'users2.pp'; break;
-        case 'ss': _stat = 'ssh_count+ss_count'; break;
-        case 's': _stat = 'sh_count+s_count'; break;
-        case 'a': _stat = 'a_count'; break;
-        case 'b': _stat = 'count(*) filter (where scores.rank = \'B\')'; break;
-        case 'c': _stat = 'count(*) filter (where scores.rank = \'C\')'; break;
-        case 'd': _stat = 'count(*) filter (where scores.rank = \'D\')'; break;
-        case 'playcount': _stat = 'playcount'; break;
-        case 'clears': _stat = 'count(*)'; break;
-        case 'playtime': _stat = 'playtime'; break;
-        case 'followers': _stat = 'follower_count'; break;
-        case 'replays_watched': _stat = 'replays_watched'; break;
-        case 'ranked_score': _stat = 'ranked_score'; break;
-        case 'total_score': _stat = 'total_score'; break;
-        case 'top_score': _stat = 'max(scores.score)'; break;
-        case 'total_hits': _stat = 'total_hits'; break;
-        case 'scores_first_count': _stat = 'scores_first_count'; break;
-        case 'post_count': _stat = 'post_count'; break;
-        case 'ranked_beatmapset_count': _stat = 'ranked_beatmapset_count'; break;
-        case 'total_pp': _stat = 'sum(nullif(scores.pp, \'nan\'))'; break;
-        case 'top_pp': _stat = 'max(nullif(scores.pp, \'nan\'))'; break;
-        case 'avg_pp': _stat = 'avg(nullif(scores.pp, \'nan\'))'; break;
-        case 'avg_score': _stat = 'sum(scores.score)/count(*)'; break;
-        case 'completion': _stat = `${beatmapCount > 0 ? `100.0/${beatmapCount}*count(*)` : `0`}`; break;
-        case 'avg_acc': _stat = `avg(nullif(scores.accuracy, \'nan\'))`; break;
-        case 'acc': _stat = `hit_accuracy`; break;
-    }
-
+async function checkTables(stat, tableType) {
     const base = `
     (
         select 
-        users2.user_id, users2.username, users2.country_code, ${_stat} as stat
-        from 
-          scores 
-          inner join beatmaps on scores.beatmap_id = beatmaps.beatmap_id 
-          inner join users2 on scores.user_id = users2.user_id 
+        users2.user_id, users2.username, users2.country_code, ${tableType === 'array_table' ? 'count(*)' : stat} as stat
+        ${tableType === 'scores' ? `from scores inner join beatmaps on scores.beatmap_id = beatmaps.beatmap_id inner join users2 on scores.user_id = users2.user_id` : ``}
+        ${tableType === 'user' ? `from users2` : ``}
+        ${tableType === 'array_table' ? `from ${stat} inner join users2 on ${stat}.user_id = users2.user_id` : ``}
       GROUP BY 
           users2.user_id
       ) base
@@ -68,26 +34,44 @@ async function checkTables(stat) {
     return base;
 }
 
-async function checkArrays(table) {
-    const base = `
-    (
-        select 
-        users2.user_id, users2.username, users2.country_code, count(*) as stat
-        from 
-          ${table} 
-          inner join users2 on ${table}.user_id = users2.user_id 
-      GROUP BY 
-          users2.user_id
-      ) base
-    `;
-
-    return base;
+const STAT_DATA = { //table decides which 'check' function will be used
+    'pp': { query: 'users2.pp', table: 'user' },
+    'ss': { query: 'ssh_count+ss_count', table: 'user' },
+    's': { query: 'sh_count+s_count', table: 'user' },
+    'a': { query: 'a_count', table: 'user' },
+    'b': { query: 'count(*) filter (where scores.rank = \'B\')', table: 'scores' },
+    'c': { query: 'count(*) filter (where scores.rank = \'C\')', table: 'scores' },
+    'd': { query: 'count(*) filter (where scores.rank = \'D\')', table: 'scores' },
+    'playcount': { query: 'playcount', table: 'user' },
+    'clears': { query: 'count(*)', table: 'scores' },
+    'playtime': { query: 'playtime', table: 'user' },
+    'followers': { query: 'followers', table: 'user' },
+    'replays_watched': { query: 'replays_watched', table: 'user' },
+    'ranked_score': { query: 'ranked_score', table: 'user' },
+    'total_score': { query: 'total_score', table: 'user' },
+    'ss_score': { query: 'sum(case when scores.rank = \'X\' or scores.rank = \'XH\' then scores.score else 0 end)', table: 'scores' },
+    'top_score': { query: 'max(scores.score)', table: 'scores' },
+    'total_hits': { query: 'total_hits', table: 'user' },
+    'scores_first_count': { query: 'scores_first_count', table: 'user' },
+    'post_count': { query: 'post_count', table: 'user' },
+    'ranked_beatmapset_count': { query: 'ranked_beatmapset_count', table: 'user' },
+    'total_pp': { query: 'sum(nullif(scores.pp, \'nan\'))', table: 'scores' },
+    'top_pp': { query: 'max(nullif(scores.pp, \'nan\'))', table: 'scores' },
+    'avg_pp': { query: 'avg(nullif(scores.pp, \'nan\'))', table: 'scores' },
+    'avg_score': { query: 'avg(scores.score)', table: 'scores' },
+    'completion': { query: '100.0/%s*count(*)', table: 'scores' },
+    'avg_acc': { query: 'avg(nullif(scores.accuracy, \'nan\'))', table: 'scores' },
+    'acc': { query: 'hit_accuracy', table: 'user' },
+    'user_achievements': { query: 'user_achievements', table: 'array_table', isArray: true },
+    'user_medals': { query: 'user_badges', table: 'array_table', isArray: true },
 }
 
 async function getQuery(stat, limit, offset, country) {
+    let selectedStat = null;
     let query = '';
     let queryData = [];
     let _where = '';
+    let beatmapCount = (await GetBeatmapCount()) ?? 0;
 
     queryData = [limit, offset];
     if (country !== undefined && country !== null) {
@@ -95,13 +79,16 @@ async function getQuery(stat, limit, offset, country) {
         queryData.push(country);
     }
 
-    let base;
-
-    if (stat == 'user_achievements' || stat == 'user_badges') {
-        base = await checkArrays(stat);
-    } else {
-        base = await checkTables(stat, limit, offset);
+    if (STAT_DATA[stat] !== undefined) {
+        selectedStat = STAT_DATA[stat];
     }
+
+    if (!selectedStat) {
+        return null;
+    }
+
+    const _stat = parse(selectedStat.query, beatmapCount);
+    let base = await checkTables(_stat, selectedStat.table);
 
     query = `
         select 

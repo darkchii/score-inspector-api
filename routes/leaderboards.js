@@ -34,6 +34,8 @@ async function checkTables(stat, tableType) {
     return base;
 }
 
+const FC_FILTER = '(countmiss = 0 and (maxcombo - combo) <= scores.count100 or rank like \'%X%\')';
+
 const STAT_DATA = { //table decides which 'check' function will be used
     'pp': { query: 'users2.pp', table: 'user' },
     'ss': { query: 'ssh_count+ss_count', table: 'user' },
@@ -44,12 +46,15 @@ const STAT_DATA = { //table decides which 'check' function will be used
     'd': { query: 'count(*) filter (where scores.rank = \'D\')', table: 'scores' },
     'playcount': { query: 'playcount', table: 'user' },
     'clears': { query: 'count(*)', table: 'scores' },
+    'fc_clears': { query: `count(*) filter (where ${FC_FILTER})`, table: 'scores' },
     'playtime': { query: 'playtime', table: 'user' },
     'followers': { query: 'followers', table: 'user' },
     'replays_watched': { query: 'replays_watched', table: 'user' },
     'ranked_score': { query: 'ranked_score', table: 'user' },
     'total_score': { query: 'total_score', table: 'user' },
     'ss_score': { query: 'sum(case when scores.rank = \'X\' or scores.rank = \'XH\' then scores.score else 0 end)', table: 'scores' },
+    'fc_score': { query: `sum(case when ${FC_FILTER} then scores.score else 0 end)`, table: 'scores' },
+    'as_one_map': { query: 'round(pow(avg(scores.combo)*pow(avg(beatmaps.maxcombo),-1)*0.7*sum(scores.count300+scores.count100+scores.count50+scores.countmiss)+sum(scores.count300+scores.count100*0.3333+scores.count50*0.1667)*0.3,2)*36)', table: 'scores' },
     'top_score': { query: 'max(scores.score)', table: 'scores' },
     'total_hits': { query: 'total_hits', table: 'user' },
     'scores_first_count': { query: 'scores_first_count', table: 'user' },
@@ -152,6 +157,10 @@ router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
         await client.connect();
 
         const queryInfo = await getQuery(stat, limit, offset, country);
+        if (!queryInfo) {
+            res.status(400).send('Invalid stat');
+            return;
+        }
 
         const { rows } = await client.query(queryInfo[0], queryInfo[1]);
 

@@ -114,4 +114,28 @@ router.get('/stats', limiter, cache('1 hour'), async function (req, res, next) {
     res.json(_res);
 });
 
+router.get('/most_played', limiter, cache('1 hour'), async function (req, res, next) {
+    const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
+    await client.connect();
+
+    const limit = req.params.limit || 10;
+    const offset = req.params.offset || 0;
+
+    const query = `
+        SELECT t.* FROM 
+        (
+            SELECT count(*), beatmaps.* 
+            FROM scores LEFT JOIN beatmaps ON scores.beatmap_id = beatmaps.beatmap_id 
+            WHERE (beatmaps.approved = 1 OR beatmaps.approved = 2 OR beatmaps.approved = 4) 
+            GROUP BY beatmaps.beatmap_id 
+            ORDER BY count(*) DESC
+        ) as t 
+        LIMIT ${limit} 
+        OFFSET ${offset}`;
+
+    const { rows } = await client.query(query);
+    await client.end();
+    res.json(rows);
+});
+
 module.exports = router;

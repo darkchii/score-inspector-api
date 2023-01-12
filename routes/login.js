@@ -415,4 +415,91 @@ router.post('/update_profile', update_Limiter, async (req, res, next) => {
     await connection.end();
 });
 
+router.post('/comments/send', async (req, res, next) => {
+    const token = req.body.token;
+    const sender = req.body.sender;
+    const recipient = req.body.recipient;
+    const comment = req.body.comment;
+    const reply_to = req.body.reply_to || -1;
+
+    if (sender == null || recipient == null || token == null || comment == null) {
+        res.status(401).json({ error: 'Invalid data' });
+        return;
+    }
+
+    const connection = mysql.createConnection(connConfig);
+    //check if token is valid
+    let result = await connection.awaitQuery(`SELECT * FROM inspector_tokens WHERE token = ? AND osu_id = ? AND date_created>subdate(current_date, ${SESSION_DAYS})`, [token, sender]);
+    if (result.length === 0) {
+        res.status(401).json({ error: 'Invalid token' });
+        await connection.end();
+        return;
+    }
+
+    // create comment
+    try {
+        await connection.awaitQuery(`INSERT INTO inspector_comments (commentor_id, target_id, date_created, reply_to, comment) VALUES (?,?,?,?,?)`, [sender, recipient, new Date(), reply_to, comment]);
+    } catch (err) {
+        res.status(401).json({ error: 'Unknown failure' });
+        await connection.end();
+        return;
+    }
+
+    res.json({});
+    await connection.end();
+});
+
+router.get('/comments/get/:id', async (req, res, next) => {
+    const user_id = req.params.id;
+
+    if (user_id == null) {
+        res.status(401).json({ error: 'Invalid user ID' });
+        return;
+    }
+
+    const connection = mysql.createConnection(connConfig);
+    connection.on('error', (err) => {
+        res.json({
+            message: 'Unable to connect to database',
+            error: err,
+        });
+    });
+
+    let result = await connection.awaitQuery(`
+        SELECT a.id, commentor_id, target_id, date_created,reply_to, comment, osu_id, known_username, background_image, roles FROM inspector_comments a
+        LEFT JOIN inspector_users b ON a.commentor_id = b.osu_id
+        WHERE target_id = ? ORDER BY date_created DESC
+    `, [user_id]);
+
+    res.json(result);
+    await connection.end();
+});
+
+router.post('/comments/delete', async (req, res, next) => {
+    const id = req.body.comment_id;
+    const token = req.body.token;
+    const user_id = req.body.deleter_id;
+
+    if (user_id == null || token == null || id == null) {
+        res.status(401).json({ error: 'Invalid data' });
+        return;
+    }
+
+    const connection = mysql.createConnection(connConfig);
+
+    //check if token is valid
+    let result = await connection.awaitQuery(`SELECT * FROM inspector_tokens WHERE token = ? AND osu_id = ? AND date_created>subdate(current_date, ${SESSION_DAYS})`, [token, user_id]);
+    if (result.length === 0) {
+        res.status(401).json({ error: 'Invalid token' });
+        await connection.end();
+        return;
+    }
+
+    //delete comment
+    const data = await connection.awaitQuery(`DELETE FROM inspector_comments WHERE id = ? AND commentor_id = ?`, [id, user_id]);
+    console.log(req.body);
+    res.json({});
+    await connection.end();
+});
+
 module.exports = router;

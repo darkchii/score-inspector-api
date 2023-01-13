@@ -60,7 +60,7 @@ const STAT_DATA = { //table decides which 'check' function will be used
     'clears': { query: 'count(*)', table: 'scores' },
     'fc_clears': { query: `count(*) filter (where ${FC_FILTER})`, table: 'scores' },
     'playtime': { query: 'playtime', table: 'user' },
-    'followers': { query: 'followers', table: 'user' },
+    'followers': { query: 'follower_count', table: 'user' },
     'replays_watched': { query: 'replays_watched', table: 'user' },
     'ranked_score': { query: 'ranked_score', table: 'user' },
     'total_score': { query: 'total_score', table: 'user' },

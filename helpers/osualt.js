@@ -144,14 +144,16 @@ async function GetUser(id) {
             SELECT *,
                 ARRAY(SELECT beatmap_id FROM unique_ss WHERE user_id=$1) as unique_ss,
                 ARRAY(SELECT beatmap_id FROM unique_fc WHERE user_id=$1) as unique_fc,
-                ARRAY(SELECT beatmap_id FROM unique_dt_fc WHERE user_id=$1) as unique_dt_fc
+                ARRAY(SELECT beatmap_id FROM unique_dt_fc WHERE user_id=$1) as unique_dt_fc,
+                ARRAY(SELECT json_build_object(achievement_id, achieved_at) FROM user_achievements WHERE user_id=$1) as medals
             FROM users2
             WHERE users2.user_id=$1
             `, [id]);
-            await client.end();
         if (users.length > 0) {
             data = users[0];
+            await client.end();
         } else {
+            await client.end();
             throw new Error('User not found');
         }
     } catch (err) {

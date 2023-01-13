@@ -5,3 +5,8 @@ function parse(str) {
 
     return str.replace(/%s/g, () => args[i++]);
 }
+
+module.exports.range = range;
+function range(size, startAt = 0) {
+    return [...Array(size).keys()].map(i => i + startAt);
+}

@@ -140,10 +140,17 @@ async function GetUser(id) {
     try {
         const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
         await client.connect();
-        const { rows } = await client.query(`SELECT * FROM users2 WHERE user_id=$1`, [id]);
-        await client.end();
-        if (rows.length > 0) {
-            data = rows[0];
+        const { rows: users } = await client.query(`
+            SELECT *,
+                ARRAY(SELECT beatmap_id FROM unique_ss WHERE user_id=$1) as unique_ss,
+                ARRAY(SELECT beatmap_id FROM unique_fc WHERE user_id=$1) as unique_fc,
+                ARRAY(SELECT beatmap_id FROM unique_dt_fc WHERE user_id=$1) as unique_dt_fc
+            FROM users2
+            WHERE users2.user_id=$1
+            `, [id]);
+            await client.end();
+        if (users.length > 0) {
+            data = users[0];
         } else {
             throw new Error('User not found');
         }

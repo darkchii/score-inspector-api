@@ -18,18 +18,30 @@ const limiter = rateLimit({
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
-async function checkTables(stat, tableType) {
+async function checkTables(stat, tableType, scoreFilter = null) {
     const base = `
     (
         select 
         users2.user_id, users2.username, users2.country_code, ${tableType === 'array_table' ? 'count(*)' : stat} as stat
-        ${tableType === 'scores' ? `from scores inner join beatmaps on scores.beatmap_id = beatmaps.beatmap_id inner join users2 on scores.user_id = users2.user_id` : ``}
-        ${tableType === 'user' ? `from users2` : ``}
-        ${tableType === 'array_table' ? `from ${stat} inner join users2 on ${stat}.user_id = users2.user_id` : ``}
+        ${tableType === 'scores' ? `
+            FROM scores 
+            INNER JOIN beatmaps ON scores.beatmap_id = beatmaps.beatmap_id 
+            INNER JOIN users2 ON scores.user_id = users2.user_id` : ``}
+        ${tableType === 'user' ? `
+            FROM users2` : ``}
+        ${tableType === 'array_table' ? `
+            FROM ${stat} 
+            INNER JOIN scores ON (
+                scores.beatmap_id = ${stat}.beatmap_id AND 
+                scores.user_id = ${stat}.user_id 
+                ${scoreFilter !== null ? ` AND ${scoreFilter}` : ''}
+                )
+            INNER JOIN users2 ON ${stat}.user_id = users2.user_id` : ``}
       GROUP BY 
           users2.user_id
       ) base
     `;
+    console.log(base);
 
     return base;
 }
@@ -69,6 +81,10 @@ const STAT_DATA = { //table decides which 'check' function will be used
     'acc': { query: 'hit_accuracy', table: 'user' },
     'user_achievements': { query: 'user_achievements', table: 'array_table', isArray: true },
     'user_medals': { query: 'user_badges', table: 'array_table', isArray: true },
+    'unique_ss': { query: 'unique_ss', table: 'array_table', isArray: true },
+    'unique_fc': { query: 'unique_fc', table: 'array_table', isArray: true },
+    'unique_dt_fc': { query: 'unique_dt_fc', table: 'array_table', isArray: true },
+    'unique_hd_ss': { query: 'unique_ss', table: 'array_table', scoreFilter: 'is_hd = true', isArray: true },
 }
 
 async function getQuery(stat, limit, offset, country) {
@@ -93,7 +109,7 @@ async function getQuery(stat, limit, offset, country) {
     }
 
     const _stat = parse(selectedStat.query, beatmapCount);
-    let base = await checkTables(_stat, selectedStat.table);
+    let base = await checkTables(_stat, selectedStat.table, selectedStat.scoreFilter ?? null);
 
     query = `
         select 
@@ -103,6 +119,7 @@ async function getQuery(stat, limit, offset, country) {
             count(*) 
           from 
             users2
+            ${_where}
         ) as total_users 
       from 
         (

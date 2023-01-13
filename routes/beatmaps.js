@@ -9,10 +9,10 @@ const router = express.Router();
 let cache = apicache.middleware;
 
 const limiter = rateLimit({
-	windowMs: 60 * 1000, // 15 minutes
-	max: 60, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
-	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    windowMs: 60 * 1000, // 15 minutes
+    max: 60, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
 const connConfig = {
@@ -149,7 +149,7 @@ router.get('/all', limiter, cache('1 hour'), async (req, res) => {
 
     let querySelector = `*`;
 
-    if(req.query.compact) {
+    if (req.query.compact) {
         querySelector = 'beatmap_id, beatmapset_id, artist, title, version, approved';
     }
 
@@ -201,8 +201,9 @@ router.get('/monthly', limiter, cache('1 hour'), async (req, res) => {
         months.push(moment(m));
     }
 
-    const result = await connection.awaitQuery('SELECT MONTH(approved_date) as month, YEAR(approved_date) as year, SUM(total_length) as length, SUM(max_score) as score, COUNT(*) as amount FROM beatmap WHERE mode=? AND (approved=1 OR approved=2) GROUP BY YEAR(approved_date), MONTH(approved_date)', [mode]);
-
+    const query = 'SELECT MONTH(approved_date) as month, YEAR(approved_date) as year, SUM(total_length) as length, SUM(max_score) as score, COUNT(*) as amount FROM beatmap WHERE mode=? AND (approved=1 OR approved=2 ' + (req.query.loved === 'true' ? 'OR approved=4' : '') + ') GROUP BY YEAR(approved_date), MONTH(approved_date)';
+    const result = await connection.awaitQuery(query, [mode]);
+    console.log(query);
     res.json(result);
 
     await connection.end();

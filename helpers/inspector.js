@@ -13,65 +13,95 @@ const connConfig = {
 
 module.exports.buildQuery = buildQuery;
 function buildQuery(req) {
-    const mode = req.query.mode !== undefined ? req.query.mode : 0;
-    let q = `WHERE mode=? AND (approved=1 OR approved=2${(req.query.include_qualified !== undefined && req.query.include_qualified === 'true') ? ' OR approved=3' : ''}${(req.query.include_loved !== undefined && req.query.include_loved === 'true') ? ' OR approved=4' : ''})`;
+    const mode = req.mode !== undefined ? req.mode : 0;
+    let q = `WHERE mode=? AND (approved=1 OR approved=2${(req.include_qualified !== undefined && req.include_qualified === 'true') ? ' OR approved=3' : ''}${(req.include_loved !== undefined && req.include_loved === 'true') ? ' OR approved=4' : ''})`;
     const qVar = [mode];
 
-    if (req.query.stars_min) {
+    if (req.stars_min) {
         q += ' AND star_rating>=?';
-        qVar.push(req.query.stars_min);
+        qVar.push(req.stars_min);
     }
-    if (req.query.stars_max) {
+    if (req.stars_max) {
         q += ' AND star_rating<?';
-        qVar.push(req.query.stars_max);
+        qVar.push(req.stars_max);
     }
-    if (req.query.ar_min) {
+    if (req.ar_min) {
         q += ' AND ar>=?';
-        qVar.push(req.query.ar_min);
+        qVar.push(req.ar_min);
     }
-    if (req.query.ar_max) {
+    if (req.ar_max) {
         q += ' AND ar<?';
-        qVar.push(req.query.ar_max);
+        qVar.push(req.ar_max);
     }
-    if (req.query.od_min) {
+    if (req.od_min) {
         q += ' AND od>=?';
-        qVar.push(req.query.od_min);
+        qVar.push(req.od_min);
     }
-    if (req.query.od_max) {
+    if (req.od_max) {
         q += ' AND od<?';
-        qVar.push(req.query.od_max);
+        qVar.push(req.od_max);
     }
-    if (req.query.cs_min) {
+    if (req.cs_min) {
         q += ' AND cs>=?';
-        qVar.push(req.query.cs_min);
+        qVar.push(req.cs_min);
     }
-    if (req.query.cs_max) {
+    if (req.cs_max) {
         q += ' AND cs<?';
-        qVar.push(req.query.cs_max);
+        qVar.push(req.cs_max);
     }
-    if (req.query.hp_min) {
+    if (req.hp_min) {
         q += ' AND hp>=?';
-        qVar.push(req.query.hp_min);
+        qVar.push(req.hp_min);
     }
-    if (req.query.hp_max) {
+    if (req.hp_max) {
         q += ' AND hp<?';
-        qVar.push(req.query.hp_max);
+        qVar.push(req.hp_max);
     }
-    if (req.query.length_min) {
+    if (req.length_min) {
         q += ' AND total_length>=?';
-        qVar.push(req.query.length_min);
+        qVar.push(req.length_min);
     }
-    if (req.query.length_max) {
+    if (req.length_max) {
         q += ' AND total_length<?';
-        qVar.push(req.query.length_max);
+        qVar.push(req.length_max);
     }
-    if (req.query.pack) {
+    if (req.pack) {
         q += ` AND 
-      (packs LIKE '${req.query.pack},%' or packs LIKE '%,${req.query.pack},%' or packs LIKE '%,${req.query.pack}' or packs = '${req.query.pack}')
+      (packs LIKE '${req.pack},%' or packs LIKE '%,${req.pack},%' or packs LIKE '%,${req.pack}' or packs = '${req.pack}')
     `;
+    }
+    if (req.id) {
+        const id_arr = req.id;
+        if (id_arr.length > 0) {
+            q += ' AND beatmap_id IN (';
+            for (let i = 0; i < id_arr.length; i++) {
+                if (i > 0) q += ',';
+                q += '?';
+                qVar.push(id_arr[i]);
+            }
+            q += ')';
+        }
     }
 
     return [q, qVar];
+}
+
+module.exports.getBeatmaps = getBeatmaps;
+async function getBeatmaps(req) {
+    const connection = mysql.createConnection(connConfig);
+    const _res = buildQuery(req);
+    const q = _res[0];
+    const qVar = _res[1];
+
+    let querySelector = `*`;
+
+    if (req.compact) {
+        querySelector = 'beatmap_id, beatmapset_id, artist, title, version, approved';
+    }
+
+    const result = await connection.awaitQuery(`SELECT ${querySelector} FROM beatmap ${q}`, qVar);
+    await connection.end();
+    return result;
 }
 
 module.exports.IsReachable = IsReachable;
@@ -80,16 +110,16 @@ async function IsReachable(endpoint) {
 
     switch (endpoint) {
         case 'osudaily':
-            try{
+            try {
                 const data = await GetDailyUser(10153735, 0, 'id', 1000);
                 if (data?.osu_id == 10153735) reachable = true;
-            }catch(e){}
+            } catch (e) { }
             break;
         case 'scorerank':
-            try{
+            try {
                 const data = await axios.get('https://score.respektive.pw/u/10153735', { timeout: 1000 });
                 if (data?.data?.[0] !== null) reachable = true;
-            }catch(e) {}
+            } catch (e) { }
             break;
         case 'beatmaps':
             try {
@@ -130,7 +160,7 @@ async function IsReachable(endpoint) {
 }
 
 module.exports.GetBeatmapCount = GetBeatmapCount;
-async function GetBeatmapCount(loved = true){
+async function GetBeatmapCount(loved = true) {
     let req = {
         query: {}
     };

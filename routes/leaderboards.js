@@ -5,7 +5,7 @@ const { Client } = require('pg');
 const rateLimit = require('express-rate-limit');
 const { GetUsers } = require('../helpers/osu');
 const { HasScores } = require('../helpers/osualt');
-const { GetBeatmapCount } = require('../helpers/inspector');
+const { GetBeatmapCount, getBeatmaps } = require('../helpers/inspector');
 const e = require('express');
 const { parse } = require('../helpers/misc');
 require('dotenv').config();
@@ -18,31 +18,28 @@ const limiter = rateLimit({
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
-async function checkTables(stat, tableType, scoreFilter = null) {
+async function checkTables(stat, tableType, scoreFilter = null, isBeatmapResult = false, country = false) {
     const base = `
     (
         select 
-        users2.user_id, users2.username, users2.country_code, ${tableType === 'array_table' ? 'count(*)' : stat} as stat
-        ${tableType === 'scores' ? `
+        ${isBeatmapResult ? `beatmaps.beatmap_id, beatmaps.mode, beatmaps.approved` : `users2.user_id, users2.username`}${country ? ', country_code' : ''}, 
+            ${tableType === 'array_table' ? 'count(*)' : stat} as stat
+        ${!isBeatmapResult && tableType === 'scores' ? `
             FROM scores 
             INNER JOIN beatmaps ON scores.beatmap_id = beatmaps.beatmap_id 
             INNER JOIN users2 ON scores.user_id = users2.user_id` : ``}
-        ${tableType === 'user' ? `
+        ${!isBeatmapResult && tableType === 'user' ? `
             FROM users2` : ``}
         ${tableType === 'array_table' ? `
             FROM ${stat} 
-            INNER JOIN scores ON (
-                scores.beatmap_id = ${stat}.beatmap_id AND 
-                scores.user_id = ${stat}.user_id 
-                ${scoreFilter !== null ? ` AND ${scoreFilter}` : ''}
-                )
-            INNER JOIN users2 ON ${stat}.user_id = users2.user_id` : ``}
+            INNER JOIN scores ON scores.beatmap_id = ${stat}.beatmap_id 
+            INNER JOIN users2 ON scores.user_id = users2.user_id
+            ${scoreFilter !== null ? `WHERE ${scoreFilter}` : ''}`
+            : ``}
       GROUP BY 
-          users2.user_id
+          ${isBeatmapResult ? 'beatmaps.beatmap_id' : 'users2.user_id'}${country ? ', country_code' : ''}
       ) base
     `;
-    console.log(base);
-
     return base;
 }
 
@@ -85,10 +82,11 @@ const STAT_DATA = { //table decides which 'check' function will be used
     'unique_fc': { query: 'unique_fc', table: 'array_table', isArray: true },
     'unique_dt_fc': { query: 'unique_dt_fc', table: 'array_table', isArray: true },
     'unique_hd_ss': { query: 'unique_ss', table: 'array_table', scoreFilter: 'is_hd = true', isArray: true },
+    'most_played': { query: 'beatmaps', table: 'array_table', scoreFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
+    'most_played_loved': { query: 'beatmaps', table: 'array_table', scoreFilter: 'mode = 0 AND approved in (4)', isArray: false, isBeatmaps: true },
 }
 
-async function getQuery(stat, limit, offset, country) {
-    let selectedStat = null;
+async function getQueryUserData(stat, limit, offset, country) {
     let query = '';
     let queryData = [];
     let _where = '';
@@ -100,16 +98,8 @@ async function getQuery(stat, limit, offset, country) {
         queryData.push(country);
     }
 
-    if (STAT_DATA[stat] !== undefined) {
-        selectedStat = STAT_DATA[stat];
-    }
-
-    if (!selectedStat) {
-        return null;
-    }
-
-    const _stat = parse(selectedStat.query, beatmapCount);
-    let base = await checkTables(_stat, selectedStat.table, selectedStat.scoreFilter ?? null);
+    const _stat = parse(stat.query, beatmapCount);
+    let base = await checkTables(_stat, stat.table, stat.scoreFilter ?? null, false, country !== undefined);
 
     query = `
         select 
@@ -124,10 +114,10 @@ async function getQuery(stat, limit, offset, country) {
       from 
         (
           select 
-            rank, username, user_id, country_code, stat
+            rank, username, user_id${country !== undefined ? ', country_code' : ''}, stat
           from 
             (
-              select user_id, username, country_code, stat, ROW_NUMBER() over(order by stat desc) as rank 
+              select user_id, username${country !== undefined ? ', country_code' : ''}, stat, ROW_NUMBER() over(order by stat desc) as rank 
               from ${base} ${_where}
             ) r 
           order by 
@@ -136,8 +126,63 @@ async function getQuery(stat, limit, offset, country) {
             $1 OFFSET $2
         ) data
         `;
+    return [query, queryData, 'users'];
+}
 
-    return [query, queryData];
+async function getQueryBeatmapData(stat, limit, offset, country) {
+    let query = '';
+    let queryData = [];
+    let _where = '';
+
+    queryData = [limit, offset];
+    if (country !== undefined && country !== null) {
+        _where = `where country_code ILIKE $3`;
+        queryData.push(country);
+    }
+
+    if (stat.scoreFilter) {
+        _where += `${_where.length === 0 ? 'where ' : ' and '}${stat.scoreFilter}`;
+    }
+
+    const _stat = parse(stat.query);
+    let base = await checkTables(_stat, stat.table, stat.scoreFilter ?? null, true, country !== undefined);
+
+    query = `
+          select 
+            rank, beatmap_id, stat, count(*) OVER() as total_users
+          from 
+            (
+              select beatmap_id, stat, ROW_NUMBER() over(order by stat desc) as rank${country !== undefined ? ', country_code' : ''}
+              from ${base} ${_where}
+            ) r 
+          order by 
+            rank 
+          LIMIT 
+            $1 OFFSET $2
+    `;
+
+    return [query, queryData, 'beatmaps'];
+}
+
+async function getQuery(stat, limit, offset, country) {
+    let selectedStat = null;
+    if (STAT_DATA[stat] !== undefined) {
+        selectedStat = STAT_DATA[stat];
+    }
+
+    if (!selectedStat) {
+        return null;
+    }
+
+    if (country?.toLowerCase() === 'world') {
+        country = undefined;
+    }
+
+    if (!selectedStat.isBeatmaps) {
+        return await getQueryUserData(selectedStat, limit, offset, country);
+    } else {
+        return await getQueryBeatmapData(selectedStat, limit, offset, country);
+    }
 }
 
 router.get('/:stat/:user_id', limiter, cache('1 hour'), async function (req, res, next) {
@@ -187,24 +232,41 @@ router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
         });
         await client.end();
 
-        try {
-            const { users } = await GetUsers(rows.map(row => row.user_id));
-            if (users) {
-                users.forEach(osu_user => {
-                    const row = rows.find(row => row.user_id === osu_user.id);
-                    row.osu_user = osu_user;
-                });
+        if (queryInfo[2] === 'users') {
+            try {
+                const { users } = await GetUsers(rows.map(row => row.user_id));
+                if (users) {
+                    users.forEach(osu_user => {
+                        const row = rows.find(row => row.user_id === osu_user.id);
+                        row.osu_user = osu_user;
+                    });
+                }
+            } catch (e) {
+                console.log(e);
             }
-        } catch (e) {
-            console.log(e);
-            res.json({ error: e });
+        }
+        if (queryInfo[2] === 'beatmaps') {
+            //beatmap data
+            try {
+                const beatmaps = [...await getBeatmaps({ id: rows.map(row => row.beatmap_id), include_loved: 'true', include_qualified: 'true' })];
+                if (beatmaps) {
+                    beatmaps.forEach(osu_beatmap => {
+                        const row = rows.find(row => row.beatmap_id == osu_beatmap.beatmap_id);
+                        row.osu_beatmap = osu_beatmap;
+                    });
+                }
+            } catch (e) {
+                console.log(e);
+            }
         }
 
         res.json({
-            result_users: total_users,
+            result_count: total_users,
+            result_type: queryInfo[2],
             leaderboard: rows
         });
     } catch (e) {
+        console.error(e);
         res.json({ error: e.message });
     }
 });

@@ -3,7 +3,7 @@ const moment = require('moment');
 const mysql = require('mysql-await');
 var apicache = require('apicache');
 const rateLimit = require('express-rate-limit');
-const { buildQuery } = require('../helpers/inspector');
+const { buildQuery, getBeatmaps } = require('../helpers/inspector');
 
 const router = express.Router();
 let cache = apicache.middleware;
@@ -134,30 +134,8 @@ router.get('/stats', limiter, cache('1 hour'), async (req, res) => {
 });
 
 router.get('/all', limiter, cache('1 hour'), async (req, res) => {
-    const connection = mysql.createConnection(connConfig);
-
-    connection.on('error', (err) => {
-        res.json({
-            message: 'Unable to connect to database',
-            error: err,
-        });
-    });
-
-    const _res = buildQuery(req);
-    const q = _res[0];
-    const qVar = _res[1];
-
-    let querySelector = `*`;
-
-    if (req.query.compact) {
-        querySelector = 'beatmap_id, beatmapset_id, artist, title, version, approved';
-    }
-
-    const result = await connection.awaitQuery(`SELECT ${querySelector} FROM beatmap ${q}`, qVar);
-
+    const result = await getBeatmaps(req.query);
     res.json(result);
-
-    await connection.end();
 });
 
 router.get('/allsets', limiter, cache('1 hour'), async (req, res) => {

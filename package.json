@@ -6,6 +6,12 @@
     "start": "node ./bin/www",
     "dev": "nodemon ./bin/www"
   },
+  "nodemonConfig": {
+    "verbose": true,
+    "ignore": [
+      "bin/cache/*"
+    ]
+  },
   "dependencies": {
     "apicache": "^1.6.3",
     "axios": "^1.2.1",
@@ -19,6 +25,7 @@
     "moment": "^2.29.4",
     "morgan": "~1.9.1",
     "mysql-await": "^2.2.3",
+    "persistent-cache": "^1.1.2",
     "pg": "^8.8.0",
     "systeminformation": "^5.16.9"
   }

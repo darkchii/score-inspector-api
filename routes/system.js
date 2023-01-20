@@ -9,6 +9,8 @@ const { GetSystemInfo } = require('../helpers/osualt');
 const { uptime } = require('process');
 require('dotenv').config();
 let cache = apicache.middleware;
+var persistentCache = require('persistent-cache');
+var expressStats = persistentCache();
 
 const connConfig = {
     host: process.env.MYSQL_HOST,
@@ -17,7 +19,7 @@ const connConfig = {
     password: process.env.MYSQL_PASS,
 };
 
-router.get('/', cache('30 minutes'), async (req, res) => {
+router.get('/', async (req, res, next) => {
     const connection = mysql.createConnection(connConfig);
     connection.on('error', (err) => { });
 
@@ -25,18 +27,26 @@ router.get('/', cache('30 minutes'), async (req, res) => {
     let total_visits = (await connection.awaitQuery(`SELECT sum(count) as c FROM inspector_visitors`))?.[0]?.c ?? 0;
     await connection.end();
 
+    let expressRequests = expressStats.getSync('requests') ?? 0;
+    let expressBytesSent = expressStats.getSync('size') ?? 0;
+
     let osu_alt_data = await GetSystemInfo();
 
     const time = await si.time();
     const cpu = await si.cpu();
     const mem = await si.mem();
     const _os = await si.osInfo();
+    const network = await si.networkInterfaces('default');
 
     res.json({
         database: {
             inspector: {
                 user_count: user_count,
                 total_visits: total_visits,
+                api: {
+                    requests: expressRequests,
+                    bytes_sent: expressBytesSent
+                }
             },
             alt: osu_alt_data
         },
@@ -56,6 +66,12 @@ router.get('/', cache('30 minutes'), async (req, res) => {
                 codename: _os.codename,
                 arch: _os.arch,
             },
+            network: {
+                ifaceName: network.ifaceName,
+                iface: network.iface,
+                type: network.type,
+                speed: network.speed
+            }
         }
     });
 });

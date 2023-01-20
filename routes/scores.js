@@ -4,22 +4,33 @@ var router = express.Router();
 const { Client } = require('pg');
 const { GetBestScores, score_columns, score_columns_full, beatmap_columns } = require('../helpers/osualt');
 const rateLimit = require('express-rate-limit');
+const { getBeatmaps, getCompletionData } = require('../helpers/inspector');
 require('dotenv').config();
 
 const limiter = rateLimit({
-	windowMs: 60 * 1000, // 15 minutes
-	max: 60, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
-	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    windowMs: 60 * 1000, // 15 minutes
+    max: 60, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
 let cache = apicache.middleware;
 
-/* Get the entire list of scores of a user */
-router.get('/user/:id', limiter, cache('1 hour'), async function (req, res, next) {
+const score_cache = [];
+
+async function GetUserScores(req) {
+    const cached_data_filtered = score_cache.filter(x => x.id == req.params.id && x.include_loved == req.query.include_loved);
+
+    if(cached_data_filtered.length > 0) {
+        const cached_data = cached_data_filtered[0];
+        if(cached_data.time > Date.now() - 1000 * 60 * 30) {
+            return cached_data.data;
+        }
+    }
+
     const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
     await client.connect();
-    const approved_query = `AND (beatmaps.approved = 1 OR beatmaps.approved = 2 ${req.query.loved === 'true' ? 'OR beatmaps.approved = 4' : ''})`;
+    const approved_query = `AND (beatmaps.approved = 1 OR beatmaps.approved = 2 ${req.query.include_loved === 'true' ? 'OR beatmaps.approved = 4' : ''})`;
     const { rows } = await client.query(`
         SELECT ${score_columns_full}, users2.username FROM scores 
         LEFT JOIN beatmaps ON scores.beatmap_id = beatmaps.beatmap_id 
@@ -28,7 +39,29 @@ router.get('/user/:id', limiter, cache('1 hour'), async function (req, res, next
         INNER JOIN users2 ON scores.user_id = users2.user_id 
         WHERE scores.user_id=$1 ${approved_query}`, [req.params.id]);
     await client.end();
+
+    score_cache.push({
+        id: req.params.id,
+        include_loved: req.query.include_loved,
+        time: Date.now(),
+        data: rows
+    });
+
+    return rows;
+}
+
+/* Get the entire list of scores of a user */
+router.get('/user/:id', limiter, cache('1 hour'), async function (req, res, next) {
+    const rows = await GetUserScores(req);
     res.json(rows);
+});
+
+router.get('/completion/:id', limiter, cache('1 hour'), async function (req, res, next) {
+    const scores = await GetUserScores(req);
+    const beatmaps = await getBeatmaps(req.query);
+    const data = getCompletionData(scores, beatmaps);
+
+    res.json(data);
 });
 
 const valid_periods = ['all', 'year', 'month', 'week', 'day'];

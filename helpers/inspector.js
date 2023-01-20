@@ -2,6 +2,7 @@ const { Client } = require("pg");
 const { GetUser, GetDailyUser } = require("./osu");
 const mysql = require('mysql-await');
 const { default: axios } = require("axios");
+const { range } = require("./misc");
 require('dotenv').config();
 
 const connConfig = {
@@ -183,4 +184,105 @@ async function GetBeatmapCount(loved = true) {
     const result = await connection.awaitQuery(`SELECT COUNT(*) as amount FROM beatmap ${q}`, qVar);
 
     return result?.[0]?.amount;
+}
+
+module.exports.getCompletionData = getCompletionData;
+function getCompletionData(scores, beatmaps) {
+    // cs
+    const completion = {};
+    let spread = ["0-1", "1-2", "2-3", "3-4", "4-5", "5-6", "6-7", "7-8", "8-9", "9-10"];
+    completion.cs = [];
+    for (const range of spread) {
+        let perc = 100;
+        let min = parseInt(range.split("-")[0]);
+        let max = parseInt(range.split("-")[1]);
+        let filtered_scores = scores.filter(score => score.cs >= min && score.cs < max);
+        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.cs >= min && beatmap.cs < max);
+        perc = filtered_scores.length / filtered_beatmaps.length * 100;
+        completion.cs.push({
+            range, min, max, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length
+        });
+    }
+
+    completion.ar = [];
+    for (const range of spread) {
+        let perc = 100;
+        let min = parseInt(range.split("-")[0]);
+        let max = parseInt(range.split("-")[1]);
+        let filtered_scores = scores.filter(score => score.ar >= min && score.ar < max);
+        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.ar >= min && beatmap.ar < max);
+        perc = filtered_scores.length / filtered_beatmaps.length * 100;
+        completion.ar.push({
+            range, min, max, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length
+        });
+    }
+
+    completion.od = [];
+    for (const range of spread) {
+        let perc = 100;
+        let min = parseInt(range.split("-")[0]);
+        let max = parseInt(range.split("-")[1]);
+        let filtered_scores = scores.filter(score => score.od >= min && score.od < max);
+        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.od >= min && beatmap.od < max);
+        perc = filtered_scores.length / filtered_beatmaps.length * 100;
+        completion.od.push({
+            range, min, max, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length
+        });
+    }
+
+    completion.hp = [];
+    for (const range of spread) {
+        let perc = 100;
+        let min = parseInt(range.split("-")[0]);
+        let max = parseInt(range.split("-")[1]);
+        let filtered_scores = scores.filter(score => score.hp >= min && score.hp < max);
+        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.hp >= min && beatmap.hp < max);
+        perc = filtered_scores.length / filtered_beatmaps.length * 100;
+        completion.hp.push({
+            range, min, max, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length
+        });
+    }
+
+    spread = range(new Date().getFullYear() - 2007 + 1, 2007);
+    completion.years = [];
+    for (const year of spread) {
+        let perc = 100;
+        let filtered_scores = scores.filter(score => new Date(score.approved_date).getFullYear() === year);
+        let filtered_beatmaps = beatmaps.filter(beatmap => new Date(beatmap.approved_date).getFullYear() === year);
+        //console.log(new Date(scores[0].approved_date).getFullYear());
+        perc = filtered_scores.length / filtered_beatmaps.length * 100;
+        completion.years.push({
+            range: year, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length
+        });
+    }
+
+    spread = ["0-1", "1-2", "2-3", "3-4", "4-5", "5-6", "6-7", "7-8", "8-9", "9-10", "10-20"];
+    completion.stars = [];
+    for (const range of spread) {
+        let perc = 100;
+        let min = parseInt(range.split('-')[0]);
+        let max = parseInt(range.split('-')[1]);
+        let filtered_scores = scores.filter(score => score.stars >= min && score.stars < max);
+        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.star_rating >= min && beatmap.star_rating < max);
+        perc = filtered_scores.length / filtered_beatmaps.length * 100;
+        completion.stars.push({
+            range: (max < 20 ? `${range}*` : (range.split('-')[0] + '*+')), min, max, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length
+        });
+    }
+
+    spread = ["0-60", "60-120", "120-180", "180-240", "240-300", "300-360", "360-420", "420-480", "480-540", "540-600", "600-99999"];
+    completion.length = [];
+    for (const range of spread) {
+        let perc = 100;
+        let min = parseInt(range.split('-')[0]);
+        let max = parseInt(range.split('-')[1]);
+        let filtered_scores = scores.filter(score => score.length >= min && score.length < max);
+        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.total_length >= min && beatmap.total_length < max);
+        perc = filtered_scores.length / filtered_beatmaps.length * 100;
+        completion.length.push({
+            range: (max < 99999 ? range : (range.split('-')[0] + '+')), min, max, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length
+        });
+    }
+
+    return completion;
 }

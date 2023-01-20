@@ -1,9 +1,12 @@
 var express = require('express');
 var router = express.Router();
+const os = require("os");
 const si = require('systeminformation');
 const mysql = require('mysql-await');
 const { IsReachable } = require('../helpers/inspector');
 var apicache = require('apicache');
+const { GetSystemInfo } = require('../helpers/osualt');
+const { uptime } = require('process');
 require('dotenv').config();
 let cache = apicache.middleware;
 
@@ -22,6 +25,8 @@ router.get('/', cache('30 minutes'), async (req, res) => {
     let total_visits = (await connection.awaitQuery(`SELECT sum(count) as c FROM inspector_visitors`))?.[0]?.c ?? 0;
     await connection.end();
 
+    let osu_alt_data = await GetSystemInfo();
+
     const time = await si.time();
     const cpu = await si.cpu();
     const mem = await si.mem();
@@ -32,11 +37,17 @@ router.get('/', cache('30 minutes'), async (req, res) => {
             inspector: {
                 user_count: user_count,
                 total_visits: total_visits,
-            }
+            },
+            alt: osu_alt_data
         },
         system: {
+            uptime: uptime(),
             system_time: time,
-            cpu: cpu,
+            cpu: {
+                manufacturer: cpu.manufacturer,
+                brand: cpu.brand,
+                cores: cpu.cores
+            },
             memory: mem,
             os: {
                 platform: _os.platform,

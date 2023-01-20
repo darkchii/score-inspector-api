@@ -18,12 +18,15 @@ const limiter = rateLimit({
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
-async function checkTables(stat, tableType, scoreFilter = null, isBeatmapResult = false, country = false) {
+async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult = false, country = false, scoreFilter = null, userFilter = null, beatmapQuery = null, groupSets = false) {
     const base = `
     (
         select 
-        ${isBeatmapResult ? `beatmaps.beatmap_id, beatmaps.mode, beatmaps.approved` : `users2.user_id, users2.username`}${country ? ', country_code' : ''}, 
-            ${tableType === 'array_table' ? 'count(*)' : stat} as stat
+        ${isBeatmapResult ? 
+            `${groupSets ? 'beatmaps.set_id' : 'beatmaps.beatmap_id'}, beatmaps.mode, beatmaps.approved` : 
+            `users2.user_id, users2.username`}
+            ${country && !groupSets ? ', country_code' : ''}, 
+            ${tableType === 'array_table' ? (beatmapQuery !== null ? beatmapQuery : 'count(*)') : stat} as stat
         ${!isBeatmapResult && tableType === 'scores' ? `
             FROM scores 
             INNER JOIN beatmaps ON scores.beatmap_id = beatmaps.beatmap_id 
@@ -32,12 +35,17 @@ async function checkTables(stat, tableType, scoreFilter = null, isBeatmapResult 
             FROM users2` : ``}
         ${tableType === 'array_table' ? `
             FROM ${stat} 
-            INNER JOIN scores ON scores.beatmap_id = ${stat}.beatmap_id 
-            INNER JOIN users2 ON scores.user_id = users2.user_id
-            ${scoreFilter !== null ? `WHERE ${scoreFilter}` : ''}`
+            ${groupSets ? '' : 
+                `INNER JOIN scores ON (scores.beatmap_id = ${stat}.beatmap_id ${scoreFilter !== null ? `AND ${scoreFilter}` : ''})
+                INNER JOIN users2 ON (scores.user_id = users2.user_id ${userFilter !== null ? `AND ${userFilter}` : ''})`
+            }
+            ${fullFilter !== null ? `WHERE ${fullFilter}` : ''}`
             : ``}
       GROUP BY 
-          ${isBeatmapResult ? 'beatmaps.beatmap_id' : 'users2.user_id'}${country ? ', country_code' : ''}
+          ${isBeatmapResult ? 
+            `${(groupSets ? 'beatmaps.set_id' : 'beatmaps.beatmap_id')}, beatmaps.mode, beatmaps.approved, beatmaps.approved_date, beatmaps.submit_date` : 
+            'users2.user_id'}
+          ${country && !groupSets ? ', country_code' : ''}
       ) base
     `;
     return base;
@@ -45,7 +53,7 @@ async function checkTables(stat, tableType, scoreFilter = null, isBeatmapResult 
 
 const FC_FILTER = '(countmiss = 0 and (maxcombo - combo) <= scores.count100 or rank like \'%X%\')';
 
-const STAT_DATA = { //table decides which 'check' function will be used
+const STAT_DATA = {
     'pp': { query: 'users2.pp', table: 'user' },
     'ss': { query: 'ssh_count+ss_count', table: 'user' },
     's': { query: 'sh_count+s_count', table: 'user' },
@@ -81,9 +89,13 @@ const STAT_DATA = { //table decides which 'check' function will be used
     'unique_ss': { query: 'unique_ss', table: 'array_table', isArray: true },
     'unique_fc': { query: 'unique_fc', table: 'array_table', isArray: true },
     'unique_dt_fc': { query: 'unique_dt_fc', table: 'array_table', isArray: true },
-    'unique_hd_ss': { query: 'unique_ss', table: 'array_table', scoreFilter: 'is_hd = true', isArray: true },
-    'most_played': { query: 'beatmaps', table: 'array_table', scoreFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
-    'most_played_loved': { query: 'beatmaps', table: 'array_table', scoreFilter: 'mode = 0 AND approved in (4)', isArray: false, isBeatmaps: true },
+    'unique_hd_ss': { query: 'unique_ss', table: 'array_table', fullFilter: 'is_hd = true', isArray: true },
+    'most_played': { query: 'beatmaps', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
+    'most_played_loved': { query: 'beatmaps', table: 'array_table', fullFilter: 'mode = 0 AND approved in (4)', isArray: false, isBeatmaps: true },
+    'most_ssed': { query: 'beatmaps', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4) and accuracy=100', isArray: false, isBeatmaps: true, direction: 'asc' },
+    'most_fm_ssed': { query: 'beatmaps', table: 'array_table', scoreFilter: '(is_hd = true and is_hr = true and is_dt = true and is_fl = true and accuracy=100)', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
+    'longest_approval': { query: 'beatmaps', groupSets: true, beatmapQuery: 'age(approved_date,submit_date)', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2)', isArray: false, isBeatmaps: true },
+    'longest_maps': { query: 'beatmaps', beatmapQuery: 'length', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
 }
 
 async function getQueryUserData(stat, limit, offset, country) {
@@ -140,28 +152,28 @@ async function getQueryBeatmapData(stat, limit, offset, country) {
         queryData.push(country);
     }
 
-    if (stat.scoreFilter) {
-        _where += `${_where.length === 0 ? 'where ' : ' and '}${stat.scoreFilter}`;
+    if (stat.fullFilter) {
+        _where += `${_where.length === 0 ? 'where ' : ' and '}${stat.fullFilter}`;
     }
 
     const _stat = parse(stat.query);
-    let base = await checkTables(_stat, stat.table, stat.scoreFilter ?? null, true, country !== undefined);
+    let base = await checkTables(_stat, stat.table, stat.fullFilter ?? null, true, country !== undefined, stat.scoreFilter ?? null, stat.userFilter ?? null, stat.beatmapQuery ?? null, stat.groupSets);
 
     query = `
           select 
-            rank, beatmap_id, stat, count(*) OVER() as total_users
+            rank, ${stat.groupSets ? 'set_' : 'beatmap_'}id, stat, count(*) OVER() as total_users
           from 
             (
-              select beatmap_id, stat, ROW_NUMBER() over(order by stat desc) as rank${country !== undefined ? ', country_code' : ''}
+              select ${stat.groupSets ? 'set_' : 'beatmap_'}id, stat, ROW_NUMBER() over(order by stat desc) as rank${country !== undefined ? ', country_code' : ''}
               from ${base} ${_where}
             ) r 
           order by 
-            rank 
+            rank ${stat.direction ?? 'asc'}
           LIMIT 
             $1 OFFSET $2
     `;
 
-    return [query, queryData, 'beatmaps'];
+    return [query, queryData, stat.groupSets ? 'beatmapsets' : 'beatmaps'];
 }
 
 async function getQuery(stat, limit, offset, country) {
@@ -245,13 +257,13 @@ router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
                 console.log(e);
             }
         }
-        if (queryInfo[2] === 'beatmaps') {
+        if (queryInfo[2] === 'beatmaps' || queryInfo[2] === 'beatmapsets') {
             //beatmap data
             try {
-                const beatmaps = [...await getBeatmaps({ id: rows.map(row => row.beatmap_id), include_loved: 'true', include_qualified: 'true' })];
+                const beatmaps = [...await getBeatmaps({ id: rows.map(row => queryInfo[2] === 'beatmaps' ? row.beatmap_id : row.set_id), include_loved: 'true', include_qualified: 'true', isSetID: queryInfo[2] === 'beatmapsets' })];
                 if (beatmaps) {
                     beatmaps.forEach(osu_beatmap => {
-                        const row = rows.find(row => row.beatmap_id == osu_beatmap.beatmap_id);
+                        const row = rows.find(row => (queryInfo[2] === 'beatmaps' ? row.beatmap_id : row.set_id) == (queryInfo[2] === 'beatmaps' ? osu_beatmap.beatmap_id : osu_beatmap.beatmapset_id));
                         row.osu_beatmap = osu_beatmap;
                     });
                 }

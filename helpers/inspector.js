@@ -73,7 +73,7 @@ function buildQuery(req) {
     if (req.id) {
         const id_arr = req.id;
         if (id_arr.length > 0) {
-            q += ' AND beatmap_id IN (';
+            q += ` AND ${req.isSetID ? 'beatmapset_id' : 'beatmap_id'} IN (`;
             for (let i = 0; i < id_arr.length; i++) {
                 if (i > 0) q += ',';
                 q += '?';
@@ -96,7 +96,7 @@ async function getBeatmaps(req) {
     let querySelector = `*`;
 
     if (req.compact) {
-        querySelector = 'beatmap_id, beatmapset_id, artist, title, version, approved';
+        querySelector = 'beatmapset_id, beatmap_id, artist, title, version, approved';
     }
 
     const result = await connection.awaitQuery(`SELECT ${querySelector} FROM beatmap ${q}`, qVar);

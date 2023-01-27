@@ -5,6 +5,9 @@ const { Client } = require('pg');
 const { GetBestScores, score_columns, score_columns_full, beatmap_columns } = require('../helpers/osualt');
 const rateLimit = require('express-rate-limit');
 const { getBeatmaps, getCompletionData } = require('../helpers/inspector');
+const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack } = require('../helpers/db');
+const { Op, Sequelize } = require('sequelize');
+const { CorrectedSqlScoreMods } = require('../helpers/misc');
 require('dotenv').config();
 
 const limiter = rateLimit({
@@ -19,39 +22,51 @@ let cache = apicache.middleware;
 const score_cache = [];
 
 async function GetUserScores(req) {
-    const cached_data_filtered = score_cache.filter(x => x.id == req.params.id && x.include_loved == req.query.include_loved);
+    const scores = await AltScore.findAll({
+        where: {
+            user_id: req.params.id
+        },
+        order: [
+            ['pp', 'DESC']
+        ],
+        include: [
+            {
+                model: AltBeatmap,
+                as: 'beatmap',
+                where: {
+                    approved: { [Op.or]: [1, 2, req.query.include_loved === 'true' ? 4 : 1] }
+                },
+                required: true,
+                include: [
+                    {
+                        model: AltModdedStars,
+                        as: 'modded_sr',
+                        where: {
+                            mods_enum: {
+                                [Op.eq]:
+                                Sequelize.literal(CorrectedSqlScoreMods)
+                            }
+                        }
+                    }
+                ],
+            },
+        ],
+    });
 
-    if(cached_data_filtered.length > 0) {
-        const cached_data = cached_data_filtered[0];
-        if(cached_data.time > Date.now() - 1000 * 60 * 30) {
-            return cached_data.data;
-        }
-    }
-
-    const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
-    await client.connect();
-    const approved_query = `AND (beatmaps.approved = 1 OR beatmaps.approved = 2 ${req.query.include_loved === 'true' ? 'OR beatmaps.approved = 4' : ''})`;
-    const { rows } = await client.query(`
-        SELECT ${score_columns_full}, users2.username FROM scores 
-        LEFT JOIN beatmaps ON scores.beatmap_id = beatmaps.beatmap_id 
-        LEFT JOIN moddedsr on beatmaps.beatmap_id = moddedsr.beatmap_id and moddedsr.mods_enum = (case when is_ht = 'true' then 256 else 0 end + case when is_dt = 'true' then 64 else 0 end + case when is_hr = 'true' then 16 else 0 end + case when is_ez = 'true' then 2 else 0 end + case when is_fl = 'true' then 1024 else 0 end) 
-        LEFT join (select beatmap_id, STRING_AGG(pack_id, ',') as pack_id from beatmap_packs group by beatmap_id) bp on beatmaps.beatmap_id = bp.beatmap_id 
-        INNER JOIN users2 ON scores.user_id = users2.user_id 
-        WHERE scores.user_id=$1 ${approved_query}`, [req.params.id]);
-    await client.end();
+    console.log(`[Scores] Fetched ${scores.length} scores for user ${req.params.id} (include_loved: ${req.query.include_loved})`);
 
     score_cache.push({
         id: req.params.id,
         include_loved: req.query.include_loved,
         time: Date.now(),
-        data: rows
+        data: scores
     });
 
-    return rows;
+    return scores;
 }
 
 /* Get the entire list of scores of a user */
-router.get('/user/:id', limiter, cache('1 hour'), async function (req, res, next) {
+router.get('/user/:id', async function (req, res, next) {
     const rows = await GetUserScores(req);
     res.json(rows);
 });

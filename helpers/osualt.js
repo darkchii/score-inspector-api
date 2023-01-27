@@ -1,4 +1,8 @@
+const moment = require("moment/moment");
 const { Client } = require("pg");
+const { Op, Sequelize } = require("sequelize");
+const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, AltModdedStars } = require("./db");
+const { CorrectedSqlScoreMods } = require("./misc");
 require('dotenv').config();
 
 const beatmap_columns = `
@@ -107,12 +111,8 @@ module.exports.IsRegistered = IsRegistered;
 async function IsRegistered(id) {
     let data;
     try {
-        const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
-        await client.connect();
-        const { rows } = await client.query('SELECT count(*) FROM priorityuser WHERE user_id = $1', [id]);
-        // const { rows } = await client.query('SELECT count(*) FROM priorityuser');
-        await client.end();
-        data = { registered: rows[0].count > 0 };
+        const total = await AltPriorityUser.count({ where: { user_id: id } });
+        data = { registered: total > 0 };
     } catch (err) {
         throw new Error('Something went wrong, please try later...');
     }
@@ -123,10 +123,15 @@ module.exports.GetAllUsers = GetAllUsers;
 async function GetAllUsers() {
     let data;
     try {
-        const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
-        await client.connect();
-        const { rows } = await client.query('SELECT priorityuser.user_id, users2.username FROM priorityuser LEFT JOIN users2 ON priorityuser.user_id = users2.user_id WHERE username IS NOT NULL');
-        await client.end();
+        const rows = await AltUser.findAll({
+            attributes: ['user_id', 'username'],
+            include: [{
+                model: AltPriorityUser,
+                as: 'priority',
+                attributes: [],
+                required: true
+            }]
+        });
         data = rows;
     } catch (err) {
         throw new Error(err.message);
@@ -138,24 +143,15 @@ module.exports.GetUser = GetUser;
 async function GetUser(id) {
     let data;
     try {
-        const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
-        await client.connect();
-        const { rows: users } = await client.query(`
-            SELECT *,
-                ARRAY(SELECT beatmap_id FROM unique_ss WHERE user_id=$1) as unique_ss,
-                ARRAY(SELECT beatmap_id FROM unique_fc WHERE user_id=$1) as unique_fc,
-                ARRAY(SELECT beatmap_id FROM unique_dt_fc WHERE user_id=$1) as unique_dt_fc,
-                ARRAY(SELECT json_build_object(achievement_id, achieved_at) FROM user_achievements WHERE user_id=$1) as medals
-            FROM users2
-            WHERE users2.user_id=$1
-            `, [id]);
-        if (users.length > 0) {
-            data = users[0];
-            await client.end();
-        } else {
-            await client.end();
-            throw new Error('User not found');
-        }
+        const user = await AltUser.findOne({
+            where: { user_id: id },
+            include: [
+                { model: AltUniqueSS, as: 'unique_ss', attributes: ['beatmap_id'], required: false },
+                { model: AltUniqueFC, as: 'unique_fc', attributes: ['beatmap_id'], required: false },
+                { model: AltUniqueDTFC, as: 'unique_dt_fc', attributes: ['beatmap_id'], required: false },
+                { model: AltUserAchievement, as: 'medals', attributes: ['achievement_id', 'achieved_at'], required: false }]
+        });
+        data = user;
     } catch (err) {
         throw new Error(err.message);
     }
@@ -166,19 +162,16 @@ module.exports.FindUser = FindUser;
 async function FindUser(query, single) {
     let data;
     try {
-        const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
-        await client.connect();
-        let _where = ``;
-        if (single) {
-            _where = `WHERE users2.user_id::text = $1 OR (LOWER(username) = LOWER($2))`;
-        } else {
-            _where = `WHERE users2.user_id::text = $1 OR (LOWER(username) SIMILAR TO LOWER($2))`;
-        }
-        const { rows } = await client.query(`
-          SELECT ${single ? `*` : `priorityuser.user_id as user_id, users2.username, users2.country_code`} FROM priorityuser 
-          LEFT JOIN users2 ON priorityuser.user_id = users2.user_id 
-          ${_where} ${single ? 'LIMIT 1' : ''}`, [query, single ? `${query}` : `%${query}%`]);
-        await client.end();
+        const rows = await AltUser.findAll({
+            attributes: single ? ['*'] : ['user_id', 'username', 'country_code'],
+            include: [{
+                model: AltPriorityUser,
+                as: 'priority',
+                attributes: [],
+                required: true
+            }],
+            where: single ? { user_id: query } : { username: { [Op.iLike]: `%${query}%` } },
+        });
         if (single) {
             if (rows.length == 0)
                 throw new Error('No user found');
@@ -215,19 +208,20 @@ async function GetBestScores(period, stat, limit, loved = false) {
                 period_check = null;
                 break;
         }
-        const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
-        await client.connect();
-        const approved_query = `(beatmaps.approved = 1 OR beatmaps.approved = 2 ${loved ? 'OR beatmaps.approved = 4' : ''})`;
-        const query = `
-            SELECT ${score_columns}, users2.pp as user_pp, users2.username FROM scores 
-            LEFT JOIN beatmaps ON scores.beatmap_id = beatmaps.beatmap_id
-            LEFT JOIN moddedsr on beatmaps.beatmap_id = moddedsr.beatmap_id and moddedsr.mods_enum = (case when is_ht = 'true' then 256 else 0 end + case when is_dt = 'true' then 64 else 0 end + case when is_hr = 'true' then 16 else 0 end + case when is_ez = 'true' then 2 else 0 end + case when is_fl = 'true' then 1024 else 0 end) 
-            INNER JOIN users2 ON scores.user_id = users2.user_id 
-            WHERE ${period_check !== null ? `date_played > NOW() - INTERVAL '${period_check} day${period_check > 1 ? 's' : ''}' AND ` : ''} ${approved_query} ORDER BY scores.${stat} DESC LIMIT $1
-        `;
-        console.log(query);
-        const { rows } = await client.query(query, [limit]);
-        await client.end();
+        const rows = await AltScore.findAll({
+            include: [
+                { model: AltUser, as: 'user', required: true },
+                {
+                    model: AltBeatmap, as: 'beatmap', where: { approved: { [Op.or]: [1, 2, loved ? 4 : null] } }, required: true,
+                    include: [
+                        { model: AltModdedStars, as: 'modded_sr', where: { mods_enum: { [Op.eq]: Sequelize.literal(CorrectedSqlScoreMods) } } }
+                    ]
+                }
+            ],
+            where: period_check !== null ? { date_played: { [Op.gt]: moment().subtract(period_check, 'days').toDate() } } : null,
+            order: [[stat, 'DESC']],
+            limit: limit
+        });
         data = rows;
     } catch (err) {
         console.error(err);
@@ -237,17 +231,17 @@ async function GetBestScores(period, stat, limit, loved = false) {
 }
 
 module.exports.GetSystemInfo = GetSystemInfo;
-async function GetSystemInfo(){
+async function GetSystemInfo() {
     let data;
     try {
         const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
         await client.connect();
-        const {rows: total_scores} = await client.query(`SELECT COUNT(*) as c FROM scores`);
-        const {rows: total_users} = await client.query(`SELECT COUNT(*) as c FROM users2`);
-        const {rows: tracked_users} = await client.query(`SELECT COUNT(*) as c FROM users2 INNER JOIN priorityuser ON users2.user_id = priorityuser.user_id`);
-        const {rows: size} = await client.query(`SELECT pg_database_size('osu') as c`);
+        const { rows: total_scores } = await client.query(`SELECT COUNT(*) as c FROM scores`);
+        const { rows: total_users } = await client.query(`SELECT COUNT(*) as c FROM users2`);
+        const { rows: tracked_users } = await client.query(`SELECT COUNT(*) as c FROM users2 INNER JOIN priorityuser ON users2.user_id = priorityuser.user_id`);
+        const { rows: size } = await client.query(`SELECT pg_database_size('osu') as c`);
         await client.end();
-        data = {total_scores: total_scores?.[0].c, total_users: total_users?.[0].c, tracked_users: tracked_users?.[0].c, size: size?.[0].c};
+        data = { total_scores: total_scores?.[0].c, total_users: total_users?.[0].c, tracked_users: tracked_users?.[0].c, size: size?.[0].c };
     } catch (err) {
         throw new Error(err.message);
     }

@@ -3,6 +3,8 @@ const { GetUser, GetDailyUser } = require("./osu");
 const mysql = require('mysql-await');
 const { default: axios } = require("axios");
 const { range } = require("./misc");
+const { InspectorToken } = require("./db");
+const { Op, Sequelize } = require("sequelize");
 require('dotenv').config();
 
 const connConfig = {
@@ -196,7 +198,7 @@ function getCompletionData(scores, beatmaps) {
         let perc = 100;
         let min = parseInt(range.split("-")[0]);
         let max = parseInt(range.split("-")[1]);
-        let filtered_scores = scores.filter(score => score.cs >= min && score.cs < max);
+        let filtered_scores = scores.filter(score => score.beatmap.cs >= min && score.beatmap.cs < max);
         let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.cs >= min && beatmap.cs < max);
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
         completion.cs.push({
@@ -209,7 +211,7 @@ function getCompletionData(scores, beatmaps) {
         let perc = 100;
         let min = parseInt(range.split("-")[0]);
         let max = parseInt(range.split("-")[1]);
-        let filtered_scores = scores.filter(score => score.ar >= min && score.ar < max);
+        let filtered_scores = scores.filter(score => score.beatmap.ar >= min && score.beatmap.ar < max);
         let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.ar >= min && beatmap.ar < max);
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
         completion.ar.push({
@@ -222,7 +224,7 @@ function getCompletionData(scores, beatmaps) {
         let perc = 100;
         let min = parseInt(range.split("-")[0]);
         let max = parseInt(range.split("-")[1]);
-        let filtered_scores = scores.filter(score => score.od >= min && score.od < max);
+        let filtered_scores = scores.filter(score => score.beatmap.od >= min && score.beatmap.od < max);
         let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.od >= min && beatmap.od < max);
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
         completion.od.push({
@@ -235,7 +237,7 @@ function getCompletionData(scores, beatmaps) {
         let perc = 100;
         let min = parseInt(range.split("-")[0]);
         let max = parseInt(range.split("-")[1]);
-        let filtered_scores = scores.filter(score => score.hp >= min && score.hp < max);
+        let filtered_scores = scores.filter(score => score.beatmap.hp >= min && score.beatmap.hp < max);
         let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.hp >= min && beatmap.hp < max);
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
         completion.hp.push({
@@ -247,7 +249,7 @@ function getCompletionData(scores, beatmaps) {
     completion.years = [];
     for (const year of spread) {
         let perc = 100;
-        let filtered_scores = scores.filter(score => new Date(score.approved_date).getFullYear() === year);
+        let filtered_scores = scores.filter(score => new Date(score.beatmap.approved_date).getFullYear() === year);
         let filtered_beatmaps = beatmaps.filter(beatmap => new Date(beatmap.approved_date).getFullYear() === year);
         //console.log(new Date(scores[0].approved_date).getFullYear());
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
@@ -262,7 +264,7 @@ function getCompletionData(scores, beatmaps) {
         let perc = 100;
         let min = parseInt(range.split('-')[0]);
         let max = parseInt(range.split('-')[1]);
-        let filtered_scores = scores.filter(score => score.stars >= min && score.stars < max);
+        let filtered_scores = scores.filter(score => score.beatmap.stars >= min && score.beatmap.stars < max);
         let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.star_rating >= min && beatmap.star_rating < max);
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
         completion.stars.push({
@@ -276,7 +278,7 @@ function getCompletionData(scores, beatmaps) {
         let perc = 100;
         let min = parseInt(range.split('-')[0]);
         let max = parseInt(range.split('-')[1]);
-        let filtered_scores = scores.filter(score => score.length >= min && score.length < max);
+        let filtered_scores = scores.filter(score => score.beatmap.length >= min && score.beatmap.length < max);
         let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.total_length >= min && beatmap.total_length < max);
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
         completion.length.push({
@@ -285,4 +287,19 @@ function getCompletionData(scores, beatmaps) {
     }
 
     return completion;
+}
+
+const SESSION_DAYS = 3;
+module.exports.VerifyToken = VerifyToken;
+async function VerifyToken(session_token, user_id) {
+    const result = await InspectorToken.findOne({
+        where: {
+            token: session_token,
+            osu_id: user_id,
+            date_created: {
+                [Op.gt]: Sequelize.literal(`SUBDATE(CURRENT_TIMESTAMP, ${SESSION_DAYS})`)
+            }
+        }
+    });
+    return result === null ? false : true;
 }

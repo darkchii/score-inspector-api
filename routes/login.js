@@ -1,11 +1,12 @@
 const { default: axios } = require('axios');
-const { Client } = require("pg");
 const express = require('express');
 const router = express.Router();
 const crypto = require("crypto");
 require('dotenv').config();
-const mysql = require('mysql-await');
 const rateLimit = require('express-rate-limit');
+const { InspectorUser, InspectorComment, InspectorToken, Raw, InspectorVisitor, AltUser } = require('../helpers/db');
+const { Sequelize, Op } = require('sequelize');
+const { VerifyToken } = require('../helpers/inspector');
 
 const update_Limiter = rateLimit({
     windowMs: 60 * 1000, // 15 minutes
@@ -16,13 +17,6 @@ const update_Limiter = rateLimit({
 
 // const SESSION_LENGTH = 60 * 60 * 24 * 3;
 const SESSION_DAYS = 3;
-
-const connConfig = {
-    host: process.env.MYSQL_HOST,
-    user: process.env.MYSQL_USER,
-    database: process.env.MYSQL_DB,
-    password: process.env.MYSQL_PASS,
-};
 
 router.post('/', async (req, res, next) => {
     let authResponse = null;
@@ -74,36 +68,25 @@ router.post('/', async (req, res, next) => {
         return;
     }
 
-    //check if user exists in db
-    const connection = mysql.createConnection(connConfig);
-    connection.on('error', (err) => {
-        res.json({
-            message: 'Unable to connect to database',
-            error: err,
-        });
-    });
-
     //clear out old tokens
-    await connection.awaitQuery(`DELETE FROM inspector_tokens WHERE date_created<subdate(current_date, ${SESSION_DAYS})`);
+    InspectorToken.destroy({ where: { date_created: { [Op.lt]: Sequelize.literal(`SUBDATE(CURRENT_TIMESTAMP, ${SESSION_DAYS})`) } } });
 
     //check if user exists in db
-    const user = await connection.awaitQuery(`SELECT * FROM inspector_users WHERE osu_id = ${user_id}`);
+    const user = await InspectorUser.findOne({ where: { osu_id: user_id } });
 
     //if user doesn't exist, add them
     if (user.length == 0) {
         //add user to db
-        const registerResult = await connection.awaitQuery(`
-            INSERT INTO inspector_users
-            (osu_id, known_username) VALUES (${user_id}, '${username}')`);
+        const [registeredUser, created] = await InspectorUser.create({ osu_id: user_id, known_username: username });
 
-        if (registerResult.affectedRows == 0) {
+        if (!created) {
             res.status(500).json({ error: 'Unable to register user' });
             await connection.end();
             return;
         }
     } else {
         //update username if it's different
-        await connection.awaitQuery(`UPDATE inspector_users SET known_username = '${username}' WHERE osu_id = ${user_id}`);
+        await InspectorUser.update({ known_username: username }, { where: { osu_id: user_id } });
     }
 
     //check if user already has a token
@@ -112,22 +95,19 @@ router.post('/', async (req, res, next) => {
         token = await crypto.randomBytes(64).toString('hex');
     } catch (e) {
         res.json({ error: 'Unable to generate token' });
-        await connection.end();
         return;
     }
 
     if (token === null) {
         res.json({ error: 'Unable to generate token' });
-        await connection.end();
         return;
     }
 
     //add token to db
     try {
-        const tokenResult = await connection.awaitQuery(`INSERT INTO inspector_tokens (osu_id, token, date_created) VALUES (?, ?, ?)`, [user_id, token, new Date()]);
+        InspectorToken.create({ osu_id: user_id, token: token, date_created: new Date() });
     } catch (e) {
         res.json({ error: 'Unable to save token' });
-        await connection.end();
         return;
     }
 
@@ -138,8 +118,6 @@ router.post('/', async (req, res, next) => {
     }
 
     res.json(login_data);
-    // res.json(user);
-    await connection.end();
 });
 
 router.post('/validate_token', async (req, res, next) => {
@@ -151,23 +129,8 @@ router.post('/validate_token', async (req, res, next) => {
         return;
     }
 
-    const connection = mysql.createConnection(connConfig);
-    connection.on('error', (err) => {
-        res.json({
-            message: 'Unable to connect to database',
-            error: err,
-        });
-    });
-
-    let result = await connection.awaitQuery(`SELECT * FROM inspector_tokens WHERE token = ? AND osu_id = ? AND date_created>subdate(current_date, ${SESSION_DAYS})`, [session_token, user_id]);
-    if (result.length === 0) {
-        res.json({ valid: false });
-        await connection.end();
-        return;
-    }
-
-    res.json({ valid: true });
-    await connection.end();
+    const result = await VerifyToken(session_token, user_id);
+    res.json({ valid: result != null });
 });
 
 router.post('/logout', async (req, res, next) => {
@@ -179,53 +142,21 @@ router.post('/logout', async (req, res, next) => {
         return;
     }
 
-    const connection = mysql.createConnection(connConfig);
-    connection.on('error', (err) => {
-        res.json({
-            message: 'Unable to connect to database',
-            error: err,
-        });
+    InspectorToken.destroy({
+        where: {
+            [Op.or]: [
+                { token: session_token },
+                { osu_id: user_id, date_created: { [Op.lt]: Sequelize.literal(`SUBDATE(CURRENT_TIMESTAMP, ${SESSION_DAYS})`) } }
+            ]
+        }
     });
-
-    let result = await connection.awaitQuery(`
-        DELETE FROM inspector_tokens 
-        WHERE token = ? 
-        OR (osu_id = ? AND date_created<subdate(current_date, ${SESSION_DAYS}))`, [session_token, user_id]);
-    if (result.length === 0) {
-        res.json({ result: false });
-        await connection.end();
-        return;
-    }
-
     res.json({ result: true });
-    await connection.end();
 });
 
 router.get('/get/:id', async (req, res, next) => {
     const user_id = req.params.id;
-
-    if (user_id == null) {
-        res.status(401).json({ error: 'Invalid user id' });
-        return;
-    }
-
-    const connection = mysql.createConnection(connConfig);
-    connection.on('error', (err) => {
-        res.json({
-            message: 'Unable to connect to database',
-            error: err,
-        });
-    });
-
-    let result = await connection.awaitQuery(`SELECT * FROM inspector_users WHERE osu_id = ?`, [user_id]);
-    if (result.length === 0) {
-        res.json({ valid: false });
-        await connection.end();
-        return;
-    }
-
-    res.json(result[0]);
-    await connection.end();
+    const user = await InspectorUser.findOne({ where: { osu_id: user_id } });
+    res.json(user);
 });
 
 const allowed_visitor_order_by = ['count', 'last_visit'];
@@ -238,44 +169,29 @@ router.get('/visitors/get', async (req, res, next) => {
         return;
     }
 
-    const connection = mysql.createConnection(connConfig);
-    connection.on('error', (err) => {
-        res.json({
-            message: 'Unable to connect to database',
-            error: err,
-        });
+    let visitor_lbs = await InspectorVisitor.findAll({
+        attributes: [
+            'target_id',
+            [Sequelize.fn('sum', Sequelize.col('count')), 'count'],
+            [Sequelize.fn('max', Sequelize.col('last_visit')), 'last_visit'],
+        ],
+        group: ['target_id'],
+        order: [[Sequelize.literal(order_by), 'DESC']],
+        limit: limit,
+        include: [{
+            model: InspectorUser,
+            as: 'target_user',
+            required: false,
+        }],
+        raw: true,
+        nest: true
     });
 
-    let visitor_lbs;
-    try {
-        visitor_lbs = await connection.awaitQuery(
-            `SELECT t.* FROM 
-                (
-                    SELECT target_id as osu_id, sum(count) as count, roles, known_username, max(last_visit) as last_visit
-                    FROM inspector_visitors 
-                    LEFT JOIN inspector_users ON inspector_users.osu_id = inspector_visitors.target_id
-                    GROUP BY target_id
-                ) as t
-            ORDER BY t.${order_by} DESC
-            LIMIT ?`, [limit]);
-    } catch (err) {
-        res.json({
-            message: 'Unable to get visitors',
-            error: err,
-        });
-        return;
-    }
-
     //attempt to get usernames for each user
-    let user_ids = visitor_lbs.map((row) => row.osu_id);
+    let user_ids = visitor_lbs.map((row) => row.target_id);
     let data;
     try {
-        const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
-        await client.connect();
-        // const { rows } = await client.query('SELECT count(*) FROM priorityuser WHERE user_id = $1', [id]);
-        const { rows } = await client.query(`SELECT user_id, username FROM users2 WHERE user_id IN (${user_ids.join(',')})`);
-        // const { rows } = await client.query('SELECT count(*) FROM priorityuser');
-        await client.end();
+        const rows = await AltUser.findAll({ attributes: ['user_id', 'username'], where: { user_id: user_ids, }, raw: true, });
         data = rows;
     } catch (err) {
         res.json({
@@ -285,18 +201,21 @@ router.get('/visitors/get', async (req, res, next) => {
         return;
     }
 
-    //merge the two arrays
+    // //merge the two arrays
     for (let i = 0; i < visitor_lbs.length; i++) {
-        if (visitor_lbs[i].known_username) continue;
+        if (visitor_lbs[i].target_user == null) {
+            visitor_lbs[i].target_user = {}
+            console.log('created target_user for ' + visitor_lbs[i].target_id);
+        };
+
         for (let j = 0; j < data.length; j++) {
-            if (visitor_lbs[i].osu_id == data[j].user_id) {
-                visitor_lbs[i].known_username = data[j].username;
+            if (visitor_lbs[i].target_id == data[j].user_id) {
+                visitor_lbs[i].target_user.osu_id = data[j].user_id;
+                visitor_lbs[i].target_user.known_username = data[j].username;
             }
         }
     }
-
     res.json(visitor_lbs);
-    await connection.end();
 });
 
 router.get('/visitors/get/:id', async (req, res, next) => {
@@ -308,22 +227,20 @@ router.get('/visitors/get/:id', async (req, res, next) => {
         return;
     }
 
-    const connection = mysql.createConnection(connConfig);
-    connection.on('error', (err) => {
-        res.json({
-            message: 'Unable to connect to database',
-            error: err,
-        });
+    let result = await InspectorVisitor.findAll({
+        where: { target_id: user_id },
+        order: [['last_visit', 'DESC']],
+        limit: limit,
+        include: [{
+            model: InspectorUser,
+            as: 'visitor_user',
+            required: false,
+        }],
+        raw: true,
+        nest: true
     });
 
-    let result = await connection.awaitQuery(`
-        SELECT * FROM inspector_visitors a
-        LEFT JOIN inspector_users b ON a.visitor_id = b.osu_id
-        WHERE target_id = ? ORDER BY last_visit DESC LIMIT ?
-    `, [user_id, limit]);
-
     res.json(result);
-    await connection.end();
 });
 
 router.post('/update_visitor', update_Limiter, async (req, res, next) => {
@@ -345,25 +262,35 @@ router.post('/update_visitor', update_Limiter, async (req, res, next) => {
         return;
     }
 
-    const connection = mysql.createConnection(connConfig);
-    connection.on('error', (err) => {
-        res.json({
-            message: 'Unable to connect to database',
-            error: err,
-        });
-    });
-
     //check if visitor already visited target
-    let result = await connection.awaitQuery(`SELECT * FROM inspector_visitors WHERE (visitor_id = ?${visitor_id === null ? ' OR visitor_id IS NULL' : ''}) AND target_id = ?`, [visitor_id, target_id]);
+    let result = await InspectorVisitor.findAll({
+        where: {
+            [Op.or]: [
+                { visitor_id: visitor_id },
+                { visitor_id: null },
+            ],
+            target_id: target_id,
+        },
+        raw: true,
+        nest: true
+    });
     if (result.length > 0) {
         //update visit date
-        await connection.awaitQuery(`UPDATE inspector_visitors SET last_visit = ?, count = count+1 WHERE (visitor_id = ?${visitor_id === null ? ' OR visitor_id IS NULL' : ''}) AND target_id = ?`, [new Date(), visitor_id, target_id]);
+        await InspectorVisitor.update({
+                last_visit: Sequelize.literal('CURRENT_TIMESTAMP'),
+                count: Sequelize.literal('count + 1')
+            },
+            {
+                where: {
+                    [Op.or]: [{ visitor_id: visitor_id }, { visitor_id: null },],
+                    target_id: target_id,
+                }
+            });
     } else {
-        result = await connection.awaitQuery(`INSERT INTO inspector_visitors (visitor_id, target_id, last_visit) VALUES (?,?,?)`, [visitor_id, target_id, new Date()]);
+        result = await InspectorVisitor.create({ visitor_id: visitor_id, target_id: target_id, last_visit: new Date() });
     }
 
     res.json({});
-    await connection.end();
 });
 
 router.post('/update_profile', update_Limiter, async (req, res, next) => {
@@ -371,34 +298,32 @@ router.post('/update_profile', update_Limiter, async (req, res, next) => {
     const token = req.body.token;
     const data = req.body.data;
 
-    console.log(data);
-
     if (user_id == null || token == null || data == null) {
         res.status(401).json({ error: 'Invalid token' });
         return;
     }
 
-    const connection = mysql.createConnection(connConfig);
-    connection.on('error', (err) => {
-        res.json({
-            message: 'Unable to connect to database',
-            error: err,
-        });
-    });
-
     //check if token is valid
-    let result = await connection.awaitQuery(`SELECT * FROM inspector_tokens WHERE token = ? AND osu_id = ? AND date_created>subdate(current_date, ${SESSION_DAYS})`, [token, user_id]);
+    let result = await InspectorToken.findAll({
+        where: {
+            token: token,
+            osu_id: user_id,
+            date_created: {
+                [Op.gt]: Sequelize.literal(`subdate(current_date, ${SESSION_DAYS})`)
+            }
+        },
+        raw: true,
+        nest: true
+    });
     if (result.length === 0) {
         res.status(401).json({ error: 'Invalid token' });
-        await connection.end();
         return;
     }
 
     //check if user exists
-    result = await connection.awaitQuery(`SELECT * FROM inspector_users WHERE osu_id = ?`, [user_id]);
+    result = await InspectorUser.findOne({ where: { osu_id: user_id }, raw: true });
     if (result.length === 0) {
         res.status(401).json({ error: 'Invalid user' });
-        await connection.end();
         return;
     }
 
@@ -409,10 +334,9 @@ router.post('/update_profile', update_Limiter, async (req, res, next) => {
     if (data.roles !== undefined) { data.roles = undefined; }
 
     //update user
-    await connection.awaitQuery(`UPDATE inspector_users SET ? WHERE osu_id = ?`, [data, user_id]);
+    await InspectorUser.update(data, { where: { osu_id: user_id } });
 
     res.json({});
-    await connection.end();
 });
 
 router.post('/comments/send', async (req, res, next) => {
@@ -427,26 +351,21 @@ router.post('/comments/send', async (req, res, next) => {
         return;
     }
 
-    const connection = mysql.createConnection(connConfig);
-    //check if token is valid
-    let result = await connection.awaitQuery(`SELECT * FROM inspector_tokens WHERE token = ? AND osu_id = ? AND date_created>subdate(current_date, ${SESSION_DAYS})`, [token, sender]);
-    if (result.length === 0) {
+    if(!(await VerifyToken(token, sender))) {
         res.status(401).json({ error: 'Invalid token' });
-        await connection.end();
         return;
     }
 
     // create comment
     try {
-        await connection.awaitQuery(`INSERT INTO inspector_comments (commentor_id, target_id, date_created, reply_to, comment) VALUES (?,?,?,?,?)`, [sender, recipient, new Date(), reply_to, comment]);
+        // await connection.awaitQuery(`INSERT INTO inspector_comments (commentor_id, target_id, date_created, reply_to, comment) VALUES (?,?,?,?,?)`, [sender, recipient, new Date(), reply_to, comment]);
+        await InspectorComment.create({ commentor_id: sender, target_id: recipient, date_created: Sequelize.literal('CURRENT_TIMESTAMP'), reply_to: reply_to, comment: comment });
     } catch (err) {
         res.status(401).json({ error: 'Unknown failure' });
-        await connection.end();
         return;
     }
 
     res.json({});
-    await connection.end();
 });
 
 router.get('/comments/get/:id', async (req, res, next) => {
@@ -457,22 +376,19 @@ router.get('/comments/get/:id', async (req, res, next) => {
         return;
     }
 
-    const connection = mysql.createConnection(connConfig);
-    connection.on('error', (err) => {
-        res.json({
-            message: 'Unable to connect to database',
-            error: err,
-        });
+    const comments = await InspectorComment.findAll({
+        logging: console.log,
+        where: { target_id: user_id },
+        include: [{
+            model: InspectorUser,
+            as: 'commentor',
+            required: true,
+        }],
+        order: [
+            ['date_created', 'DESC'],
+        ],
     });
-
-    let result = await connection.awaitQuery(`
-        SELECT a.id, commentor_id, target_id, date_created,reply_to, comment, osu_id, known_username, background_image, roles FROM inspector_comments a
-        LEFT JOIN inspector_users b ON a.commentor_id = b.osu_id
-        WHERE target_id = ? ORDER BY date_created DESC
-    `, [user_id]);
-
-    res.json(result);
-    await connection.end();
+    res.json(comments);
 });
 
 router.post('/comments/delete', async (req, res, next) => {
@@ -485,21 +401,19 @@ router.post('/comments/delete', async (req, res, next) => {
         return;
     }
 
-    const connection = mysql.createConnection(connConfig);
-
     //check if token is valid
-    let result = await connection.awaitQuery(`SELECT * FROM inspector_tokens WHERE token = ? AND osu_id = ? AND date_created>subdate(current_date, ${SESSION_DAYS})`, [token, user_id]);
-    if (result.length === 0) {
+    if (!(await VerifyToken(token, user_id))) {
         res.status(401).json({ error: 'Invalid token' });
-        await connection.end();
         return;
     }
 
-    //delete comment
-    const data = await connection.awaitQuery(`DELETE FROM inspector_comments WHERE id = ? AND commentor_id = ?`, [id, user_id]);
-    console.log(req.body);
+    const data = InspectorComment.destroy({
+        where: {
+            id: id,
+            commentor_id: user_id,
+        }
+    });
     res.json({});
-    await connection.end();
 });
 
 module.exports = router;

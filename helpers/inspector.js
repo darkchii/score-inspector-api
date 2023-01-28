@@ -3,7 +3,7 @@ const { GetUser, GetDailyUser } = require("./osu");
 const mysql = require('mysql-await');
 const { default: axios } = require("axios");
 const { range } = require("./misc");
-const { InspectorToken } = require("./db");
+const { InspectorToken, InspectorBeatmap, Databases } = require("./db");
 const { Op, Sequelize } = require("sequelize");
 require('dotenv').config();
 
@@ -126,11 +126,8 @@ async function IsReachable(endpoint) {
             break;
         case 'beatmaps':
             try {
-                const connection = mysql.createConnection(connConfig);
-                connection.on('error', (err) => { });
-                const result = await connection.awaitQuery(`SELECT count(*) FROM beatmap`);
-                if (result?.[0]?.['count(*)'] > 0) reachable = true;
-                await connection.end();
+                const result = await InspectorBeatmap.count();
+                if (result > 0) reachable = true;
             } catch (e) { }
             break;
         case 'osuv2':
@@ -141,21 +138,10 @@ async function IsReachable(endpoint) {
             break;
         case 'osualt':
             try {
-                const client = new Client({
-                    query_timeout: 1000,
-                    connectionTimeoutMillis: 1000,
-                    statement_timeout: 1000,
-                    user: process.env.ALT_DB_USER,
-                    host: process.env.ALT_DB_HOST,
-                    database: process.env.ALT_DB_DATABASE,
-                    password: process.env.ALT_DB_PASSWORD,
-                    port: process.env.ALT_DB_PORT
-                });
-                await client.connect();
-                const res = await client.query('SELECT 1');
-                await client.end();
-                if (res.rowCount > 0) reachable = true;
+                await Databases.osu_alt.authenticate();
+                reachable = true;
             } catch (err) {
+                reachable = false;
             }
             break;
     }

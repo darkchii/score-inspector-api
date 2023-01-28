@@ -1,7 +1,6 @@
 const moment = require("moment/moment");
-const { Client } = require("pg");
 const { Op, Sequelize } = require("sequelize");
-const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, AltModdedStars } = require("./db");
+const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, AltModdedStars, Databases } = require("./db");
 const { CorrectedSqlScoreMods } = require("./misc");
 require('dotenv').config();
 
@@ -234,14 +233,11 @@ module.exports.GetSystemInfo = GetSystemInfo;
 async function GetSystemInfo() {
     let data;
     try {
-        const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
-        await client.connect();
-        const { rows: total_scores } = await client.query(`SELECT COUNT(*) as c FROM scores`);
-        const { rows: total_users } = await client.query(`SELECT COUNT(*) as c FROM users2`);
-        const { rows: tracked_users } = await client.query(`SELECT COUNT(*) as c FROM users2 INNER JOIN priorityuser ON users2.user_id = priorityuser.user_id`);
-        const { rows: size } = await client.query(`SELECT pg_database_size('osu') as c`);
-        await client.end();
-        data = { total_scores: total_scores?.[0].c, total_users: total_users?.[0].c, tracked_users: tracked_users?.[0].c, size: size?.[0].c };
+        const total_scores = await AltScore.count();
+        const total_users = await AltUser.count();
+        const tracked_users = await AltPriorityUser.count();
+        const [size, _] = await Databases.osuAlt.query(`SELECT pg_database_size('osu') as c`);
+        data = { total_scores, total_users, tracked_users, size: size[0].c };
     } catch (err) {
         throw new Error(err.message);
     }

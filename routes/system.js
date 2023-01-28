@@ -10,6 +10,7 @@ const { uptime } = require('process');
 require('dotenv').config();
 let cache = apicache.middleware;
 var persistentCache = require('persistent-cache');
+const { InspectorUser, InspectorVisitor } = require('../helpers/db');
 var expressStats = persistentCache();
 
 const connConfig = {
@@ -20,12 +21,10 @@ const connConfig = {
 };
 
 router.get('/', async (req, res, next) => {
-    const connection = mysql.createConnection(connConfig);
-    connection.on('error', (err) => { });
-
-    let user_count = (await connection.awaitQuery(`SELECT count(*) as c FROM inspector_users`))?.[0]?.c ?? 0;
-    let total_visits = (await connection.awaitQuery(`SELECT sum(count) as c FROM inspector_visitors`))?.[0]?.c ?? 0;
-    await connection.end();
+    // let user_count = (await connection.awaitQuery(`SELECT count(*) as c FROM inspector_users`))?.[0]?.c ?? 0;
+    let user_count = await InspectorUser.count();
+    let total_visits = await InspectorVisitor.sum('count');
+    //let total_visits = (await connection.awaitQuery(`SELECT sum(count) as c FROM inspector_visitors`))?.[0]?.c ?? 0;
 
     let expressRequests = expressStats.getSync('requests') ?? 0;
     let expressBytesSent = expressStats.getSync('size') ?? 0;

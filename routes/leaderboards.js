@@ -22,8 +22,8 @@ async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult =
     const base = `
     (
         select 
-        ${isBeatmapResult ? 
-            `${groupSets ? 'beatmaps.set_id' : 'beatmaps.beatmap_id'}, beatmaps.mode, beatmaps.approved` : 
+        ${isBeatmapResult ?
+            `${groupSets ? 'beatmaps.set_id' : 'beatmaps.beatmap_id'}, beatmaps.mode, beatmaps.approved` :
             `users2.user_id, users2.username`}
             ${country && !groupSets ? ', country_code' : ''}, 
             ${tableType === 'array_table' ? (beatmapQuery !== null ? beatmapQuery : 'count(*)') : stat} as stat
@@ -35,15 +35,15 @@ async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult =
             FROM users2` : ``}
         ${tableType === 'array_table' ? `
             FROM ${stat} 
-            ${groupSets ? '' : 
-                `INNER JOIN scores ON (scores.beatmap_id = ${stat}.beatmap_id ${scoreFilter !== null ? `AND ${scoreFilter}` : ''})
-                INNER JOIN users2 ON (scores.user_id = users2.user_id ${userFilter !== null ? `AND ${userFilter}` : ''})`
+            ${groupSets ? '' :
+                `${scoreFilter || isBeatmapResult ? `INNER JOIN scores ON (scores.beatmap_id = ${stat}.beatmap_id ${scoreFilter !== null ? `AND ${scoreFilter}` : ''})` : ''}
+                INNER JOIN users2 ON (${scoreFilter || isBeatmapResult ? 'scores' : stat}.user_id = users2.user_id ${userFilter !== null ? `AND ${userFilter}` : ''})`
             }
             ${fullFilter !== null ? `WHERE ${fullFilter}` : ''}`
             : ``}
       GROUP BY 
-          ${isBeatmapResult ? 
-            `${(groupSets ? 'beatmaps.set_id' : 'beatmaps.beatmap_id')}, beatmaps.mode, beatmaps.approved, beatmaps.approved_date, beatmaps.submit_date` : 
+          ${isBeatmapResult ?
+            `${(groupSets ? 'beatmaps.set_id' : 'beatmaps.beatmap_id')}, beatmaps.mode, beatmaps.approved, beatmaps.approved_date, beatmaps.submit_date` :
             'users2.user_id'}
           ${country && !groupSets ? ', country_code' : ''}
       ) base
@@ -92,7 +92,7 @@ const STAT_DATA = {
     'unique_hd_ss': { query: 'unique_ss', table: 'array_table', fullFilter: 'is_hd = true', isArray: true },
     'most_played': { query: 'beatmaps', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
     'most_played_loved': { query: 'beatmaps', table: 'array_table', fullFilter: 'mode = 0 AND approved in (4)', isArray: false, isBeatmaps: true },
-    'most_ssed': { query: 'beatmaps', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4) and accuracy=100', isArray: false, isBeatmaps: true, direction: 'asc' },
+    'most_ssed': { query: 'beatmaps', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', scoreFilter: 'accuracy=100', isArray: false, isBeatmaps: true, direction: 'asc' },
     'most_fm_ssed': { query: 'beatmaps', table: 'array_table', scoreFilter: '(is_hd = true and is_hr = true and is_dt = true and is_fl = true and accuracy=100)', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
     'longest_approval': { query: 'beatmaps', groupSets: true, beatmapQuery: 'age(approved_date,submit_date)', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2)', isArray: false, isBeatmaps: true },
     'longest_maps': { query: 'beatmaps', beatmapQuery: 'length', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
@@ -219,6 +219,7 @@ router.get('/:stat/:user_id', limiter, cache('1 hour'), async function (req, res
 });
 
 router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
+    let queryInfo;
     try {
         let stat = req.params.stat;
         let country = req.query.country;
@@ -230,7 +231,7 @@ router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
         const client = new Client({ query_timeout: 30000, user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
         await client.connect();
 
-        const queryInfo = await getQuery(stat, limit, offset, country);
+        queryInfo = await getQuery(stat, limit, offset, country);
         if (!queryInfo) {
             res.status(400).send('Invalid stat');
             return;
@@ -273,13 +274,14 @@ router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
         }
 
         res.json({
+            queryInfo: queryInfo,
             result_count: total_users,
             result_type: queryInfo[2],
             leaderboard: rows
         });
     } catch (e) {
         console.error(e);
-        res.json({ error: e.message });
+        res.json({ queryInfo: queryInfo, error: e.message });
     }
 });
 

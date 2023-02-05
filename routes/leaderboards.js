@@ -85,7 +85,7 @@ const STAT_DATA = {
     'avg_acc': { query: 'avg(nullif(scores.accuracy, \'nan\'))', table: 'scores' },
     'acc': { query: 'hit_accuracy', table: 'user' },
     'user_achievements': { query: 'user_achievements', table: 'array_table', isArray: true },
-    'user_medals': { query: 'user_badges', table: 'array_table', isArray: true },
+    'user_badges': { query: 'user_badges', table: 'array_table', isArray: true },
     'unique_ss': { query: 'unique_ss', table: 'array_table', isArray: true },
     'unique_fc': { query: 'unique_fc', table: 'array_table', isArray: true },
     'unique_dt_fc': { query: 'unique_dt_fc', table: 'array_table', isArray: true },
@@ -274,7 +274,6 @@ router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
         }
 
         res.json({
-            queryInfo: queryInfo,
             result_count: total_users,
             result_type: queryInfo[2],
             leaderboard: rows

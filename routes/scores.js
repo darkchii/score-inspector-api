@@ -68,11 +68,14 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
         let modded_stars_cache = {};
         let unique_versions = [];
         for (let i = 0; i < beatmap_ids.length; i += per_fetch) {
-            const set = beatmap_ids.slice(i, i + per_fetch);
             const modded_stars = await InspectorModdedStars.findAll({
                 where: {
-                    beatmap_id: set
+                    beatmap_id: {
+                        [Op.in]: beatmap_ids
+                    }
                 },
+                limit: per_fetch,
+                offset: i,
                 raw: true,
                 nest: true
             });
@@ -82,7 +85,6 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
                 }
                 modded_stars_cache[`${modded_star.beatmap_id}-${modded_star.mods}-${modded_star.version}`] = modded_star;
             });
-            //modded_stars_cache.push(...modded_stars);
         }
 
         for (const score of scores) {
@@ -100,7 +102,6 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
         };
     }
 
-    //console.log(inspector_modded_stars);
 
     console.log(`[Scores] Fetched ${scores.length} scores for user ${req.params.id} (include_loved: ${req.query.include_loved}, ignored modded starrating: ${req.query.ignore_modded_stars === 'true'})`);
 

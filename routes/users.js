@@ -1,6 +1,6 @@
 const express = require('express');
 var apicache = require('apicache');
-const { GetUser: GetOsuUser, GetDailyUser, GetUsers } = require('../helpers/osu');
+const { GetUser: GetOsuUser, GetDailyUser, GetUsers, GetUserBeatmaps } = require('../helpers/osu');
 const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser } = require('../helpers/osualt');
 const rateLimit = require('express-rate-limit');
 
@@ -8,13 +8,13 @@ let cache = apicache.middleware;
 const router = express.Router();
 
 const limiter = rateLimit({
-	windowMs: 60 * 1000, // 15 minutes
-	max: 200, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
-	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  windowMs: 60 * 1000, // 15 minutes
+  max: 200, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
-router.get('/osu/id/:id', limiter, cache('1 hour'),  async (req, res) => {
+router.get('/osu/id/:id', limiter, cache('1 hour'), async (req, res) => {
   const mode = req.query.mode !== undefined ? req.query.mode : 0;
   let user = null;
   try {
@@ -32,23 +32,41 @@ router.get('/osu/id/:id', limiter, cache('1 hour'),  async (req, res) => {
   // res.json(user);
 });
 
-router.get('/osu/ids', limiter, cache('1 hour'),  async (req, res) => {
+router.get('/osu/beatmaps/:id/:type', limiter, cache('1 hour'), async (req, res) => {
+  const mode = req.query.mode !== undefined ? req.query.mode : 0;
+  const _type = req.params.type !== undefined ? req.params.type : 'ranked';
+  const limit = req.query.limit !== undefined ? req.query.limit : 100;
+  const offset = req.query.offset !== undefined ? req.query.offset : 0;
+  let data = null;
+  try {
+    data = await GetUserBeatmaps(req.params.id, _type, limit, offset);
+    console.log('beatmaps: ', data.length);
+  } catch (err) {
+    res.json({ error: 'Unable to get user beatmaps', message: err.message });
+  }
+  if (data !== null) {
+    res.json(data);
+  }
+  // res.json(user);
+});
+
+router.get('/osu/ids', limiter, cache('1 hour'), async (req, res) => {
   const ids = req.query.id;
   const mode = req.query.mode !== undefined ? req.query.mode : 0;
   let data;
-  try{
+  try {
     data = await GetUsers(ids);
-  }catch(err){
-    res.json({error: 'Unable to get users'});
+  } catch (err) {
+    res.json({ error: 'Unable to get users' });
     return;
   }
 
   let end_data = [];
   ids.forEach(id => {
     let user = data?.users.find(user => user.id == id);
-    if(user){
+    if (user) {
       end_data.push(user);
-    }else{
+    } else {
       end_data.push({
         id: id,
         error: 'Unable to get user'

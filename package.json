@@ -7,9 +7,9 @@
     "dev": "nodemon ./bin/www"
   },
   "nodemonConfig": {
-    "verbose": true,
     "ignore": [
-      "bin/cache/*"
+      "bin/cache/cache/requests.json",
+      "bin/cache/cache/size.json"
     ]
   },
   "dependencies": {

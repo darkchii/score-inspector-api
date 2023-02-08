@@ -14,11 +14,12 @@ const { AltUniqueFCModel } = require('./models/AltUniqueFC');
 const { AltUniqueDTFCModel } = require('./models/AltUniqueDTFC');
 const { AltUserAchievementModel } = require('./models/AltUserAchievement');
 const { InspectorBeatmapModel } = require('./models/InspectorBeatmap');
+const { InspectorModdedStarsModel } = require('./models/InspectorModdedStars');
 require('dotenv').config();
 
 let databases = {
-    inspector: new Sequelize(process.env.MYSQL_DB, process.env.MYSQL_USER, process.env.MYSQL_PASS, { host: process.env.MYSQL_HOST, dialect: 'mysql', timezone: '+01:00' }),
-    osuAlt: new Sequelize(process.env.ALT_DB_DATABASE, process.env.ALT_DB_USER, process.env.ALT_DB_PASSWORD, { host: process.env.ALT_DB_HOST, dialect: 'postgres' })
+    inspector: new Sequelize(process.env.MYSQL_DB, process.env.MYSQL_USER, process.env.MYSQL_PASS, { host: process.env.MYSQL_HOST, dialect: 'mysql', timezone: '+01:00', logging: false }),
+    osuAlt: new Sequelize(process.env.ALT_DB_DATABASE, process.env.ALT_DB_USER, process.env.ALT_DB_PASSWORD, { host: process.env.ALT_DB_HOST, dialect: 'postgres', logging: true })
 };
 module.exports.Databases = databases;
 
@@ -27,6 +28,7 @@ const InspectorComment = InspectorCommentModel(databases.inspector);
 const InspectorToken = InspectorTokenModel(databases.inspector);
 const InspectorVisitor = InspectorVisitorModel(databases.inspector);
 const InspectorBeatmap = InspectorBeatmapModel(databases.inspector);
+const InspectorModdedStars = InspectorModdedStarsModel(databases.inspector);
 
 InspectorComment.belongsTo(InspectorUser, { as: 'commentor', foreignKey: 'commentor_id', targetKey: 'osu_id' });
 InspectorVisitor.belongsTo(InspectorUser, { as: 'visitor_user', foreignKey: 'visitor_id', targetKey: 'osu_id' });
@@ -75,6 +77,7 @@ module.exports.InspectorComment = InspectorComment;
 module.exports.InspectorToken = InspectorToken;
 module.exports.InspectorVisitor = InspectorVisitor;
 module.exports.InspectorBeatmap = InspectorBeatmap;
+module.exports.InspectorModdedStars = InspectorModdedStars;
 module.exports.AltUser = AltUser;
 module.exports.AltPriorityUser = AltPriorityUser;
 module.exports.AltScore = AltScore;

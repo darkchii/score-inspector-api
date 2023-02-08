@@ -5,9 +5,9 @@ const { Client } = require('pg');
 const { GetBestScores, score_columns, score_columns_full, beatmap_columns } = require('../helpers/osualt');
 const rateLimit = require('express-rate-limit');
 const { getBeatmaps, getCompletionData } = require('../helpers/inspector');
-const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack } = require('../helpers/db');
+const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars } = require('../helpers/db');
 const { Op, Sequelize } = require('sequelize');
-const { CorrectedSqlScoreMods } = require('../helpers/misc');
+const { CorrectedSqlScoreMods, CorrectMod, ModsToString } = require('../helpers/misc');
 require('dotenv').config();
 
 const limiter = rateLimit({
@@ -21,39 +21,88 @@ let cache = apicache.middleware;
 
 const score_cache = [];
 
-async function GetUserScores(req) {
+async function GetUserScores(req, score_attributes = undefined, beatmap_attributes = undefined) {
+    const include_modded = req.query.ignore_modded_stars !== 'true';
     const scores = await AltScore.findAll({
+        attributes: score_attributes,
         where: {
             user_id: req.params.id
         },
         order: [
-            ['pp', 'DESC']
+            [req.query.order ?? 'pp', req.query.dir ?? 'DESC']
         ],
+        limit: req.query.limit ?? undefined,
         include: [
             {
+                attributes: beatmap_attributes,
                 model: AltBeatmap,
                 as: 'beatmap',
                 where: {
-                    approved: { [Op.or]: [1, 2, req.query.include_loved === 'true' ? 4 : 1] }
+                    approved: { [Op.in]: [1, 2, req.query.include_loved === 'true' ? 4 : 1] }
                 },
                 required: true,
-                include: [
+                include: include_modded ? [
                     {
                         model: AltModdedStars,
                         as: 'modded_sr',
                         where: {
                             mods_enum: {
-                                [Op.eq]:
-                                Sequelize.literal(CorrectedSqlScoreMods)
+                                [Op.eq]: Sequelize.literal(CorrectedSqlScoreMods)
+                            },
+                            beatmap_id: {
+                                [Op.eq]: Sequelize.literal('beatmap.beatmap_id')
                             }
                         }
                     }
-                ],
+                ] : [],
             },
         ],
+        raw: true,
+        nest: true
     });
 
-    console.log(`[Scores] Fetched ${scores.length} scores for user ${req.params.id} (include_loved: ${req.query.include_loved})`);
+    if (include_modded) {
+        //const beatmap_mod_pair = scores.map(score => { return { beatmap_id: score.beatmap_id, mods: score.enabled_mods } });
+        const beatmap_ids = scores.map(score => score.beatmap_id);
+        const per_fetch = 500;
+        let modded_stars_cache = {};
+        let unique_versions = [];
+        for (let i = 0; i < beatmap_ids.length; i += per_fetch) {
+            const set = beatmap_ids.slice(i, i + per_fetch);
+            const modded_stars = await InspectorModdedStars.findAll({
+                where: {
+                    beatmap_id: set
+                },
+                raw: true,
+                nest: true
+            });
+            modded_stars.forEach(modded_star => {
+                if (!unique_versions.includes(modded_star.version)) {
+                    unique_versions.push(modded_star.version);
+                }
+                modded_stars_cache[`${modded_star.beatmap_id}-${modded_star.mods}-${modded_star.version}`] = modded_star;
+            });
+            //modded_stars_cache.push(...modded_stars);
+        }
+
+        for (const score of scores) {
+            const int_mods = parseInt(score.enabled_mods);
+            const correct_mods = CorrectMod(int_mods);
+            unique_versions.forEach(version => {
+                if (score.beatmap.modded_sr === undefined) {
+                    score.beatmap.modded_sr = {};
+                }
+                const sr = modded_stars_cache[`${score.beatmap_id}-${correct_mods}-${version}`];
+                if (sr) {
+                    score.beatmap.modded_sr[version] = sr;
+                }
+            });
+        };
+    }
+
+    //console.log(inspector_modded_stars);
+
+    console.log(`[Scores] Fetched ${scores.length} scores for user ${req.params.id} (include_loved: ${req.query.include_loved}, ignored modded starrating: ${req.query.ignore_modded_stars === 'true'})`);
 
     score_cache.push({
         id: req.params.id,
@@ -72,9 +121,25 @@ router.get('/user/:id', async function (req, res, next) {
 });
 
 router.get('/completion/:id', limiter, cache('1 hour'), async function (req, res, next) {
-    const scores = await GetUserScores(req);
-    const beatmaps = await getBeatmaps(req.query);
+    req.query.ignore_modded_stars = 'true';
+    console.time('GetUserScores');
+    const scores = await GetUserScores(req, ['beatmap_id'], ['beatmap_id', 'approved_date', 'length', 'stars', 'cs', 'ar', 'od', 'hp', 'approved']);
+    console.timeEnd('GetUserScores');
+
+    const beatmaps = await getBeatmaps({ ...req.query, customAttributeSet: [
+        'beatmap_id',
+        'cs',
+        'ar',
+        'od',
+        'hp',
+        'approved_date',
+        'star_rating',
+        'total_length'
+    ] });
+
+    console.time('getCompletionData');
     const data = getCompletionData(scores, beatmaps);
+    console.timeEnd('getCompletionData');
 
     res.json(data);
 });

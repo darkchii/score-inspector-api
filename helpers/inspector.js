@@ -17,61 +17,76 @@ const connConfig = {
 module.exports.buildQuery = buildQuery;
 function buildQuery(req) {
     const mode = req.mode !== undefined ? req.mode : 0;
-    let q = `WHERE mode=? AND (approved=1 OR approved=2${(req.include_qualified !== undefined && req.include_qualified === 'true') ? ' OR approved=3' : ''}${(req.include_loved !== undefined && req.include_loved === 'true') ? ' OR approved=4' : ''})`;
+    let q = `WHERE mode=? AND approved IN (1,2${(req.include_qualified !== undefined && req.include_qualified === 'true') ? ',3' : ''}${(req.include_loved !== undefined && req.include_loved === 'true') ? ',4' : ''})`;
     const qVar = [mode];
+    let requiredAttributes = [];
 
     if (req.stars_min) {
         q += ' AND star_rating>=?';
         qVar.push(req.stars_min);
+
+        if(!requiredAttributes.includes('star_rating')) requiredAttributes.push('star_rating');
     }
     if (req.stars_max) {
         q += ' AND star_rating<?';
         qVar.push(req.stars_max);
+        if(!requiredAttributes.includes('star_rating')) requiredAttributes.push('star_rating');
     }
     if (req.ar_min) {
         q += ' AND ar>=?';
         qVar.push(req.ar_min);
+        if(!requiredAttributes.includes('ar')) requiredAttributes.push('ar');
     }
     if (req.ar_max) {
         q += ' AND ar<?';
         qVar.push(req.ar_max);
+        if(!requiredAttributes.includes('ar')) requiredAttributes.push('ar');
     }
     if (req.od_min) {
         q += ' AND od>=?';
         qVar.push(req.od_min);
+        if(!requiredAttributes.includes('od')) requiredAttributes.push('od');
     }
     if (req.od_max) {
         q += ' AND od<?';
         qVar.push(req.od_max);
+        if(!requiredAttributes.includes('od')) requiredAttributes.push('od');
     }
     if (req.cs_min) {
         q += ' AND cs>=?';
         qVar.push(req.cs_min);
+        if(!requiredAttributes.includes('cs')) requiredAttributes.push('cs');
     }
     if (req.cs_max) {
         q += ' AND cs<?';
         qVar.push(req.cs_max);
+        if(!requiredAttributes.includes('cs')) requiredAttributes.push('cs');
     }
     if (req.hp_min) {
         q += ' AND hp>=?';
         qVar.push(req.hp_min);
+        if(!requiredAttributes.includes('hp')) requiredAttributes.push('hp');
     }
     if (req.hp_max) {
         q += ' AND hp<?';
         qVar.push(req.hp_max);
+        if(!requiredAttributes.includes('hp')) requiredAttributes.push('hp');
     }
     if (req.length_min) {
         q += ' AND total_length>=?';
         qVar.push(req.length_min);
+        if(!requiredAttributes.includes('total_length')) requiredAttributes.push('total_length');
     }
     if (req.length_max) {
         q += ' AND total_length<?';
         qVar.push(req.length_max);
+        if(!requiredAttributes.includes('total_length')) requiredAttributes.push('total_length');
     }
     if (req.pack) {
         q += ` AND 
       (packs LIKE '${req.pack},%' or packs LIKE '%,${req.pack},%' or packs LIKE '%,${req.pack}' or packs = '${req.pack}')
     `;
+        if(!requiredAttributes.includes('packs')) requiredAttributes.push('packs');
     }
     if (req.id) {
         const id_arr = req.id;
@@ -86,7 +101,7 @@ function buildQuery(req) {
         }
     }
 
-    return [q, qVar];
+    return [q, qVar, requiredAttributes];
 }
 
 module.exports.getBeatmaps = getBeatmaps;
@@ -100,6 +115,16 @@ async function getBeatmaps(req) {
 
     if (req.compact) {
         querySelector = 'beatmapset_id, beatmap_id, artist, title, version, approved';
+    }else if(req.requiredAttributesOnly){
+        if(!_res[2].includes('beatmapset_id')) _res[2].push('beatmapset_id');
+        if(!_res[2].includes('beatmap_id')) _res[2].push('beatmap_id');
+        if(!_res[2].includes('artist')) _res[2].push('artist');
+        if(!_res[2].includes('title')) _res[2].push('title');
+        if(!_res[2].includes('version')) _res[2].push('version');
+        if(!_res[2].includes('approved')) _res[2].push('approved');
+        querySelector = _res[2].join(',');
+    }else if(req.customAttributeSet){
+        querySelector = req.customAttributeSet.join(',');
     }
 
     const result = await connection.awaitQuery(`SELECT ${querySelector} FROM beatmap ${q}`, qVar);
@@ -235,8 +260,8 @@ function getCompletionData(scores, beatmaps) {
     completion.years = [];
     for (const year of spread) {
         let perc = 100;
-        let filtered_scores = scores.filter(score => new Date(score.beatmap.approved_date).getFullYear() === year);
-        let filtered_beatmaps = beatmaps.filter(beatmap => new Date(beatmap.approved_date).getFullYear() === year);
+        let filtered_scores = scores.filter(score => score.beatmap.approved_date.getFullYear() === year);
+        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.approved_date.getFullYear() === year);
         //console.log(new Date(scores[0].approved_date).getFullYear());
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
         completion.years.push({

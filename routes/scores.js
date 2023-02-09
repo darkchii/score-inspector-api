@@ -19,8 +19,6 @@ const limiter = rateLimit({
 
 let cache = apicache.middleware;
 
-const score_cache = [];
-
 async function GetUserScores(req, score_attributes = undefined, beatmap_attributes = undefined) {
     const include_modded = req.query.ignore_modded_stars !== 'true';
     const scores = await AltScore.findAll({
@@ -105,18 +103,11 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
 
     console.log(`[Scores] Fetched ${scores.length} scores for user ${req.params.id} (include_loved: ${req.query.include_loved}, ignored modded starrating: ${req.query.ignore_modded_stars === 'true'})`);
 
-    score_cache.push({
-        id: req.params.id,
-        include_loved: req.query.include_loved,
-        time: Date.now(),
-        data: scores
-    });
-
     return scores;
 }
 
 /* Get the entire list of scores of a user */
-router.get('/user/:id', async function (req, res, next) {
+router.get('/user/:id', limiter, cache('1 hour'), async function (req, res, next) {
     const rows = await GetUserScores(req);
     res.json(rows);
 });

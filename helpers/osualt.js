@@ -110,8 +110,8 @@ module.exports.IsRegistered = IsRegistered;
 async function IsRegistered(id) {
     let data;
     try {
-        const total = await AltPriorityUser.count({ where: { user_id: id } });
-        data = { registered: total > 0 };
+        const exists = await AltPriorityUser.findByPk(id);
+        data = { registered: exists ? true : false };
     } catch (err) {
         throw new Error('Something went wrong, please try later...');
     }

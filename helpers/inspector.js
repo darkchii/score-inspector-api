@@ -163,7 +163,7 @@ async function IsReachable(endpoint) {
             break;
         case 'osualt':
             try {
-                await Databases.osu_alt.authenticate();
+                await Databases.osuAlt.authenticate();
                 reachable = true;
             } catch (err) {
                 reachable = false;

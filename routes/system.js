@@ -20,6 +20,17 @@ const connConfig = {
     password: process.env.MYSQL_PASS,
 };
 
+let cached_system_data = {
+    osuAlt: {
+        last_updated: 0,
+        data: null
+    },
+    system: {
+        last_updated: 0,
+        data: null
+    }
+};
+
 router.get('/', async (req, res, next) => {
     // let user_count = (await connection.awaitQuery(`SELECT count(*) as c FROM inspector_users`))?.[0]?.c ?? 0;
     let user_count = await InspectorUser.count();
@@ -29,13 +40,24 @@ router.get('/', async (req, res, next) => {
     let expressRequests = expressStats.getSync('requests') ?? 0;
     let expressBytesSent = expressStats.getSync('size') ?? 0;
 
-    let osu_alt_data = await GetSystemInfo();
+    //todo: optimize
+    if(cached_system_data.osuAlt.last_updated < Date.now() - 1000 * 60 * 5 || !cached_system_data.osuAlt.data) {
+        cached_system_data.osuAlt.data = await GetSystemInfo();
+        cached_system_data.osuAlt.last_updated = Date.now();
+    }
+    let osu_alt_data = cached_system_data.osuAlt.data;
 
-    const time = await si.time();
-    const cpu = await si.cpu();
-    const mem = await si.mem();
-    const _os = await si.osInfo();
-    const network = await si.networkInterfaces('default');
+    //todo: optimize
+    if(cached_system_data.system.last_updated < Date.now() - 1000 * 60 * 5 || !cached_system_data.system.data) {
+        cached_system_data.system.data = {
+            time: await si.time(),
+            cpu: await si.cpu(),
+            mem: await si.mem(),
+            os: await si.osInfo(),
+            network: await si.networkInterfaces('default')
+        }
+        cached_system_data.system.last_updated = Date.now();
+    }
 
     res.json({
         database: {
@@ -51,25 +73,25 @@ router.get('/', async (req, res, next) => {
         },
         system: {
             uptime: uptime(),
-            system_time: time,
+            system_time: cached_system_data.system.data.time,
             cpu: {
-                manufacturer: cpu.manufacturer,
-                brand: cpu.brand,
-                cores: cpu.cores
+                manufacturer: cached_system_data.system.data.cpu.manufacturer,
+                brand: cached_system_data.system.data.cpu.brand,
+                cores: cached_system_data.system.data.cpu.cores
             },
-            memory: mem,
+            memory: cached_system_data.system.data.mem,
             os: {
-                platform: _os.platform,
-                distro: _os.distro,
-                release: _os.release,
-                codename: _os.codename,
-                arch: _os.arch,
+                platform: cached_system_data.system.data.os.platform,
+                distro: cached_system_data.system.data.os.distro,
+                release: cached_system_data.system.data.os.release,
+                codename: cached_system_data.system.data.os.codename,
+                arch: cached_system_data.system.data.os.arch,
             },
             network: {
-                ifaceName: network.ifaceName,
-                iface: network.iface,
-                type: network.type,
-                speed: network.speed
+                ifaceName: cached_system_data.system.data.network.ifaceName,
+                iface: cached_system_data.system.data.network.iface,
+                type: cached_system_data.system.data.network.type,
+                speed: cached_system_data.system.data.network.speed
             }
         }
     });

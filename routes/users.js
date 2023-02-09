@@ -3,6 +3,7 @@ var apicache = require('apicache');
 const { GetUser: GetOsuUser, GetDailyUser, GetUsers, GetUserBeatmaps } = require('../helpers/osu');
 const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser } = require('../helpers/osualt');
 const rateLimit = require('express-rate-limit');
+const { default: axios } = require('axios');
 
 let cache = apicache.middleware;
 const router = express.Router();
@@ -131,6 +132,7 @@ router.get('/full/:id', limiter, cache('10 minutes'), async (req, res, next) => 
   let osuUser;
   let dailyUser;
   let altUser;
+  let scoreRank;
 
   try {
     // console.log('osu api');
@@ -143,8 +145,15 @@ router.get('/full/:id', limiter, cache('10 minutes'), async (req, res, next) => 
     res.json(e.message);
   }
 
+  try {
+    let scoreRes = await axios.get(`https://score.respektive.pw/u/${req.params.id}`);
+    scoreRank = scoreRes.data?.[0]?.rank;
+  } catch (e) {
+    //nothing
+  }
+
   res.json({
-    osu: osuUser,
+    osu: { ...osuUser, scoreRank },
     daily: dailyUser,
     alt: altUser,
   });

@@ -8,8 +8,7 @@ require('dotenv').config();
 router.get('/proxy/:url', async (req, res) => {
   try{
     const url = Buffer.from(req.params.url, 'base64').toString('utf-8');
-    // const _res = await axios.get(url);
-    request.get(url).pipe(res);
+    req.pipe(request(url)).pipe(res);
   }catch(err){
     res.status(500).json({ error: err.message });
   }

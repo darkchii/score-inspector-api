@@ -75,7 +75,7 @@ router.post('/', async (req, res, next) => {
     const user = await InspectorUser.findOne({ where: { osu_id: user_id } });
 
     //if user doesn't exist, add them
-    if (user.length == 0) {
+    if (user === null) {
         //add user to db
         const [registeredUser, created] = await InspectorUser.create({ osu_id: user_id, known_username: username });
 

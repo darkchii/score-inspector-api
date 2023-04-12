@@ -15,6 +15,7 @@
   "dependencies": {
     "apicache": "^1.6.3",
     "axios": "^1.2.1",
+    "compression": "^1.7.4",
     "cookie-parser": "~1.4.4",
     "debug": "~2.6.9",
     "dotenv": "^16.0.3",

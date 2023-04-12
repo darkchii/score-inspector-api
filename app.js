@@ -12,6 +12,7 @@ var scoresRouter = require('./routes/scores');
 var leaderboardsRouter = require('./routes/leaderboards');
 var loginRouter = require('./routes/login');
 var systemRouter = require('./routes/system');
+const compression = require('compression');
 
 var app = express();
 
@@ -24,15 +25,16 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(compression({ level: 9 }));
 
 var expressStats = cache();
 app.use(function (req, res, next) {
   res.on('finish', function () {
-    try{
+    try {
       //not required stats, so its ok if it fails
       expressStats.putSync('requests', (expressStats.getSync('requests') ?? 0) + 1);
       expressStats.putSync('size', (expressStats.getSync('size') ?? 0) + parseInt(res.get('Content-Length') ?? 0));
-    }catch(err) {}
+    } catch (err) { }
   });
 
   next();

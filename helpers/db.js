@@ -15,6 +15,7 @@ const { AltUniqueDTFCModel } = require('./models/AltUniqueDTFC');
 const { AltUserAchievementModel } = require('./models/AltUserAchievement');
 const { InspectorBeatmapModel } = require('./models/InspectorBeatmap');
 const { InspectorModdedStarsModel } = require('./models/InspectorModdedStars');
+const { InspectorScoreStatModel } = require('./models/InspectorScoreStat');
 require('dotenv').config();
 
 let databases = {
@@ -29,6 +30,7 @@ const InspectorToken = InspectorTokenModel(databases.inspector);
 const InspectorVisitor = InspectorVisitorModel(databases.inspector);
 const InspectorBeatmap = InspectorBeatmapModel(databases.inspector);
 const InspectorModdedStars = InspectorModdedStarsModel(databases.inspector);
+const InspectorScoreStat = InspectorScoreStatModel(databases.inspector);
 
 InspectorComment.belongsTo(InspectorUser, { as: 'commentor', foreignKey: 'commentor_id', targetKey: 'osu_id' });
 InspectorVisitor.belongsTo(InspectorUser, { as: 'visitor_user', foreignKey: 'visitor_id', targetKey: 'osu_id' });
@@ -78,6 +80,7 @@ module.exports.InspectorToken = InspectorToken;
 module.exports.InspectorVisitor = InspectorVisitor;
 module.exports.InspectorBeatmap = InspectorBeatmap;
 module.exports.InspectorModdedStars = InspectorModdedStars;
+module.exports.InspectorScoreStat = InspectorScoreStat;
 module.exports.AltUser = AltUser;
 module.exports.AltPriorityUser = AltPriorityUser;
 module.exports.AltScore = AltScore;

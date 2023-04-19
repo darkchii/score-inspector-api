@@ -5,7 +5,7 @@ const { Client } = require('pg');
 const { GetBestScores, score_columns, score_columns_full, beatmap_columns } = require('../helpers/osualt');
 const rateLimit = require('express-rate-limit');
 const { getBeatmaps, getCompletionData } = require('../helpers/inspector');
-const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars } = require('../helpers/db');
+const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat } = require('../helpers/db');
 const { Op, Sequelize } = require('sequelize');
 const { CorrectedSqlScoreMods, CorrectMod, ModsToString } = require('../helpers/misc');
 require('dotenv').config();
@@ -118,16 +118,18 @@ router.get('/completion/:id', limiter, cache('1 hour'), async function (req, res
     const scores = await GetUserScores(req, ['beatmap_id'], ['beatmap_id', 'approved_date', 'length', 'stars', 'cs', 'ar', 'od', 'hp', 'approved']);
     console.timeEnd('GetUserScores');
 
-    const beatmaps = await getBeatmaps({ ...req.query, customAttributeSet: [
-        'beatmap_id',
-        'cs',
-        'ar',
-        'od',
-        'hp',
-        'approved_date',
-        'star_rating',
-        'total_length'
-    ] });
+    const beatmaps = await getBeatmaps({
+        ...req.query, customAttributeSet: [
+            'beatmap_id',
+            'cs',
+            'ar',
+            'od',
+            'hp',
+            'approved_date',
+            'star_rating',
+            'total_length'
+        ]
+    });
 
     console.time('getCompletionData');
     const data = getCompletionData(scores, beatmaps);
@@ -168,65 +170,28 @@ router.get('/best', limiter, cache('1 hour'), async function (req, res, next) {
 });
 
 const STAT_PERIODS = [
-    '24h', '7d', 'all'
+    '10min', '24h', '7d', 'all'
 ]
+
 router.get('/stats', limiter, cache('1 hour'), async function (req, res, next) {
     //stats from today
-    const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
-    await client.connect();
-    const approved_query = `(beatmaps.approved = 1 OR beatmaps.approved = 2 OR beatmaps.approved = 4)`;
-    const join_query = `
-    LEFT JOIN beatmaps ON scores.beatmap_id = beatmaps.beatmap_id 
-    INNER JOIN users2 ON scores.user_id = users2.user_id
-    `;
-    const full_query = `SELECT 
-        count(*) as scores, 
-        sum(score) as total_score,
-        sum(case when scores.pp = 'NaN' then 0 else scores.pp end) as total_pp,
-        max(case when scores.pp = 'NaN' then 0 else scores.pp end) as max_pp,
-        sum(length) as total_length,
-        count(*) FILTER (WHERE rank = 'XH') as scores_xh,
-        count(*) FILTER (WHERE rank = 'X') as scores_x,
-        count(*) FILTER (WHERE rank = 'SH') as scores_sh,
-        count(*) FILTER (WHERE rank = 'S') as scores_s,
-        count(*) FILTER (WHERE rank = 'A') as scores_a,
-        count(*) FILTER (WHERE rank = 'B') as scores_b,
-        count(*) FILTER (WHERE rank = 'C') as scores_c,
-        count(*) FILTER (WHERE rank = 'D') as scores_d,
-        sum(count300+count100+count50) as total_hits,
-        avg(stars) as avg_stars,
-        avg(combo) as avg_combo,
-        avg(length) as avg_length,
-        avg(score) as avg_score,
-        avg(case when scores.pp = 'NaN' then 0 else scores.pp end) as avg_pp,
-        avg(perfect) as fc_rate
-    FROM scores 
-    ${join_query} 
-    WHERE ${approved_query}`;
-
-    let _res = {};
-    _res.time = new Date().getTime();
+    let data = {};
     for await (const period of STAT_PERIODS) {
-        let time_query = '';
-        if (period === '24h') {
-            time_query = 'AND (date_played BETWEEN NOW() - INTERVAL \'24 HOURS\' AND NOW())';
-        } else if (period === '7d') {
-            time_query = 'AND (date_played BETWEEN NOW() - INTERVAL \'7 DAYS\' AND NOW())';
-        }
+        const rows = await InspectorScoreStat.findAll({
+            where: {
+                period: period
+            },
+            raw: true,
+            nest: true
+        });
 
-        console.time(`[Stats] ${period}`);
-        const { rows } = await client.query(`${full_query} ${time_query}`);
-        console.timeEnd(`[Stats] ${period}`);
-
-        const most_played_map_columns = beatmap_columns;
-        const { rows: most_played_maps } = await client.query(`SELECT count(*), ${most_played_map_columns} FROM scores ${join_query} WHERE ${approved_query} ${time_query} GROUP BY ${most_played_map_columns} ORDER BY count(*) DESC LIMIT 5`);
-        let data = rows[0];
-        data.most_played_maps = most_played_maps;
-        _res[period] = data;
+        data[period] = {};
+        rows.forEach(row => {
+            data[period][row.key] = JSON.parse(row.value);
+        });
     }
 
-    await client.end();
-    res.json(_res);
+    res.json(data);
 });
 
 router.get('/most_played', limiter, cache('1 hour'), async function (req, res, next) {

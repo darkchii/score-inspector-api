@@ -13,6 +13,7 @@ var leaderboardsRouter = require('./routes/leaderboards');
 var loginRouter = require('./routes/login');
 var systemRouter = require('./routes/system');
 const compression = require('compression');
+const StartCacher = require('./db_cacher');
 
 var app = express();
 
@@ -65,3 +66,5 @@ app.use(function (err, req, res, next) {
 });
 
 module.exports = app;
+
+StartCacher();

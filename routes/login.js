@@ -287,7 +287,7 @@ router.post('/update_visitor', update_Limiter, async (req, res, next) => {
                 }
             });
     } else {
-        result = await InspectorVisitor.create({ visitor_id: visitor_id, target_id: target_id, last_visit: new Date() });
+        result = await InspectorVisitor.create({ visitor_id: visitor_id, target_id: target_id, last_visit: new Date(), count: 1 });
     }
 
     res.json({});

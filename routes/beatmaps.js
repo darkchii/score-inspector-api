@@ -172,7 +172,7 @@ router.get('/monthly', limiter, cache('1 hour'), async (req, res) => {
 
     const months = [];
 
-    const _start = moment('6 Oct 2007');
+    const _start = moment('10-06-2007', "MM-DD-YYYY");
     // var _end = moment(sorted[sorted.length - 1].actual_date).add(1, `${addDateFormat}s`);
     const _end = moment().add(1, 'months');
     for (let m = moment(_start); m.isBefore(_end); m.add(1, 'months')) {
@@ -200,7 +200,7 @@ router.get('/yearly', limiter, cache('1 hour'), async (req, res) => {
 
     const months = [];
 
-    const _start = moment('6 Oct 2007');
+    const _start = moment('10-06-2007', "MM-DD-YYYY");
     // var _end = moment(sorted[sorted.length - 1].actual_date).add(1, `${addDateFormat}s`);
     const _end = moment().add(1, 'years');
     for (let m = moment(_start); m.isBefore(_end); m.add(1, 'years')) {

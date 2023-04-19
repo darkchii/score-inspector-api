@@ -168,7 +168,7 @@ router.get('/best', limiter, cache('1 hour'), async function (req, res, next) {
 });
 
 const STAT_PERIODS = [
-    '24h', 'all'
+    '24h', '7d', 'all'
 ]
 router.get('/stats', limiter, cache('1 hour'), async function (req, res, next) {
     //stats from today
@@ -193,12 +193,19 @@ router.get('/stats', limiter, cache('1 hour'), async function (req, res, next) {
         count(*) FILTER (WHERE rank = 'B') as scores_b,
         count(*) FILTER (WHERE rank = 'C') as scores_c,
         count(*) FILTER (WHERE rank = 'D') as scores_d,
-        sum(count300+count100+count50) as total_hits
+        sum(count300+count100+count50) as total_hits,
+        avg(stars) as avg_stars,
+        avg(combo) as avg_combo,
+        avg(length) as avg_length,
+        avg(score) as avg_score,
+        avg(case when scores.pp = 'NaN' then 0 else scores.pp end) as avg_pp,
+        avg(perfect) as fc_rate
     FROM scores 
     ${join_query} 
     WHERE ${approved_query}`;
 
     let _res = {};
+    _res.time = new Date().getTime();
     for await (const period of STAT_PERIODS) {
         let time_query = '';
         if (period === '24h') {
@@ -206,12 +213,15 @@ router.get('/stats', limiter, cache('1 hour'), async function (req, res, next) {
         } else if (period === '7d') {
             time_query = 'AND (date_played BETWEEN NOW() - INTERVAL \'7 DAYS\' AND NOW())';
         }
+
+        console.time(`[Stats] ${period}`);
         const { rows } = await client.query(`${full_query} ${time_query}`);
+        console.timeEnd(`[Stats] ${period}`);
 
         const most_played_map_columns = beatmap_columns;
-        const { rows: most_played_map } = await client.query(`SELECT count(*), ${most_played_map_columns} FROM scores ${join_query} WHERE ${approved_query} ${time_query} GROUP BY ${most_played_map_columns} ORDER BY count(*) DESC LIMIT 1`);
+        const { rows: most_played_maps } = await client.query(`SELECT count(*), ${most_played_map_columns} FROM scores ${join_query} WHERE ${approved_query} ${time_query} GROUP BY ${most_played_map_columns} ORDER BY count(*) DESC LIMIT 5`);
         let data = rows[0];
-        data.most_played_map = most_played_map[0];
+        data.most_played_maps = most_played_maps;
         _res[period] = data;
     }
 

@@ -173,7 +173,7 @@ const STAT_PERIODS = [
     '10min', '24h', '7d', 'all'
 ]
 
-router.get('/stats', limiter, cache('1 hour'), async function (req, res, next) {
+router.get('/stats', limiter, async function (req, res, next) {
     //stats from today
     let data = {};
     for await (const period of STAT_PERIODS) {

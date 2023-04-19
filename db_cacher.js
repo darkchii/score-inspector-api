@@ -5,6 +5,7 @@ const { Client } = require("pg");
 const { beatmap_columns } = require("./helpers/osualt");
 const { InspectorScoreStat } = require("./helpers/db");
 const { Op, Sequelize } = require('sequelize');
+require('dotenv').config();
 
 function StartCacher() {
     Loop();
@@ -21,11 +22,25 @@ async function Loop() {
         console.log("Updating beatmap statistics");
         await UpdateScoreStatistics(['10min']);
     }, 1000 * 60 * 10);
+    //check database timezone and time
+    // const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
+    // await client.connect();
+    // const result = await client.query("SELECT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') as test, NOW() as now, CURRENT_TIMESTAMP as current_timestamp");
+    // //newest score as test (by time)
+    // const newest_score = await client.query("SELECT * FROM scores ORDER BY date_played DESC LIMIT 1");
+    // await client.end();
+    // console.log(newest_score.rows[0]);
+    // console.log(result.rows[0]);
 
     // first time run immediately
-    await UpdateScoreStatistics(['24h', '7d', 'all']);
     await UpdateScoreStatistics(['10min']);
+    await UpdateScoreStatistics(['24h', '7d', 'all']);
 }
+
+const user_rows = [
+    { key: "user_most_scores", select: "count(*)" },
+    { key: "user_most_pp", select: "sum(case when scores.pp = 'NaN' then 0 else scores.pp end)" }
+]
 
 async function UpdateScoreStatistics(STAT_PERIODS) {
     const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
@@ -70,16 +85,14 @@ async function UpdateScoreStatistics(STAT_PERIODS) {
     for await (const period of STAT_PERIODS) {
         let time_query = '';
         if (period === '24h') {
-            time_query = 'AND (date_played BETWEEN NOW() - INTERVAL \'24 HOURS\' AND NOW())';
+            time_query = 'AND (date_played BETWEEN (CURRENT_TIMESTAMP AT TIME ZONE \'UTC\') - INTERVAL \'24 HOURS\' AND (CURRENT_TIMESTAMP AT TIME ZONE \'UTC\'))';
         } else if (period === '7d') {
-            time_query = 'AND (date_played BETWEEN NOW() - INTERVAL \'7 DAYS\' AND NOW())';
+            time_query = 'AND (date_played BETWEEN (CURRENT_TIMESTAMP AT TIME ZONE \'UTC\') - INTERVAL \'7 DAYS\' AND (CURRENT_TIMESTAMP AT TIME ZONE \'UTC\'))';
         } else if (period === '10min') {
-            time_query = 'AND (date_played BETWEEN NOW() - INTERVAL \'10 MINUTES\' AND NOW())';
+            time_query = 'AND (date_played BETWEEN (CURRENT_TIMESTAMP AT TIME ZONE \'UTC\') - INTERVAL \'10 MIN\' AND (CURRENT_TIMESTAMP AT TIME ZONE \'UTC\'))';
         }
 
-        console.time(`[Stats] ${period}`);
         const { rows } = await client.query(`${full_query} ${time_query}`);
-        console.timeEnd(`[Stats] ${period}`);
 
         // insert/update all rows into database
         for await (const key of Object.keys(rows[0])) {
@@ -136,33 +149,17 @@ async function UpdateScoreStatistics(STAT_PERIODS) {
             });
         }
 
-        // //get user with most scores in period
-        const { rows: most_scores } = await client.query(`SELECT count(*) as c, ${user_columns} FROM scores ${join_query} WHERE ${approved_query} ${time_query} GROUP BY ${user_columns} ORDER BY count(*) DESC LIMIT 1`);
-
-        const most_scores_json = JSON.stringify(most_scores[0]);
-        let most_scores_row = await InspectorScoreStat.findOne({ where: { key: 'most_scores', period: period } });
-        if (most_scores_row) {
-            await InspectorScoreStat.update({ value: most_scores_json }, { where: { key: 'most_scores', period: period } });
-        } else {
-            await InspectorScoreStat.create({ key: 'most_scores', period: period, value: most_scores_json });
+        for await (const user_row of user_rows) {
+            const { rows: _data } = await client.query(`SELECT ${user_row.select} as c, ${user_columns} FROM scores ${join_query} WHERE ${approved_query} ${time_query} GROUP BY ${user_columns} ORDER BY ${user_row.select} DESC LIMIT 1`);
+            
+            const data_json = JSON.stringify(_data[0]);
+            let data_row = await InspectorScoreStat.findOne({ where: { key: user_row.key, period: period } });
+            if (data_row) {
+                await InspectorScoreStat.update({ value: data_json }, { where: { key: user_row.key, period: period } });
+            } else {
+                await InspectorScoreStat.create({ key: user_row.key, period: period, value: data_json });
+            }
         }
-
-        // //get user with most pp in period
-        const { rows: most_pp } = await client.query(`SELECT sum(case when scores.pp = 'NaN' then 0 else scores.pp end) as c, ${user_columns} FROM scores ${join_query} WHERE ${approved_query} ${time_query} GROUP BY ${user_columns} ORDER BY sum(case when scores.pp = 'NaN' then 0 else scores.pp end) DESC LIMIT 1`);
-        const most_pp_json = JSON.stringify(most_pp[0]);
-        let most_pp_row = await InspectorScoreStat.findOne({ where: { key: 'most_pp', period: period } });
-        if (most_pp_row) {
-            await InspectorScoreStat.update({ value: most_pp_json }, { where: { key: 'most_pp', period: period } });
-        } else {
-            await InspectorScoreStat.create({ key: 'most_pp', period: period, value: most_pp_json });
-        }
-
-        // data.users = {
-        //     most_scores: most_scores[0],
-        //     most_pp: most_pp[0]
-        // }
-
-        // _res[period] = data;
     }
 
     await client.end();

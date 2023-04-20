@@ -170,7 +170,7 @@ router.get('/best', limiter, cache('1 hour'), async function (req, res, next) {
 });
 
 const STAT_PERIODS = [
-    '10min', '24h', '7d', 'all'
+    '30min', '24h', '7d', 'all'
 ]
 
 router.get('/stats', limiter, async function (req, res, next) {
@@ -187,7 +187,11 @@ router.get('/stats', limiter, async function (req, res, next) {
 
         data[period] = {};
         rows.forEach(row => {
-            data[period][row.key] = JSON.parse(row.value);
+            try{
+                data[period][row.key] = JSON.parse(row.value);
+            }catch(e){
+                data[period][row.key] = row.value;
+            }
         });
     }
 
@@ -218,7 +222,7 @@ router.get('/most_played', limiter, cache('1 hour'), async function (req, res, n
     res.json(rows);
 });
 
-router.get('/activity', limiter, cache('1 hour'), async function (req, res, next) {
+router.get('/activity', limiter, cache('20 minutes'), async function (req, res, next) {
     const hours = req.query.hours || 24;
     const query = `WITH hour_entries AS (
         SELECT generate_series(date_trunc('hour', ${db_now} - INTERVAL '${hours} hours'), date_trunc('hour', ${db_now}), INTERVAL '1 hour') AS hour

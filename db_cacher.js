@@ -21,7 +21,7 @@ async function Loop() {
 
     setInterval(async () => {
         console.log("Updating beatmap statistics");
-        await UpdateScoreStatistics(['10min']);
+        await UpdateScoreStatistics(['30min']);
     }, 1000 * 60 * 10);
     //check database timezone and time
     // const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
@@ -34,13 +34,16 @@ async function Loop() {
     // console.log(result.rows[0]);
 
     // first time run immediately
-    await UpdateScoreStatistics(['10min']);
+    await UpdateScoreStatistics(['30min']);
     await UpdateScoreStatistics(['24h', '7d', 'all']);
 }
 
 const user_rows = [
     { key: "user_most_scores", select: "count(*)" },
-    { key: "user_most_pp", select: "sum(case when scores.pp = 'NaN' then 0 else scores.pp end)" }
+    { key: "user_most_pp", select: "sum(case when scores.pp = 'NaN' then 0 else scores.pp end)" },
+    { key: "user_top_pp", select: "max(case when scores.pp = 'NaN' then 0 else scores.pp end)" },
+    { key: "user_most_score", select: "sum(score)" },
+    { key: "user_top_score", select: "max(score)" },
 ]
 
 async function UpdateScoreStatistics(STAT_PERIODS) {
@@ -92,6 +95,8 @@ async function UpdateScoreStatistics(STAT_PERIODS) {
             time_query = `AND (date_played BETWEEN ${db_now} - INTERVAL \'7 DAYS\' AND ${db_now})`;
         } else if (period === '10min') {
             time_query = `AND (date_played BETWEEN ${db_now} - INTERVAL \'10 MIN\' AND ${db_now})`;
+        }else if (period === '30min') {
+            time_query = `AND (date_played BETWEEN ${db_now} - INTERVAL \'30 MIN\' AND ${db_now})`;
         }
 
         const { rows } = await client.query(`${full_query} ${time_query}`);
@@ -153,7 +158,7 @@ async function UpdateScoreStatistics(STAT_PERIODS) {
 
         for await (const user_row of user_rows) {
             const { rows: _data } = await client.query(`SELECT ${user_row.select} as c, ${user_columns} FROM scores ${join_query} WHERE ${approved_query} ${time_query} GROUP BY ${user_columns} ORDER BY ${user_row.select} DESC LIMIT 1`);
-            
+
             const data_json = JSON.stringify(_data[0]);
             let data_row = await InspectorScoreStat.findOne({ where: { key: user_row.key, period: period } });
             if (data_row) {
@@ -161,6 +166,14 @@ async function UpdateScoreStatistics(STAT_PERIODS) {
             } else {
                 await InspectorScoreStat.create({ key: user_row.key, period: period, value: data_json });
             }
+        }
+
+        //update time
+        let time_row = await InspectorScoreStat.findOne({ where: { key: 'updated_at', period: period } });
+        if (time_row) {
+            await InspectorScoreStat.update({ value: new Date().toISOString() }, { where: { key: 'updated_at', period: period } });
+        } else {
+            await InspectorScoreStat.create({ key: 'updated_at', period: period, value: new Date().toISOString() });
         }
 
         console.log(`[STATS] ${period} stats updated.`);

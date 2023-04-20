@@ -67,4 +67,9 @@ app.use(function (err, req, res, next) {
 
 module.exports = app;
 
-StartCacher();
+//if production
+
+if (process.env.NODE_ENV === 'production') {
+  StartCacher();
+}
+

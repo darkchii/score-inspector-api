@@ -5,6 +5,7 @@ const { Client } = require("pg");
 const { beatmap_columns } = require("./helpers/osualt");
 const { InspectorScoreStat } = require("./helpers/db");
 const { Op, Sequelize } = require('sequelize');
+const { db_now } = require("./helpers/misc");
 require('dotenv').config();
 
 function StartCacher() {
@@ -45,6 +46,7 @@ const user_rows = [
 async function UpdateScoreStatistics(STAT_PERIODS) {
     const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
     await client.connect();
+
     const approved_query = `(beatmaps.approved = 1 OR beatmaps.approved = 2 OR beatmaps.approved = 4)`;
     const join_query = `
     LEFT JOIN beatmaps ON scores.beatmap_id = beatmaps.beatmap_id 
@@ -85,11 +87,11 @@ async function UpdateScoreStatistics(STAT_PERIODS) {
     for await (const period of STAT_PERIODS) {
         let time_query = '';
         if (period === '24h') {
-            time_query = 'AND (date_played BETWEEN (CURRENT_TIMESTAMP AT TIME ZONE \'UTC\') - INTERVAL \'24 HOURS\' AND (CURRENT_TIMESTAMP AT TIME ZONE \'UTC\'))';
+            time_query = `AND (date_played BETWEEN ${db_now} - INTERVAL \'24 HOURS\' AND ${db_now})`;
         } else if (period === '7d') {
-            time_query = 'AND (date_played BETWEEN (CURRENT_TIMESTAMP AT TIME ZONE \'UTC\') - INTERVAL \'7 DAYS\' AND (CURRENT_TIMESTAMP AT TIME ZONE \'UTC\'))';
+            time_query = `AND (date_played BETWEEN ${db_now} - INTERVAL \'7 DAYS\' AND ${db_now})`;
         } else if (period === '10min') {
-            time_query = 'AND (date_played BETWEEN (CURRENT_TIMESTAMP AT TIME ZONE \'UTC\') - INTERVAL \'10 MIN\' AND (CURRENT_TIMESTAMP AT TIME ZONE \'UTC\'))';
+            time_query = `AND (date_played BETWEEN ${db_now} - INTERVAL \'10 MIN\' AND ${db_now})`;
         }
 
         const { rows } = await client.query(`${full_query} ${time_query}`);
@@ -160,6 +162,8 @@ async function UpdateScoreStatistics(STAT_PERIODS) {
                 await InspectorScoreStat.create({ key: user_row.key, period: period, value: data_json });
             }
         }
+
+        console.log(`[STATS] ${period} stats updated.`);
     }
 
     await client.end();

@@ -6,6 +6,9 @@ function parse(str) {
     return str.replace(/%s/g, () => args[i++]);
 }
 
+const db_now = "timezone('UTC'::text, now())";
+module.exports.db_now = db_now;
+
 module.exports.range = range;
 function range(size, startAt = 0) {
     return [...Array(size).keys()].map(i => i + startAt);

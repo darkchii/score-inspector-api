@@ -7,7 +7,7 @@ const rateLimit = require('express-rate-limit');
 const { getBeatmaps, getCompletionData } = require('../helpers/inspector');
 const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat } = require('../helpers/db');
 const { Op, Sequelize } = require('sequelize');
-const { CorrectedSqlScoreMods, CorrectMod, ModsToString } = require('../helpers/misc');
+const { CorrectedSqlScoreMods, CorrectMod, ModsToString, db_now } = require('../helpers/misc');
 require('dotenv').config();
 
 const limiter = rateLimit({
@@ -212,6 +212,28 @@ router.get('/most_played', limiter, cache('1 hour'), async function (req, res, n
         ) as t 
         LIMIT ${limit} 
         OFFSET ${offset}`;
+
+    const { rows } = await client.query(query);
+    await client.end();
+    res.json(rows);
+});
+
+router.get('/activity', limiter, cache('1 hour'), async function (req, res, next) {
+    const hours = req.query.hours || 24;
+    const query = `WITH hour_entries AS (
+        SELECT generate_series(date_trunc('hour', ${db_now} - INTERVAL '${hours} hours'), date_trunc('hour', ${db_now}), INTERVAL '1 hour') AS hour
+      )
+      SELECT ARRAY(
+        SELECT json_build_object('timestamp', h.hour, 'entry_count', COALESCE(COUNT(s.date_played), 0)) AS entry
+        FROM hour_entries h
+        LEFT JOIN scores s ON date_trunc('hour', s.date_played) = h.hour
+                           AND s.date_played >= ${db_now} - INTERVAL '${hours} hours'
+        GROUP BY h.hour
+        ORDER BY h.hour
+      ) AS hour_entries;`;
+
+    const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
+    await client.connect();
 
     const { rows } = await client.query(query);
     await client.end();

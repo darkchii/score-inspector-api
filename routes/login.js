@@ -244,8 +244,16 @@ router.get('/visitors/get/:id', async (req, res, next) => {
 });
 
 router.post('/update_visitor', update_Limiter, async (req, res, next) => {
-    const visitor_id = req.body.visitor;
-    const target_id = req.body.target;
+    let visitor_id = req.body.visitor;
+    let target_id = req.body.target;
+
+    //if visitor or target are strings, convert to numbers
+    if(visitor_id !== null) visitor_id = Number(visitor_id);
+    if(target_id !== null) target_id = Number(target_id);
+
+    //if nan, set to null
+    if (isNaN(visitor_id)) visitor_id = null;
+    if (isNaN(target_id)) target_id = null;
 
     if ((visitor_id !== null && isNaN(visitor_id)) || isNaN(target_id)) {
         res.status(401).json({ error: 'Invalid visitor or target ID' });
@@ -265,10 +273,7 @@ router.post('/update_visitor', update_Limiter, async (req, res, next) => {
     //check if visitor already visited target
     let result = await InspectorVisitor.findAll({
         where: {
-            [Op.or]: [
-                { visitor_id: visitor_id },
-                { visitor_id: null },
-            ],
+            visitor_id: visitor_id, 
             target_id: target_id,
         },
         raw: true,
@@ -276,16 +281,17 @@ router.post('/update_visitor', update_Limiter, async (req, res, next) => {
     });
     if (result.length > 0) {
         //update visit date
-        await InspectorVisitor.update({
+        console.log(await InspectorVisitor.update({
                 last_visit: Sequelize.literal('CURRENT_TIMESTAMP'),
                 count: Sequelize.literal('count + 1')
             },
             {
                 where: {
-                    [Op.or]: [{ visitor_id: visitor_id }, { visitor_id: null },],
+                    visitor_id: visitor_id,
                     target_id: target_id,
                 }
-            });
+            }));
+        
     } else {
         result = await InspectorVisitor.create({ visitor_id: visitor_id, target_id: target_id, last_visit: new Date(), count: 1 });
     }

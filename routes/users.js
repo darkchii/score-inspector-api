@@ -142,7 +142,8 @@ router.get('/full/:id', limiter, cache('10 minutes'), async (req, res, next) => 
     // console.log('alt api');
     altUser = await GetAltUser(req.params.id);
   } catch (e) {
-    res.json(e.message);
+    res.json({ error: 'Unable to get user', message: e.message });
+    return;
   }
 
   try {

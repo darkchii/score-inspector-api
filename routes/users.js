@@ -136,11 +136,19 @@ router.get('/full/:id', limiter, cache('10 minutes'), async (req, res, next) => 
 
   try {
     // console.log('osu api');
-    osuUser = await GetOsuUser(req.params.id, 'osu', 'id');
+    try{
+      osuUser = await GetOsuUser(req.params.id, 'osu', 'id');
+    }catch(e){
+      osuUser = await GetOsuUser(req.params.id, 'osu', 'username');
+    }
+    const real_id = osuUser?.id;
+    if(!real_id){
+      throw new Error('User not found');
+    }
     // console.log('daily api');
-    dailyUser = await GetDailyUser(req.params.id, 0, 'id');
+    dailyUser = await GetDailyUser(real_id, 0, 'id');
     // console.log('alt api');
-    altUser = await GetAltUser(req.params.id);
+    altUser = await GetAltUser(real_id);
   } catch (e) {
     res.json({ error: 'Unable to get user', message: e.message });
     return;

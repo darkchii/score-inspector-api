@@ -8,6 +8,7 @@ const { HasScores } = require('../helpers/osualt');
 const { GetBeatmapCount, getBeatmaps } = require('../helpers/inspector');
 const e = require('express');
 const { parse } = require('../helpers/misc');
+const { InspectorUser } = require('../helpers/db');
 require('dotenv').config();
 let cache = apicache.middleware;
 
@@ -138,6 +139,7 @@ async function getQueryUserData(stat, limit, offset, country) {
             $1 OFFSET $2
         ) data
         `;
+
     return [query, queryData, 'users'];
 }
 
@@ -252,6 +254,14 @@ router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
                     users.forEach(osu_user => {
                         const row = rows.find(row => row.user_id === osu_user.id);
                         row.osu_user = osu_user;
+                    });
+                }
+
+                const inspectorUsers = await InspectorUser.findAll({ where: { osu_id: rows.map(row => row.user_id) } });
+                if (inspectorUsers) {
+                    inspectorUsers.forEach(inspector_user => {
+                        const row = rows.find(row => row.user_id === inspector_user.osu_id);
+                        row.inspector_user = inspector_user;
                     });
                 }
             } catch (e) {

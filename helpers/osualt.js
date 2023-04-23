@@ -1,7 +1,8 @@
 const moment = require("moment/moment");
 const { Op, Sequelize } = require("sequelize");
 const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, AltModdedStars, Databases } = require("./db");
-const { CorrectedSqlScoreMods } = require("./misc");
+const { CorrectedSqlScoreMods, CorrectedSqlScoreModsCustom } = require("./misc");
+const { GetUsers } = require("./osu");
 require('dotenv').config();
 
 const beatmap_columns = `
@@ -207,21 +208,45 @@ async function GetBestScores(period, stat, limit, loved = false) {
                 period_check = null;
                 break;
         }
-        const rows = await AltScore.findAll({
-            include: [
-                { model: AltUser, as: 'user', required: true },
-                {
-                    model: AltBeatmap, as: 'beatmap', where: { approved: { [Op.or]: [1, 2, loved ? 4 : null] } }, required: true,
-                    include: [
-                        { model: AltModdedStars, as: 'modded_sr', where: { mods_enum: { [Op.eq]: Sequelize.literal(CorrectedSqlScoreMods) } } }
-                    ]
-                }
-            ],
-            where: period_check !== null ? { date_played: { [Op.gt]: moment().subtract(period_check, 'days').toDate() } } : null,
-            order: [[stat, 'DESC']],
-            limit: limit
-        });
-        data = rows;
+        //create a subquery which orders and limits the scores, then afterwards join the users and beatmaps
+        const query = `
+            SELECT * FROM scores
+            WHERE ${stat} > 0 
+            AND NULLIF(${stat}, 'NaN'::NUMERIC) IS NOT NULL 
+            ${period_check !== null ? `AND date_played > NOW() - INTERVAL '${period_check} days'` : ''}
+            ORDER BY ${stat} DESC
+            LIMIT ${limit}`;
+
+        const rows = await Databases.osuAlt.query(query);
+
+        data = rows[0];
+
+        const { users } = await GetUsers(data.map(x => x.user_id));
+        for await(let score of data) {
+            // add the beatmap data
+            const beatmap_rows = await Databases.osuAlt.query(`
+                SELECT * FROM beatmaps 
+                WHERE beatmap_id = ${score.beatmap_id}`);
+            score.beatmap = beatmap_rows[0]?.[0];
+
+            if(score.beatmap){
+                // add the modded stars data
+                const modded_sr_rows = await Databases.osuAlt.query(`
+                    SELECT * FROM moddedsr 
+                    WHERE beatmap_id = ${score.beatmap_id} 
+                    AND mods_enum = ${CorrectedSqlScoreModsCustom(score.enabled_mods)}`);
+                score.beatmap.modded_sr = modded_sr_rows[0]?.[0];
+            }
+
+            // add the user data
+            if (users) {
+                users.forEach(osu_user => {
+                    if (osu_user.id == score.user_id){
+                        score.user = osu_user;
+                    }
+                });
+            }
+        }
     } catch (err) {
         console.error(err);
         throw new Error(err.message);

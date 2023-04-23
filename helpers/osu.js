@@ -86,7 +86,7 @@ async function GetUserBeatmaps(username, type = 'ranked', limit = 100, offset = 
 }
 
 module.exports.GetUsers = GetUsers;
-async function GetUsers(id_array, timeout) {
+async function GetUsers(id_array, timeout = 5000) {
     const url = `https://osu.ppy.sh/api/v2/users?ids[]=${id_array.join('&ids[]=')}`;
     // console.log(url);
     const res = await AuthorizedApiCall(url, 'get', null, timeout);

@@ -4,9 +4,10 @@ const router = express.Router();
 const crypto = require("crypto");
 require('dotenv').config();
 const rateLimit = require('express-rate-limit');
-const { InspectorUser, InspectorComment, InspectorToken, Raw, InspectorVisitor, AltUser } = require('../helpers/db');
+const { InspectorUser, InspectorComment, InspectorToken, Raw, InspectorVisitor, AltUser, Databases } = require('../helpers/db');
 const { Sequelize, Op } = require('sequelize');
 const { VerifyToken } = require('../helpers/inspector');
+const { GetUsers } = require('../helpers/osu');
 
 const update_Limiter = rateLimit({
     windowMs: 60 * 1000, // 15 minutes
@@ -220,25 +221,74 @@ router.get('/visitors/get', async (req, res, next) => {
 
 router.get('/visitors/get/:id', async (req, res, next) => {
     const user_id = req.params.id;
-    const limit = req.query.limit || 10;
+    let limit = req.query.limit || 10;
+    const check_visitor = req.query.check_visitor || false;
 
     if (user_id == null) {
         res.status(401).json({ error: 'Invalid user id' });
         return;
     }
+    let result = null;
+    if (!check_visitor) {
+        result = await InspectorVisitor.findAll({
+            where: { target_id: user_id },
+            order: [['last_visit', 'DESC']],
+            limit: limit,
+            include: [{
+                model: InspectorUser,
+                as: 'visitor_user',
+                required: false
+            }],
+            raw: true,
+            nest: true
+        });
+    } else {
+        // check for login token
+        const token = req.query.token;
 
-    let result = await InspectorVisitor.findAll({
-        where: { target_id: user_id },
-        order: [['last_visit', 'DESC']],
-        limit: limit,
-        include: [{
-            model: InspectorUser,
-            as: 'visitor_user',
-            required: false,
-        }],
-        raw: true,
-        nest: true
-    });
+        // if (token == null || !(await VerifyToken(token, user_id))) {
+        //     res.status(401).json({ error: 'Invalid token' });
+        //     return;
+        // }
+
+        result = await InspectorVisitor.findAll({
+            where: { visitor_id: user_id },
+            order: [['last_visit', 'DESC']],
+            raw: true,
+            nest: true
+        });
+
+        //split into arrays of 50 ids
+        let target_ids = result.map((row) => row.target_id);
+        let target_id_chunks = [];
+        while (target_ids.length > 0) {
+            target_id_chunks.push(target_ids.splice(0, 50));
+        }
+
+        //get users for each chunk
+        let users = [];
+        for await(const chunk of target_id_chunks) {
+            let user_chunk = await GetUsers(chunk);
+            users = users.concat(user_chunk?.users);
+        }
+
+        //for each user, add the inspector user object if it exists
+        for await(const user of users) {
+            let inspector_user = await InspectorUser.findOne({ where: { osu_id: user.id } });
+            if (inspector_user != null) {
+                user.inspector_user = inspector_user;
+            }
+        }
+
+        //add correct user to each result
+        for (let row of result) {
+            for (const user of users) {
+                if (row.target_id == user.id) {
+                    row.target_user = user;
+                }
+            }
+        }
+    }
 
     res.json(result);
 });
@@ -248,8 +298,8 @@ router.post('/update_visitor', update_Limiter, async (req, res, next) => {
     let target_id = req.body.target;
 
     //if visitor or target are strings, convert to numbers
-    if(visitor_id !== null) visitor_id = Number(visitor_id);
-    if(target_id !== null) target_id = Number(target_id);
+    if (visitor_id !== null) visitor_id = Number(visitor_id);
+    if (target_id !== null) target_id = Number(target_id);
 
     //if nan, set to null
     if (isNaN(visitor_id)) visitor_id = null;
@@ -273,7 +323,7 @@ router.post('/update_visitor', update_Limiter, async (req, res, next) => {
     //check if visitor already visited target
     let result = await InspectorVisitor.findAll({
         where: {
-            visitor_id: visitor_id, 
+            visitor_id: visitor_id,
             target_id: target_id,
         },
         raw: true,
@@ -282,16 +332,16 @@ router.post('/update_visitor', update_Limiter, async (req, res, next) => {
     if (result.length > 0) {
         //update visit date
         console.log(await InspectorVisitor.update({
-                last_visit: Sequelize.literal('CURRENT_TIMESTAMP'),
-                count: Sequelize.literal('count + 1')
-            },
+            last_visit: Sequelize.literal('CURRENT_TIMESTAMP'),
+            count: Sequelize.literal('count + 1')
+        },
             {
                 where: {
                     visitor_id: visitor_id,
                     target_id: target_id,
                 }
             }));
-        
+
     } else {
         result = await InspectorVisitor.create({ visitor_id: visitor_id, target_id: target_id, last_visit: new Date(), count: 1 });
     }
@@ -357,7 +407,7 @@ router.post('/comments/send', async (req, res, next) => {
         return;
     }
 
-    if(!(await VerifyToken(token, sender))) {
+    if (!(await VerifyToken(token, sender))) {
         res.status(401).json({ error: 'Invalid token' });
         return;
     }

@@ -131,7 +131,13 @@ router.post('/validate_token', async (req, res, next) => {
     }
 
     const result = await VerifyToken(session_token, user_id);
-    res.json({ valid: result != null });
+
+    if (result === true) {
+        //refresh token
+        InspectorToken.update({ date_created: new Date() }, { where: { token: session_token } });
+    }
+
+    res.json({ valid: result !== false });
 });
 
 router.post('/logout', async (req, res, next) => {
@@ -219,7 +225,7 @@ router.get('/visitors/get', async (req, res, next) => {
     res.json(visitor_lbs);
 });
 
-router.get('/visitors/get/:id', async (req, res, next) => {
+router.all('/visitors/get/:id', async (req, res, next) => {
     const user_id = req.params.id;
     let limit = req.query.limit || 10;
     const check_visitor = req.query.check_visitor || false;
@@ -244,12 +250,12 @@ router.get('/visitors/get/:id', async (req, res, next) => {
         });
     } else {
         // check for login token
-        const token = req.query.token;
+        const token = req.body.token;
 
-        // if (token == null || !(await VerifyToken(token, user_id))) {
-        //     res.status(401).json({ error: 'Invalid token' });
-        //     return;
-        // }
+        if (token == null || !(await VerifyToken(token, user_id))) {
+            res.status(401).json({ error: 'Invalid token' });
+            return;
+        }
 
         result = await InspectorVisitor.findAll({
             where: { visitor_id: user_id },
@@ -267,16 +273,24 @@ router.get('/visitors/get/:id', async (req, res, next) => {
 
         //get users for each chunk
         let users = [];
-        for await(const chunk of target_id_chunks) {
+        for await (const chunk of target_id_chunks) {
             let user_chunk = await GetUsers(chunk);
             users = users.concat(user_chunk?.users);
         }
 
         //for each user, add the inspector user object if it exists
-        for await(const user of users) {
+        for await (let user of users) {
             let inspector_user = await InspectorUser.findOne({ where: { osu_id: user.id } });
             if (inspector_user != null) {
                 user.inspector_user = inspector_user;
+            } else {
+                //generate a new inspector user
+                user.inspector_user = {
+                    id: null,
+                    osu_id: user.id,
+                    known_username: user.username,
+                    roles: []
+                }
             }
         }
 

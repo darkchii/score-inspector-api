@@ -3,6 +3,7 @@ const { Op, Sequelize } = require("sequelize");
 const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, AltModdedStars, Databases, InspectorUser } = require("./db");
 const { CorrectedSqlScoreMods, CorrectedSqlScoreModsCustom } = require("./misc");
 const { GetUsers } = require("./osu");
+const { default: axios } = require("axios");
 require('dotenv').config();
 
 const beatmap_columns = `
@@ -162,16 +163,79 @@ module.exports.FindUser = FindUser;
 async function FindUser(query, single, requirePriority = true) {
     let data;
     try {
-        const rows = await AltUser.findAll({
-            attributes: single ? ['*'] : ['user_id', 'username', 'country_code'],
+        let rows = await AltUser.findAll({
+            attributes: single ? ['*'] : ['user_id', 'username', 'country_code', 'global_rank'],
             include: [{
                 model: AltPriorityUser,
                 as: 'priority',
                 attributes: [],
                 required: requirePriority
             }],
+            //order by rank but remove sign
+            order: [
+                [Sequelize.fn('SIGN', Sequelize.col('global_rank')), 'DESC'],
+                [Sequelize.fn('ABS', Sequelize.col('global_rank')), 'ASC']
+            ],
             where: single ? { user_id: query } : { username: { [Op.iLike]: `%${query}%` } },
         });
+
+        if(rows.length > 0) {
+            //find or create proxy inspector user
+            rows = JSON.parse(JSON.stringify(rows));
+
+            const user_ids = rows.map(x => x.user_id);
+            const inspector_users = await InspectorUser.findAll({
+                where: { osu_id: { [Op.in]: user_ids } }
+            });
+
+            let osu_users = [];
+            let rank_users = [];
+
+            //split ids into chunks of 50
+            const chunk_size = 50;
+            const chunks = [];
+            for (let i = 0; i < user_ids.length; i += chunk_size) {
+                chunks.push(user_ids.slice(i, i + chunk_size));
+            }
+            
+            for (let i = 0; i < chunks.length; i++) {
+                const chunk = chunks[i];
+                const osu_users_chunk = await GetUsers(chunk);
+                osu_users = osu_users.concat(osu_users_chunk.users);
+
+                let scoreRes = await axios.get(`https://score.respektive.pw/u/${chunk.join(',')}`);
+                rank_users = rank_users.concat(JSON.parse(JSON.stringify(scoreRes?.data)));
+            }
+
+            for (let i = 0; i < rows.length; i++) {
+                const inspector_user = inspector_users?.find(x => x.osu_id == rows[i].user_id);
+                const osu_user = osu_users?.find(x => x.id == rows[i].user_id);
+                const rank_user = rank_users?.find(x => x.user_id == rows[i].user_id);
+
+                if (rank_user) {
+                    rows[i].score_rank = rank_user;
+                }
+
+                if (osu_user) {
+                    rows[i].osu = osu_user;
+                }
+
+                if (inspector_user) {
+                    rows[i].inspector_user = inspector_user;
+                }else{
+                    rows[i].inspector_user = {
+                        id: null,
+                        osu_id: rows[i].user_id,
+                        known_username: rows[i].username,
+                        roles: []
+                    }
+                }
+            }
+
+            //remove rows that dont have an osu user
+            rows = rows.filter(x => x.osu);
+        }
+
         if (single) {
             if (rows.length == 0)
                 throw new Error('No user found');
@@ -181,6 +245,7 @@ async function FindUser(query, single, requirePriority = true) {
             data = rows;
         }
     } catch (err) {
+        console.error(err);
         throw new Error(err.message);
     }
     return data;

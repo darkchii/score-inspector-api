@@ -159,7 +159,7 @@ async function GetUser(id) {
 }
 
 module.exports.FindUser = FindUser;
-async function FindUser(query, single) {
+async function FindUser(query, single, requirePriority = true) {
     let data;
     try {
         const rows = await AltUser.findAll({
@@ -168,7 +168,7 @@ async function FindUser(query, single) {
                 model: AltPriorityUser,
                 as: 'priority',
                 attributes: [],
-                required: true
+                required: requirePriority
             }],
             where: single ? { user_id: query } : { username: { [Op.iLike]: `%${query}%` } },
         });

@@ -121,7 +121,7 @@ router.get('/alt/get/:id', limiter, cache('10 minutes'), async function (req, re
 
 router.get('/alt/find/:query', limiter, cache('10 minutes'), async function (req, res, next) {
   try {
-    const users = await FindUser(req.params.query, req.query.single);
+    const users = await FindUser(req.params.query, req.query.single, false);
     res.json(users);
   } catch (e) {
     res.json(e.message);

@@ -4,6 +4,7 @@ const mysql = require('mysql-await');
 var apicache = require('apicache');
 const rateLimit = require('express-rate-limit');
 const { buildQuery, getBeatmaps } = require('../helpers/inspector');
+const { AltModdedStars, AltBeatmap } = require('../helpers/db');
 
 const router = express.Router();
 let cache = apicache.middleware;
@@ -215,20 +216,32 @@ router.get('/yearly', limiter, cache('1 hour'), async (req, res) => {
 });
 
 router.get('/:id', limiter, cache('1 hour'), async (req, res) => {
-    const connection = mysql.createConnection(connConfig);
     const mode = req.query.mode !== undefined ? req.query.mode : 0;
+    try{
 
-    connection.on('error', (err) => {
-        res.json({
-            message: 'Unable to connect to database',
-            error: err,
+        //let result = await connection.awaitQuery('SELECT * FROM beatmap WHERE beatmap_id=? AND mode=?', [req.params.id, mode]);
+        let result = await AltBeatmap.findOne({
+            where: {
+                beatmap_id: req.params.id,
+                mode: mode
+            }
         });
-    });
 
-    const result = await connection.awaitQuery('SELECT * FROM beatmap WHERE beatmap_id=? AND mode=?', [req.params.id, mode]);
-
-    res.json(result);
-    connection.end();
+        if(result !== null){
+            result = JSON.parse(JSON.stringify(result));
+        }
+    
+        const sr_result = await AltModdedStars.findAll({
+            where: {
+                beatmap_id: req.params.id
+            }
+        });
+        result.modded_sr = sr_result;
+        res.json(result);
+    }catch(e){
+        console.error(e);
+        res.json([]);
+    }
 });
 
 router.get('/:id/maxscore', limiter, cache('1 hour'), async (req, res) => {

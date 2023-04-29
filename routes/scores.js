@@ -2,7 +2,7 @@ var express = require('express');
 var apicache = require('apicache');
 var router = express.Router();
 const { Client } = require('pg');
-const { GetBestScores, score_columns, score_columns_full, beatmap_columns } = require('../helpers/osualt');
+const { GetBestScores, score_columns, score_columns_full, beatmap_columns, GetBeatmapScores } = require('../helpers/osualt');
 const rateLimit = require('express-rate-limit');
 const { getBeatmaps, getCompletionData } = require('../helpers/inspector');
 const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat } = require('../helpers/db');
@@ -109,6 +109,15 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
 /* Get the entire list of scores of a user */
 router.get('/user/:id', limiter, cache('1 hour'), async function (req, res, next) {
     const rows = await GetUserScores(req);
+    res.json(rows);
+});
+
+/* Get the entire list of scores of a beatmap */
+router.get('/beatmap/:id', limiter, cache('1 hour'), async function (req, res, next) {
+    const beatmap_id = req.params.id;
+    const limit = req.query.limit ?? undefined;
+    const offset = req.query.offset ?? undefined;
+    const rows = await GetBeatmapScores(beatmap_id, limit, offset);
     res.json(rows);
 });
 

@@ -1,6 +1,6 @@
 const moment = require("moment/moment");
 const { Op, Sequelize } = require("sequelize");
-const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, AltModdedStars, Databases } = require("./db");
+const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, AltModdedStars, Databases, InspectorUser } = require("./db");
 const { CorrectedSqlScoreMods, CorrectedSqlScoreModsCustom } = require("./misc");
 const { GetUsers } = require("./osu");
 require('dotenv').config();
@@ -249,6 +249,66 @@ async function GetBestScores(period, stat, limit, loved = false) {
         }
     } catch (err) {
         console.error(err);
+        throw new Error(err.message);
+    }
+    return data;
+}
+
+module.exports.GetBeatmapScores = GetBeatmapScores;
+async function GetBeatmapScores(beatmap_id, limit = 0, offset = 0){
+    let data;
+    try{
+        const rows = await Databases.osuAlt.query(`
+            SELECT * FROM scores
+            WHERE beatmap_id = ${beatmap_id} AND user_id in (select user_id from users2)
+            ORDER BY score DESC
+            ${limit!==undefined && limit > 0 ? `LIMIT ${limit}` : ''}
+            ${offset!==undefined && offset > 0 ? `OFFSET ${offset}` : ''}
+            `);
+        let scores = rows?.[0];
+
+        const user_ids = scores.map(x => x.user_id);
+        let users = await AltUser.findAll({
+            attributes: ['user_id', 'username', 'country_code'],
+            where: { user_id: user_ids }
+        });
+
+        const inspector_users = await InspectorUser.findAll({
+            where: { osu_id: user_ids }
+        });
+
+        for await(let score of scores){
+            score.user = {};
+            let user = users.find(x => x.user_id == score.user_id);
+            let inspector_user = inspector_users.find(x => x.osu_id == score.user_id);
+            if (user) {
+                score.user = JSON.parse(JSON.stringify(user));
+            } else {
+                score.user = {
+                    id: null,
+                    osu_id: score.user_id,
+                    country_code: null
+                }
+            }
+
+            score.user.inspector_user = {};
+
+            if (inspector_user) {
+                score.user.inspector_user = inspector_user;
+            } else {
+                //generate a new inspector user
+                score.user.inspector_user = {
+                    id: null,
+                    osu_id: score.user_id,
+                    known_username: score.user.username,
+                    roles: []
+                }
+            }
+        };
+
+        data = scores;
+        //data = rows;
+    }catch(err){
         throw new Error(err.message);
     }
     return data;

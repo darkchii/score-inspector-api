@@ -4,6 +4,7 @@ const { GetUser: GetOsuUser, GetDailyUser, GetUsers, GetUserBeatmaps } = require
 const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser } = require('../helpers/osualt');
 const rateLimit = require('express-rate-limit');
 const { default: axios } = require('axios');
+const { InspectorUser } = require('../helpers/db');
 
 let cache = apicache.middleware;
 const router = express.Router();
@@ -133,6 +134,7 @@ router.get('/full/:id', limiter, cache('10 minutes'), async (req, res, next) => 
   let dailyUser;
   let altUser;
   let scoreRank;
+  let inspectorUser;
 
   try {
     // console.log('osu api');
@@ -149,6 +151,8 @@ router.get('/full/:id', limiter, cache('10 minutes'), async (req, res, next) => 
     dailyUser = await GetDailyUser(real_id, 0, 'id');
     // console.log('alt api');
     altUser = await GetAltUser(real_id);
+
+    inspector_user = await InspectorUser.findOne({ where: { osu_id: req.params.id } });
   } catch (e) {
     res.json({ error: 'Unable to get user', message: e.message });
     return;
@@ -165,6 +169,7 @@ router.get('/full/:id', limiter, cache('10 minutes'), async (req, res, next) => 
     osu: { ...osuUser, scoreRank },
     daily: dailyUser,
     alt: altUser,
+    inspector_user: inspector_user
   });
 });
 

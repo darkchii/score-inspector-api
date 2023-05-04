@@ -39,9 +39,9 @@ async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult =
             ${groupSets ? '' :
                 `${scoreFilter || isBeatmapResult ? `INNER JOIN scores ON (scores.beatmap_id = ${stat}.beatmap_id ${scoreFilter !== null ? `AND ${scoreFilter}` : ''})` : ''}
                 INNER JOIN users2 ON (${scoreFilter || isBeatmapResult ? 'scores' : stat}.user_id = users2.user_id ${userFilter !== null ? `AND ${userFilter}` : ''})`
-            }
-            ${fullFilter !== null ? `WHERE ${fullFilter}` : ''}`
+            }`
             : ``}
+        ${fullFilter !== null ? `WHERE ${fullFilter}` : ''}
       GROUP BY 
           ${isBeatmapResult ?
             `${(groupSets ? 'beatmaps.set_id' : 'beatmaps.beatmap_id')}, beatmaps.mode, beatmaps.approved, beatmaps.approved_date, beatmaps.submit_date` :
@@ -59,30 +59,30 @@ const STAT_DATA = {
     'ss': { query: 'ssh_count+ss_count', table: 'user' },
     's': { query: 'sh_count+s_count', table: 'user' },
     'a': { query: 'a_count', table: 'user' },
-    'b': { query: 'count(*) filter (where scores.rank = \'B\')', table: 'scores' },
-    'c': { query: 'count(*) filter (where scores.rank = \'C\')', table: 'scores' },
-    'd': { query: 'count(*) filter (where scores.rank = \'D\')', table: 'scores' },
+    'b': { query: 'count(*)', table: 'scores', scoreFilter: `rank LIKE '%B%'` },
+    'c': { query: 'count(*)', table: 'scores', scoreFilter: `rank LIKE '%C%'` },
+    'd': { query: 'count(*)', table: 'scores', scoreFilter: `rank LIKE '%D%'` },
     'playcount': { query: 'playcount', table: 'user' },
     'clears': { query: 'count(*)', table: 'scores' },
-    'fc_clears': { query: `count(*) filter (where ${FC_FILTER})`, table: 'scores' },
+    'fc_clears': { query: `count(*)`, table: 'scores', scoreFilter: FC_FILTER },
     'playtime': { query: 'playtime', table: 'user' },
     'followers': { query: 'follower_count', table: 'user' },
     'replays_watched': { query: 'replays_watched', table: 'user' },
     'ranked_score': { query: 'ranked_score', table: 'user' },
     'total_score': { query: 'total_score', table: 'user' },
-    'ss_score': { query: 'sum(case when scores.rank = \'X\' or scores.rank = \'XH\' then scores.score else 0 end)', table: 'scores' },
-    'fc_score': { query: `sum(case when ${FC_FILTER} then scores.score else 0 end)`, table: 'scores' },
+    'ss_score': { query: 'sum(scores.score)', table: 'scores', scoreFilter: `rank LIKE '%X%'` },
+    'fc_score': { query: `sum(scores.score)`, table: 'scores', scoreFilter: FC_FILTER },
     'as_one_map': { query: 'round(pow(avg(scores.combo)*pow(avg(beatmaps.maxcombo),-1)*0.7*sum(scores.count300+scores.count100+scores.count50+scores.countmiss)+sum(scores.count300+scores.count100*0.3333+scores.count50*0.1667)*0.3,2)*36)', table: 'scores' },
     'top_score': { query: 'max(scores.score)', table: 'scores' },
     'total_hits': { query: 'total_hits', table: 'user' },
     'scores_first_count': { query: 'scores_first_count', table: 'user' },
     'post_count': { query: 'post_count', table: 'user' },
     'ranked_beatmapset_count': { query: 'ranked_beatmapset_count', table: 'user' },
-    'total_pp': { query: 'sum(nullif(scores.pp, \'nan\'))', table: 'scores' },
-    'top_pp': { query: 'max(nullif(scores.pp, \'nan\'))', table: 'scores' },
-    'avg_pp': { query: 'avg(nullif(scores.pp, \'nan\'))', table: 'scores' },
+    'total_pp': { query: 'sum(scores.pp)', table: 'scores', scoreFilter: `scores.pp != 'nan'` },
+    'top_pp': { query: 'max(scores.pp)', table: 'scores', scoreFilter: `scores.pp != 'nan'` },
+    'avg_pp': { query: 'avg(scores.pp)', table: 'scores', scoreFilter: `scores.pp != 'nan'` },
     'avg_score': { query: 'avg(scores.score)', table: 'scores' },
-    'completion': { query: '100.0/%s*count(*)', table: 'scores' },
+    'completion': { query: 'round((cast(count(*) * 100::float/%s as numeric)), 3)', table: 'scores' },
     'avg_acc': { query: 'avg(nullif(scores.accuracy, \'nan\'))', table: 'scores' },
     'acc': { query: 'hit_accuracy', table: 'user' },
     'user_achievements': { query: 'user_achievements', table: 'array_table', isArray: true },
@@ -239,7 +239,9 @@ router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
             return;
         }
 
+        console.time('query');
         const { rows } = await client.query(queryInfo[0], queryInfo[1]);
+        console.timeEnd('query');
 
         const total_users = rows[0]?.total_users ?? 0;
         rows.forEach(row => {

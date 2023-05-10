@@ -39,7 +39,7 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
                     approved: { [Op.in]: [1, 2, req.query.include_loved === 'true' ? 4 : 1] }
                 },
                 required: true,
-                include: include_modded ? [
+                include: [...(include_modded ? [
                     {
                         model: AltModdedStars,
                         as: 'modded_sr',
@@ -51,8 +51,13 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
                                 [Op.eq]: Sequelize.literal('beatmap.beatmap_id')
                             }
                         }
+                    }] : []),
+                    {
+                        model: AltBeatmapPack,
+                        as: 'packs',
+                        required: false
                     }
-                ] : [],
+                ],
             },
         ],
         raw: true,

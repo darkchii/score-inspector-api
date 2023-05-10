@@ -4,7 +4,7 @@ const mysql = require('mysql-await');
 var apicache = require('apicache');
 const rateLimit = require('express-rate-limit');
 const { buildQuery, getBeatmaps } = require('../helpers/inspector');
-const { AltModdedStars, AltBeatmap } = require('../helpers/db');
+const { AltModdedStars, AltBeatmap, AltBeatmapPack, Databases } = require('../helpers/db');
 
 const router = express.Router();
 let cache = apicache.middleware;
@@ -24,44 +24,53 @@ const connConfig = {
 };
 
 router.get('/packs', limiter, cache('1 hour'), async (req, res) => {
-    const connection = mysql.createConnection(connConfig);
+    let result = await Databases.osuAlt.query(`
+        SELECT pack_id, count(*) as count from beatmap_packs 
+        inner join beatmaps on beatmaps.beatmap_id=beatmap_packs.beatmap_id 
+        where beatmaps.mode=0 and pack_id!='-1'
+        group by pack_id`);
 
-    connection.on('error', (err) => {
-        res.json({
-            message: 'Unable to connect to database',
-            error: err,
-        });
-    });
+    res.json(result?.[0] ?? []);
 
-    const _res = buildQuery(req);
-    const q = _res[0];
-    const qVar = _res[1];
 
-    let result;
-    if (req.query.sets_only !== undefined && req.query.sets_only === 'true') {
-        result = await connection.awaitQuery(`
-    SELECT packs, count(*) as count FROM (SELECT packs FROM beatmap ${q} AND LENGTH(packs)>0 GROUP BY beatmapset_id) s GROUP BY s.packs
-  `, qVar);
-    } else {
-        result = await connection.awaitQuery(`
-      SELECT packs, count(*) as count FROM beatmap ${q} AND LENGTH(packs)>0 GROUP BY packs
-    `, qVar);
-    }
+//     const connection = mysql.createConnection(connConfig);
 
-    let packs = {};
-    result.forEach((row) => {
-        const pack_arr = row.packs.split(',');
-        pack_arr.forEach((p) => {
-            if (packs[p] === undefined) {
-                packs[p] = row.count;
-            } else {
-                packs[p] += row.count;
-            }
-        });
-    });
-    res.json(packs);
+//     connection.on('error', (err) => {
+//         res.json({
+//             message: 'Unable to connect to database',
+//             error: err,
+//         });
+//     });
 
-    await connection.end();
+//     const _res = buildQuery(req);
+//     const q = _res[0];
+//     const qVar = _res[1];
+
+//     let result;
+//     if (req.query.sets_only !== undefined && req.query.sets_only === 'true') {
+//         result = await connection.awaitQuery(`
+//     SELECT packs, count(*) as count FROM (SELECT packs FROM beatmap ${q} AND LENGTH(packs)>0 GROUP BY beatmapset_id) s GROUP BY s.packs
+//   `, qVar);
+//     } else {
+//         result = await connection.awaitQuery(`
+//       SELECT packs, count(*) as count FROM beatmap ${q} AND LENGTH(packs)>0 GROUP BY packs
+//     `, qVar);
+//     }
+
+//     let packs = {};
+//     result.forEach((row) => {
+//         const pack_arr = row.packs.split(',');
+//         pack_arr.forEach((p) => {
+//             if (packs[p] === undefined) {
+//                 packs[p] = row.count;
+//             } else {
+//                 packs[p] += row.count;
+//             }
+//         });
+//     });
+//     res.json(packs);
+
+//     await connection.end();
 });
 
 router.get('/count', limiter, cache('1 hour'), async (req, res) => {

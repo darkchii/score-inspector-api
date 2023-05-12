@@ -5,6 +5,7 @@ var apicache = require('apicache');
 const rateLimit = require('express-rate-limit');
 const { buildQuery, getBeatmaps } = require('../helpers/inspector');
 const { AltModdedStars, AltBeatmap, AltBeatmapPack, Databases } = require('../helpers/db');
+const { default: axios } = require('axios');
 
 const router = express.Router();
 let cache = apicache.middleware;
@@ -31,6 +32,14 @@ router.get('/packs', limiter, cache('1 hour'), async (req, res) => {
         group by pack_id`);
 
     res.json(result?.[0] ?? []);
+});
+
+router.get('/pack_details', limiter, cache('24 hours'), async (req, res) => {
+    let result = await axios.get(`https://osu.ppy.sh/api/get_packs?k=${process.env.OSU_APIV1}`, {
+        headers: { "Accept-Encoding": "gzip,deflate,compress" } 
+    });
+
+    res.json(result?.data ?? []);
 });
 
 router.get('/max_playcount', limiter, cache('1 hour'), async (req, res) => {

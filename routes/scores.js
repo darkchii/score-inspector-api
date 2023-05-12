@@ -120,13 +120,15 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
 
     if (scores && scores.length > 0) {
         //add maxplaycounts
-        let beatmap_ids = scores.map(score => score.beatmap.set_id);
+        let beatmap_set_ids = scores.map(score => score.beatmap.set_id);
+        let beatmap_ids = scores.map(score => score.beatmap.beatmap_id);
         //remove duplicates and nulls
+        beatmap_set_ids = [...new Set(beatmap_set_ids)].filter(id => id);
         beatmap_ids = [...new Set(beatmap_ids)].filter(id => id);
-        if (beatmap_ids.length > 0) {
+        if (beatmap_set_ids.length > 0 && beatmap_ids.length > 0) {
             const max_pc = await Databases.osuAlt.query(`
                 SELECT set_id, mode, MAX(playcount) AS max_playcount FROM beatmaps
-                WHERE set_id IN (${beatmap_ids.join(',')})
+                WHERE set_id IN (${beatmap_set_ids.join(',')})
                 GROUP BY set_id, mode
             `);
 
@@ -141,19 +143,23 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
                 nest: true
             });
 
-            console.log('pack ids: ', pack_ids.length);
-            console.log(pack_ids);
-
             for (const score of scores) {
                 const max_pc_beatmap = max_pc?.[0]?.find(b => b.set_id === score.beatmap.set_id && b.mode === score.beatmap.mode);
-                const pack_ids_beatmap = pack_ids?.filter(b => b.beatmap_id == score.beatmap.set_id);
+                const pack_ids_beatmap = pack_ids?.filter(b => b.beatmap_id == score.beatmap.beatmap_id);
+                //also remove the found ids from pack ids
+                pack_ids_beatmap?.forEach(b => {
+                    const index = pack_ids.findIndex(p => p.pack_id === b.pack_id);
+                    if (index !== -1) {
+                        pack_ids.splice(index, 1);
+                    }
+                });
+                
                 if (max_pc_beatmap && score.beatmap?.eyup_sr) {
                     score.beatmap.eyup_sr.max_playcount = max_pc_beatmap.max_playcount;
                 }
 
-                if(pack_ids_beatmap && pack_ids_beatmap.length > 0){
-                console.log(pack_ids_beatmap);
-                score.beatmap.packs = pack_ids_beatmap;
+                if (pack_ids_beatmap && pack_ids_beatmap.length > 0) {
+                    score.beatmap.packs = pack_ids_beatmap;
                 }
             }
         } else {

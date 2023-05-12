@@ -16,6 +16,9 @@ const { AltUserAchievementModel } = require('./models/AltUserAchievement');
 const { InspectorBeatmapModel } = require('./models/InspectorBeatmap');
 const { InspectorModdedStarsModel } = require('./models/InspectorModdedStars');
 const { InspectorScoreStatModel } = require('./models/InspectorScoreStat');
+const { AltBeatmapEyupModel } = require('./models/AltBeatmapEyup');
+const { AltBeatmapSSRatioModel } = require('./models/AltBeatmapSSRatio');
+const { AltTopScoreModel } = require('./models/AltTopScoreModel');
 require('dotenv').config();
 
 let databases = {
@@ -40,6 +43,9 @@ const AltUser = AltUserModel(databases.osuAlt);
 const AltPriorityUser = AltPriorityUserModel(databases.osuAlt);
 const AltScore = AltScoreModel(databases.osuAlt);
 const AltBeatmap = AltBeatmapModel(databases.osuAlt);
+const AltBeatmapEyup = AltBeatmapEyupModel(databases.osuAlt);
+const AltBeatmapSSRatio = AltBeatmapSSRatioModel(databases.osuAlt);
+const AltTopScore = AltTopScoreModel(databases.osuAlt);
 const AltModdedStars = AltModdedStarsModel(databases.osuAlt);
 const AltBeatmapPack = AltBeatmapPackModel(databases.osuAlt);
 const AltUniqueSS = AltUniqueSSModel(databases.osuAlt);
@@ -54,12 +60,18 @@ AltScore.hasOne(AltBeatmap, { as: 'beatmap', foreignKey: 'beatmap_id', sourceKey
 AltBeatmap.belongsTo(AltScore, { as: 'beatmap', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
 AltScore.hasOne(AltUser, { as: 'user', foreignKey: 'user_id', sourceKey: 'user_id' });
 AltUser.belongsTo(AltScore, { as: 'user', foreignKey: 'user_id', targetKey: 'user_id' });
+AltScore.hasOne(AltTopScore, { as: 'top_score', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
+AltTopScore.belongsTo(AltScore, { as: 'top_score', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
 
 AltScore.hasOne(AltModdedStars, { as: 'modded_sr', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
 AltBeatmap.hasOne(AltModdedStars, { as: 'modded_sr', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
 AltModdedStars.belongsTo(AltBeatmap, { as: 'modded_sr', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
+AltBeatmap.hasOne(AltBeatmapEyup, { as: 'eyup_sr', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
+AltBeatmapEyup.belongsTo(AltBeatmap, { as: 'eyup_sr', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
+AltBeatmap.hasOne(AltBeatmapSSRatio, { as: 'ss_ratio', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
+AltBeatmapSSRatio.belongsTo(AltBeatmap, { as: 'ss_ratio', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
 
-AltBeatmap.hasMany(AltBeatmapPack, { as: 'packs', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
+AltBeatmap.hasOne(AltBeatmapPack, { as: 'packs', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
 AltBeatmapPack.belongsTo(AltBeatmap, { as: 'packs', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
 
 AltUser.hasMany(AltUniqueSS, { as: 'unique_ss', foreignKey: 'user_id', sourceKey: 'user_id' });
@@ -84,7 +96,10 @@ module.exports.InspectorScoreStat = InspectorScoreStat;
 module.exports.AltUser = AltUser;
 module.exports.AltPriorityUser = AltPriorityUser;
 module.exports.AltScore = AltScore;
+module.exports.AltTopScore = AltTopScore;
 module.exports.AltBeatmap = AltBeatmap;
+module.exports.AltBeatmapEyup = AltBeatmapEyup;
+module.exports.AltBeatmapSSRatio = AltBeatmapSSRatio;
 module.exports.AltModdedStars = AltModdedStars;
 module.exports.AltBeatmapPack = AltBeatmapPack;
 module.exports.AltUniqueSS = AltUniqueSS;

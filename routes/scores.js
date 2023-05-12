@@ -5,7 +5,7 @@ const { Client } = require('pg');
 const { GetBestScores, score_columns, score_columns_full, beatmap_columns, GetBeatmapScores } = require('../helpers/osualt');
 const rateLimit = require('express-rate-limit');
 const { getBeatmaps, getCompletionData } = require('../helpers/inspector');
-const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat } = require('../helpers/db');
+const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat, AltBeatmapEyup, Databases, AltBeatmapSSRatio, AltTopScore } = require('../helpers/db');
 const { Op, Sequelize } = require('sequelize');
 const { CorrectedSqlScoreMods, CorrectMod, ModsToString, db_now } = require('../helpers/misc');
 require('dotenv').config();
@@ -52,13 +52,26 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
                             }
                         }
                     }] : []),
-                    {
-                        model: AltBeatmapPack,
-                        as: 'packs',
-                        required: false
-                    }
+                {
+                    model: AltBeatmapEyup,
+                    as: 'eyup_sr',
+                    required: false
+                },
+                {
+                    model: AltBeatmapSSRatio,
+                    as: 'ss_ratio',
+                    required: false
+                }
                 ],
             },
+            {
+                model: AltTopScore,
+                as: 'top_score',
+                where: {
+                    user_id: req.params.id
+                },
+                required: false,
+            }
         ],
         raw: true,
         nest: true
@@ -105,6 +118,48 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
         };
     }
 
+    if (scores && scores.length > 0) {
+        //add maxplaycounts
+        let beatmap_ids = scores.map(score => score.beatmap.set_id);
+        //remove duplicates and nulls
+        beatmap_ids = [...new Set(beatmap_ids)].filter(id => id);
+        if (beatmap_ids.length > 0) {
+            const max_pc = await Databases.osuAlt.query(`
+                SELECT set_id, mode, MAX(playcount) AS max_playcount FROM beatmaps
+                WHERE set_id IN (${beatmap_ids.join(',')})
+                GROUP BY set_id, mode
+            `);
+
+            const pack_ids = await AltBeatmapPack.findAll({
+                attributes: ['pack_id', 'beatmap_id'],
+                where: {
+                    beatmap_id: {
+                        [Op.in]: beatmap_ids
+                    }
+                },
+                raw: true,
+                nest: true
+            });
+
+            console.log('pack ids: ', pack_ids.length);
+            console.log(pack_ids);
+
+            for (const score of scores) {
+                const max_pc_beatmap = max_pc?.[0]?.find(b => b.set_id === score.beatmap.set_id && b.mode === score.beatmap.mode);
+                const pack_ids_beatmap = pack_ids?.filter(b => b.beatmap_id == score.beatmap.set_id);
+                if (max_pc_beatmap && score.beatmap?.eyup_sr) {
+                    score.beatmap.eyup_sr.max_playcount = max_pc_beatmap.max_playcount;
+                }
+
+                if(pack_ids_beatmap && pack_ids_beatmap.length > 0){
+                console.log(pack_ids_beatmap);
+                score.beatmap.packs = pack_ids_beatmap;
+                }
+            }
+        } else {
+            console.warn(`[Scores] ${scores.length} scores, ${beatmap_ids} set ids found for: ${req.params.id}`);
+        }
+    }
 
     console.log(`[Scores] Fetched ${scores.length} scores for user ${req.params.id} (include_loved: ${req.query.include_loved}, ignored modded starrating: ${req.query.ignore_modded_stars === 'true'})`);
 
@@ -201,9 +256,9 @@ router.get('/stats', limiter, async function (req, res, next) {
 
         data[period] = {};
         rows.forEach(row => {
-            try{
+            try {
                 data[period][row.key] = JSON.parse(row.value);
-            }catch(e){
+            } catch (e) {
                 data[period][row.key] = row.value;
             }
         });

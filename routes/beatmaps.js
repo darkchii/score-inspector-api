@@ -31,46 +31,14 @@ router.get('/packs', limiter, cache('1 hour'), async (req, res) => {
         group by pack_id`);
 
     res.json(result?.[0] ?? []);
+});
 
+router.get('/max_playcount', limiter, cache('1 hour'), async (req, res) => {
+    let result = await Databases.osuAlt.query(`
+        SELECT set_id, mode, MAX(playcount) AS max_playcount FROM beatmaps GROUP BY set_id, mode
+    `);
 
-//     const connection = mysql.createConnection(connConfig);
-
-//     connection.on('error', (err) => {
-//         res.json({
-//             message: 'Unable to connect to database',
-//             error: err,
-//         });
-//     });
-
-//     const _res = buildQuery(req);
-//     const q = _res[0];
-//     const qVar = _res[1];
-
-//     let result;
-//     if (req.query.sets_only !== undefined && req.query.sets_only === 'true') {
-//         result = await connection.awaitQuery(`
-//     SELECT packs, count(*) as count FROM (SELECT packs FROM beatmap ${q} AND LENGTH(packs)>0 GROUP BY beatmapset_id) s GROUP BY s.packs
-//   `, qVar);
-//     } else {
-//         result = await connection.awaitQuery(`
-//       SELECT packs, count(*) as count FROM beatmap ${q} AND LENGTH(packs)>0 GROUP BY packs
-//     `, qVar);
-//     }
-
-//     let packs = {};
-//     result.forEach((row) => {
-//         const pack_arr = row.packs.split(',');
-//         pack_arr.forEach((p) => {
-//             if (packs[p] === undefined) {
-//                 packs[p] = row.count;
-//             } else {
-//                 packs[p] += row.count;
-//             }
-//         });
-//     });
-//     res.json(packs);
-
-//     await connection.end();
+    res.json(result?.[0] ?? []);
 });
 
 router.get('/count', limiter, cache('1 hour'), async (req, res) => {

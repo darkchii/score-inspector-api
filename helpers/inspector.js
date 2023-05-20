@@ -260,7 +260,7 @@ function getCompletionData(scores, beatmaps) {
     completion.years = [];
     for (const year of spread) {
         let perc = 100;
-        let filtered_scores = scores.filter(score => score.beatmap.approved_date.getFullYear() === year);
+        let filtered_scores = scores.filter(score => new Date(score.beatmap.approved_date).getFullYear() === year);
         let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.approved_date.getFullYear() === year);
         //console.log(new Date(scores[0].approved_date).getFullYear());
         perc = filtered_scores.length / filtered_beatmaps.length * 100;

@@ -21,7 +21,7 @@ let cache = apicache.middleware;
 
 async function GetUserScores(req, score_attributes = undefined, beatmap_attributes = undefined) {
     const include_modded = req.query.ignore_modded_stars !== 'true';
-    const scores = await AltScore.findAll({
+    let scores = await AltScore.findAll({
         attributes: score_attributes,
         where: {
             user_id: req.params.id
@@ -39,29 +39,36 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
                     approved: { [Op.in]: [1, 2, req.query.include_loved === 'true' ? 4 : 1] }
                 },
                 required: true,
-                include: [...(include_modded ? [
-                    {
-                        model: AltModdedStars,
-                        as: 'modded_sr',
-                        where: {
-                            mods_enum: {
-                                [Op.eq]: Sequelize.literal(CorrectedSqlScoreMods)
-                            },
-                            beatmap_id: {
-                                [Op.eq]: Sequelize.literal('beatmap.beatmap_id')
+                include: [
+                    ...(include_modded ? [
+                        {
+                            model: AltModdedStars,
+                            as: 'modded_sr',
+                            where: {
+                                mods_enum: {
+                                    [Op.eq]: Sequelize.literal(CorrectedSqlScoreMods)
+                                },
+                                beatmap_id: {
+                                    [Op.eq]: Sequelize.literal('beatmap.beatmap_id')
+                                }
                             }
-                        }
-                    }] : []),
-                {
-                    model: AltBeatmapEyup,
-                    as: 'eyup_sr',
-                    required: false
-                },
-                {
-                    model: AltBeatmapSSRatio,
-                    as: 'ss_ratio',
-                    required: false
-                }
+                        }] : []),
+                    {
+                        model: AltBeatmapEyup,
+                        as: 'eyup_sr',
+                        required: false
+                    },
+                    {
+                        model: AltBeatmapSSRatio,
+                        as: 'ss_ratio',
+                        required: false
+                    },
+                    //get all beatmap packs by beatmap_id in one query as an array
+                    {
+                        model: AltBeatmapPack,
+                        as: 'packs',
+                        required: false,
+                    }
                 ],
             },
             {
@@ -73,9 +80,12 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
                 required: false,
             }
         ],
-        raw: true,
         nest: true
     });
+    console.log('got scores')
+    scores = JSON.parse(JSON.stringify(scores));
+
+    console.log(`got ${scores.length} scores`);
 
     if (include_modded) {
         //const beatmap_mod_pair = scores.map(score => { return { beatmap_id: score.beatmap_id, mods: score.enabled_mods } });
@@ -103,6 +113,8 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
             });
         }
 
+        console.log('got modded stars')
+
         for (const score of scores) {
             const int_mods = parseInt(score.enabled_mods);
             const correct_mods = CorrectMod(int_mods);
@@ -116,6 +128,8 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
                 }
             });
         };
+
+        console.log('added modded stars')
     }
 
     if (scores && scores.length > 0) {
@@ -126,42 +140,37 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
         beatmap_set_ids = [...new Set(beatmap_set_ids)].filter(id => id);
         beatmap_ids = [...new Set(beatmap_ids)].filter(id => id);
         if (beatmap_set_ids.length > 0 && beatmap_ids.length > 0) {
-            const max_pc = await Databases.osuAlt.query(`
+            const _max_pc = await Databases.osuAlt.query(`
                 SELECT set_id, mode, MAX(playcount) AS max_playcount FROM beatmaps
                 WHERE set_id IN (${beatmap_set_ids.join(',')})
                 GROUP BY set_id, mode
             `);
 
-            const pack_ids = await AltBeatmapPack.findAll({
-                attributes: ['pack_id', 'beatmap_id'],
-                where: {
-                    beatmap_id: {
-                        [Op.in]: beatmap_ids
-                    }
-                },
-                raw: true,
-                nest: true
-            });
+            let max_pc = _max_pc?.[0];
 
+            console.log('got max playcounts')
+
+            console.time('max pc loop')
             for (const score of scores) {
-                const max_pc_beatmap = max_pc?.[0]?.find(b => b.set_id === score.beatmap.set_id && b.mode === score.beatmap.mode);
-                const pack_ids_beatmap = pack_ids?.filter(b => b.beatmap_id == score.beatmap.beatmap_id);
-                //also remove the found ids from pack ids
-                pack_ids_beatmap?.forEach(b => {
-                    const index = pack_ids.findIndex(p => p.pack_id === b.pack_id);
-                    if (index !== -1) {
-                        pack_ids.splice(index, 1);
-                    }
-                });
-                
+                const max_pc_beatmap_index = max_pc?.findIndex(b => b.set_id === score.beatmap.set_id && b.mode === score.beatmap.mode);
+                const max_pc_beatmap = max_pc?.[max_pc_beatmap_index];
+
+                //remove the index if found
+                if (max_pc_beatmap_index !== -1) {
+                    max_pc.splice(max_pc_beatmap_index, 1);
+                }
+
                 if (max_pc_beatmap && score.beatmap?.eyup_sr) {
                     score.beatmap.eyup_sr.max_playcount = max_pc_beatmap.max_playcount;
                 }
 
-                if (pack_ids_beatmap && pack_ids_beatmap.length > 0) {
-                    score.beatmap.packs = pack_ids_beatmap;
-                }
+                // if (pack_ids_beatmap && pack_ids_beatmap.length > 0) {
+                //     score.beatmap.packs = pack_ids_beatmap;
+                // }
             }
+            console.timeEnd('max pc loop')
+
+            console.log('applied max playcounts and packs')
         } else {
             console.warn(`[Scores] ${scores.length} scores, ${beatmap_ids} set ids found for: ${req.params.id}`);
         }

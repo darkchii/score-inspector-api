@@ -71,8 +71,8 @@ AltBeatmapEyup.belongsTo(AltBeatmap, { as: 'eyup_sr', foreignKey: 'beatmap_id', 
 AltBeatmap.hasOne(AltBeatmapSSRatio, { as: 'ss_ratio', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
 AltBeatmapSSRatio.belongsTo(AltBeatmap, { as: 'ss_ratio', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
 
-AltBeatmap.hasOne(AltBeatmapPack, { as: 'packs', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
-AltBeatmapPack.belongsTo(AltBeatmap, { as: 'packs', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
+AltBeatmap.hasMany(AltBeatmapPack, { as: 'packs', foreignKey: 'beatmap_id'});
+// AltBeatmapPack.belongsTo(AltBeatmap);
 
 AltUser.hasMany(AltUniqueSS, { as: 'unique_ss', foreignKey: 'user_id', sourceKey: 'user_id' });
 AltUniqueSS.belongsTo(AltUser, { as: 'unique_ss', foreignKey: 'user_id', targetKey: 'user_id' });

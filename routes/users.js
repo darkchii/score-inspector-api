@@ -154,7 +154,7 @@ router.get('/full/:id', limiter, cache('10 minutes'), async (req, res, next) => 
 
     inspector_user = await InspectorUser.findOne({ where: { osu_id: req.params.id } });
   } catch (e) {
-    res.json({ error: 'Unable to get user', message: e.message });
+    res.json({ error: 'Unable to get user', message: e });
     return;
   }
 

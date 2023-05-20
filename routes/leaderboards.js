@@ -4,8 +4,8 @@ var router = express.Router();
 const { Client } = require('pg');
 const rateLimit = require('express-rate-limit');
 const { GetUsers } = require('../helpers/osu');
-const { HasScores } = require('../helpers/osualt');
-const { GetBeatmapCount, getBeatmaps } = require('../helpers/inspector');
+const { HasScores, GetBeatmaps } = require('../helpers/osualt');
+const { GetBeatmapCount } = require('../helpers/inspector');
 const e = require('express');
 const { parse } = require('../helpers/misc');
 const { InspectorUser } = require('../helpers/db');
@@ -19,7 +19,7 @@ const limiter = rateLimit({
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
-async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult = false, country = false, scoreFilter = null, userFilter = null, beatmapQuery = null, groupSets = false) {
+async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult = false, country = false, scoreFilter = null, userFilter = null, beatmapQuery = null, groupSets = false, statRequiresGroup = false) {
     const base = `
     (
         select 
@@ -33,7 +33,8 @@ async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult =
             INNER JOIN beatmaps ON scores.beatmap_id = beatmaps.beatmap_id 
             INNER JOIN users2 ON scores.user_id = users2.user_id` : ``}
         ${!isBeatmapResult && tableType === 'user' ? `
-            FROM users2` : ``}
+            FROM users2
+            INNER JOIN users_ppv1 ON users2.user_id = users_ppv1.user_id` : ``}
         ${tableType === 'array_table' ? `
             FROM ${stat} 
             ${groupSets ? '' :
@@ -45,7 +46,7 @@ async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult =
       GROUP BY 
           ${isBeatmapResult ?
             `${(groupSets ? 'beatmaps.set_id' : 'beatmaps.beatmap_id')}, beatmaps.mode, beatmaps.approved, beatmaps.approved_date, beatmaps.submit_date` :
-            'users2.user_id'}
+            `users2.user_id${statRequiresGroup ? `, ${stat}` : ''}`}
           ${country && !groupSets ? ', country_code' : ''}
       ) base
     `;
@@ -56,6 +57,7 @@ const FC_FILTER = '(countmiss = 0 and (maxcombo - combo) <= scores.count100 or r
 
 const STAT_DATA = {
     'pp': { query: 'users2.pp', table: 'user' },
+    'pp_v1': { query: 'ppv1', table: 'user', requiresGroup: true },
     'ss': { query: 'ssh_count+ss_count', table: 'user' },
     's': { query: 'sh_count+s_count', table: 'user' },
     'a': { query: 'a_count', table: 'user' },
@@ -97,6 +99,7 @@ const STAT_DATA = {
     'most_fm_ssed': { query: 'beatmaps', table: 'array_table', scoreFilter: '(is_hd = true and is_hr = true and is_dt = true and is_fl = true and accuracy=100)', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
     'longest_approval': { query: 'beatmaps', groupSets: true, beatmapQuery: 'age(approved_date,submit_date)', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2)', isArray: false, isBeatmaps: true },
     'longest_maps': { query: 'beatmaps', beatmapQuery: 'length', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
+    'set_with_most_maps': { query: 'beatmaps', groupSets: true, beatmapQuery: 'count(*)', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
 }
 
 async function getQueryUserData(stat, limit, offset, country) {
@@ -112,7 +115,7 @@ async function getQueryUserData(stat, limit, offset, country) {
     }
 
     const _stat = parse(stat.query, beatmapCount);
-    let base = await checkTables(_stat, stat.table, stat.scoreFilter ?? null, false, country !== undefined);
+    let base = await checkTables(_stat, stat.table, stat.scoreFilter ?? null, false, country !== undefined, null, null, null, null, stat.requiresGroup);
 
     query = `
         select 
@@ -273,11 +276,15 @@ router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
         if (queryInfo[2] === 'beatmaps' || queryInfo[2] === 'beatmapsets') {
             //beatmap data
             try {
-                const beatmaps = [...await getBeatmaps({ id: rows.map(row => queryInfo[2] === 'beatmaps' ? row.beatmap_id : row.set_id), include_loved: 'true', include_qualified: 'true', isSetID: queryInfo[2] === 'beatmapsets' })];
+                const idPropertyField = queryInfo[2] === 'beatmaps' ? 'beatmap_id' : 'set_id';
+                const beatmaps = await GetBeatmaps({ id: rows.map(row => row[idPropertyField]), include_loved: 'true', include_qualified: 'true', isSetID: queryInfo[2] === 'beatmapsets' });
+                console.log(beatmaps.length);
                 if (beatmaps) {
                     beatmaps.forEach(osu_beatmap => {
-                        const row = rows.find(row => (queryInfo[2] === 'beatmaps' ? row.beatmap_id : row.set_id) == (queryInfo[2] === 'beatmaps' ? osu_beatmap.beatmap_id : osu_beatmap.beatmapset_id));
-                        row.osu_beatmap = osu_beatmap;
+                        const row = rows.find(row => row[idPropertyField] == osu_beatmap[idPropertyField]);
+                        if (!row.osu_beatmap) {
+                            row.osu_beatmap = osu_beatmap;
+                        }
                     });
                 }
             } catch (e) {

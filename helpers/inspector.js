@@ -3,7 +3,7 @@ const { GetUser, GetDailyUser } = require("./osu");
 const mysql = require('mysql-await');
 const { default: axios } = require("axios");
 const { range } = require("./misc");
-const { InspectorToken, InspectorBeatmap, Databases } = require("./db");
+const { InspectorToken, InspectorBeatmap, Databases, AltBeatmap } = require("./db");
 const { Op, Sequelize } = require("sequelize");
 require('dotenv').config();
 

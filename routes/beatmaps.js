@@ -3,9 +3,10 @@ const moment = require('moment');
 const mysql = require('mysql-await');
 var apicache = require('apicache');
 const rateLimit = require('express-rate-limit');
-const { buildQuery, getBeatmaps } = require('../helpers/inspector');
+const { buildQuery } = require('../helpers/inspector');
 const { AltModdedStars, AltBeatmap, AltBeatmapPack, Databases } = require('../helpers/db');
 const { default: axios } = require('axios');
+const { GetBeatmaps } = require('../helpers/osualt');
 
 const router = express.Router();
 let cache = apicache.middleware;
@@ -121,7 +122,7 @@ router.get('/stats', limiter, cache('1 hour'), async (req, res) => {
 });
 
 router.get('/all', limiter, cache('1 hour'), async (req, res) => {
-    const result = await getBeatmaps(req.query);
+    const result = await GetBeatmaps(req.query);
     res.json(result);
 });
 

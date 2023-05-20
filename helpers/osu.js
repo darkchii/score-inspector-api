@@ -99,8 +99,8 @@ async function GetUsers(id_array, timeout = 5000) {
 
 module.exports.GetDailyUser = GetDailyUser;
 async function GetDailyUser(user_id, mode = 0, key = 'id', timeout = 1000) {
-    const res = await axios.get(`https://osudaily.net/api/user.php?k=${process.env.OSUDAILY_API}&u=${user_id}&m=${mode}&min=0`, { timeout });
     try {
+        const res = await axios.get(`https://osudaily.net/api/user.php?k=${process.env.OSUDAILY_API}&u=${user_id}&m=${mode}&min=0`, { timeout });
         return res.data;
     } catch (err) {
         console.log(err);

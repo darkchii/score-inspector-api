@@ -1,5 +1,5 @@
 const moment = require("moment/moment");
-const { Op, Sequelize } = require("sequelize");
+const { Op, Sequelize, where } = require("sequelize");
 const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, AltModdedStars, Databases, InspectorUser } = require("./db");
 const { CorrectedSqlScoreMods, CorrectedSqlScoreModsCustom } = require("./misc");
 const { GetUsers } = require("./osu");
@@ -179,7 +179,7 @@ async function FindUser(query, single, requirePriority = true) {
             where: single ? { user_id: query } : { username: { [Op.iLike]: `%${query}%` } },
         });
 
-        if(rows.length > 0) {
+        if (rows.length > 0) {
             //find or create proxy inspector user
             rows = JSON.parse(JSON.stringify(rows));
 
@@ -197,7 +197,7 @@ async function FindUser(query, single, requirePriority = true) {
             for (let i = 0; i < user_ids.length; i += chunk_size) {
                 chunks.push(user_ids.slice(i, i + chunk_size));
             }
-            
+
             for (let i = 0; i < chunks.length; i++) {
                 const chunk = chunks[i];
                 const osu_users_chunk = await GetUsers(chunk);
@@ -222,7 +222,7 @@ async function FindUser(query, single, requirePriority = true) {
 
                 if (inspector_user) {
                     rows[i].inspector_user = inspector_user;
-                }else{
+                } else {
                     rows[i].inspector_user = {
                         id: null,
                         osu_id: rows[i].user_id,
@@ -287,14 +287,14 @@ async function GetBestScores(period, stat, limit, loved = false) {
         data = rows[0];
 
         const { users } = await GetUsers(data.map(x => x.user_id));
-        for await(let score of data) {
+        for await (let score of data) {
             // add the beatmap data
             const beatmap_rows = await Databases.osuAlt.query(`
                 SELECT * FROM beatmaps 
                 WHERE beatmap_id = ${score.beatmap_id}`);
             score.beatmap = beatmap_rows[0]?.[0];
 
-            if(score.beatmap){
+            if (score.beatmap) {
                 // add the modded stars data
                 const modded_sr_rows = await Databases.osuAlt.query(`
                     SELECT * FROM moddedsr 
@@ -306,7 +306,7 @@ async function GetBestScores(period, stat, limit, loved = false) {
             // add the user data
             if (users) {
                 users.forEach(osu_user => {
-                    if (osu_user.id == score.user_id){
+                    if (osu_user.id == score.user_id) {
                         score.user = osu_user;
                     }
                 });
@@ -319,16 +319,65 @@ async function GetBestScores(period, stat, limit, loved = false) {
     return data;
 }
 
+module.exports.GetBeatmaps = GetBeatmaps;
+async function GetBeatmaps(config) {
+    let whereClause = {
+        mode: 0,
+        approved: { [Op.in]: config.approved ? config.approved.split(',') : [1, 2, ...(config.include_qualified ? [3] : []), ...(config.include_loved ? [4] : [])] },
+        stars: { [Op.between]: [config.stars_min ?? 0, config.stars_max ?? 100000] },
+        ar: { [Op.between]: [config.ar_min ?? 0, config.ar_max ?? 100000] },
+        od: { [Op.between]: [config.od_min ?? 0, config.od_max ?? 100000] },
+        cs: { [Op.between]: [config.cs_min ?? 0, config.cs_max ?? 100000] },
+        hp: { [Op.between]: [config.hp_min ?? 0, config.hp_max ?? 100000] },
+        length: { [Op.between]: [config.length_min ?? 0, config.length_max ?? 100000] }
+    }
+
+    if (config.isSetID && config.id) {
+        whereClause.set_id = { [Op.in]: Array.isArray(config.id) ? config.id : config.id.split(',') };
+    } else {
+        whereClause.beatmap_id = { [Op.and]: [] };
+        if (config.id) {
+            // whereClause.beatmap_id = { [Op.in]: config.id.split(',') };
+            whereClause.beatmap_id[Op.and].push({ [Op.in]: Array.isArray(config.id) ? config.id : config.id.split(',') });
+        }
+        if (config.pack) {
+            //whereClause.pack_id = { [Op.in]: config.pack.split(',') };
+            whereClause.beatmap_id[Op.and].push({
+                [Op.in]:
+                    Sequelize.literal(`
+                        (
+                            select beatmap_id from beatmap_packs 
+                            where 
+                            beatmap_packs.beatmap_id = beatmap_id and 
+                            beatmap_packs.pack_id in ('${config.pack}'))`)
+            });
+        }
+    }
+
+    const beatmaps = await AltBeatmap.findAll({
+        where: whereClause,
+        limit: config.limit ?? undefined,
+        offset: config.offset ?? 0,
+        ...(
+            config.isSetID ? {
+                group: ['beatmap_id', 'set_id'],
+            }  : { }
+        )
+    });
+
+    return beatmaps;
+}
+
 module.exports.GetBeatmapScores = GetBeatmapScores;
-async function GetBeatmapScores(beatmap_id, limit = 0, offset = 0){
+async function GetBeatmapScores(beatmap_id, limit = 0, offset = 0) {
     let data;
-    try{
+    try {
         const rows = await Databases.osuAlt.query(`
             SELECT * FROM scores
             WHERE beatmap_id = ${beatmap_id} AND user_id in (select user_id from users2)
             ORDER BY score DESC
-            ${limit!==undefined && limit > 0 ? `LIMIT ${limit}` : ''}
-            ${offset!==undefined && offset > 0 ? `OFFSET ${offset}` : ''}
+            ${limit !== undefined && limit > 0 ? `LIMIT ${limit}` : ''}
+            ${offset !== undefined && offset > 0 ? `OFFSET ${offset}` : ''}
             `);
         let scores = rows?.[0];
 
@@ -342,7 +391,7 @@ async function GetBeatmapScores(beatmap_id, limit = 0, offset = 0){
             where: { osu_id: user_ids }
         });
 
-        for await(let score of scores){
+        for await (let score of scores) {
             score.user = {};
             let user = users.find(x => x.user_id == score.user_id);
             let inspector_user = inspector_users.find(x => x.osu_id == score.user_id);
@@ -373,7 +422,7 @@ async function GetBeatmapScores(beatmap_id, limit = 0, offset = 0){
 
         data = scores;
         //data = rows;
-    }catch(err){
+    } catch (err) {
         throw new Error(err.message);
     }
     return data;

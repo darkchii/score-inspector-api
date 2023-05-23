@@ -19,6 +19,7 @@ const { InspectorScoreStatModel } = require('./models/InspectorScoreStat');
 const { AltBeatmapEyupModel } = require('./models/AltBeatmapEyup');
 const { AltBeatmapSSRatioModel } = require('./models/AltBeatmapSSRatio');
 const { AltTopScoreModel } = require('./models/AltTopScoreModel');
+const { InspectorMedalModel } = require('./models/InspectorMedal');
 require('dotenv').config();
 
 let databases = {
@@ -34,6 +35,7 @@ const InspectorVisitor = InspectorVisitorModel(databases.inspector);
 const InspectorBeatmap = InspectorBeatmapModel(databases.inspector);
 const InspectorModdedStars = InspectorModdedStarsModel(databases.inspector);
 const InspectorScoreStat = InspectorScoreStatModel(databases.inspector);
+const InspectorMedal = InspectorMedalModel(databases.inspector);
 
 InspectorComment.belongsTo(InspectorUser, { as: 'commentor', foreignKey: 'commentor_id', targetKey: 'osu_id' });
 InspectorVisitor.belongsTo(InspectorUser, { as: 'visitor_user', foreignKey: 'visitor_id', targetKey: 'osu_id' });
@@ -93,6 +95,7 @@ module.exports.InspectorVisitor = InspectorVisitor;
 module.exports.InspectorBeatmap = InspectorBeatmap;
 module.exports.InspectorModdedStars = InspectorModdedStars;
 module.exports.InspectorScoreStat = InspectorScoreStat;
+module.exports.InspectorMedal = InspectorMedal;
 module.exports.AltUser = AltUser;
 module.exports.AltPriorityUser = AltPriorityUser;
 module.exports.AltScore = AltScore;

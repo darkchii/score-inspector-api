@@ -138,13 +138,13 @@ router.get('/full/:id', limiter, cache('10 minutes'), async (req, res, next) => 
 
   try {
     // console.log('osu api');
-    try{
+    try {
       osuUser = await GetOsuUser(req.params.id, 'osu', 'id');
-    }catch(e){
+    } catch (e) {
       osuUser = await GetOsuUser(req.params.id, 'osu', 'username');
     }
     const real_id = osuUser?.id;
-    if(!real_id){
+    if (!real_id) {
       throw new Error('User not found');
     }
     // console.log('daily api');
@@ -159,7 +159,9 @@ router.get('/full/:id', limiter, cache('10 minutes'), async (req, res, next) => 
   }
 
   try {
-    let scoreRes = await axios.get(`https://score.respektive.pw/u/${req.params.id}`);
+    let scoreRes = await axios.get(`https://score.respektive.pw/u/${req.params.id}`, {
+      headers: { "Accept-Encoding": "gzip,deflate,compress" }
+    });
     scoreRank = scoreRes.data?.[0]?.rank;
   } catch (e) {
     //nothing

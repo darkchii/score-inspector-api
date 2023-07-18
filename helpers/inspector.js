@@ -25,68 +25,68 @@ function buildQuery(req) {
         q += ' AND star_rating>=?';
         qVar.push(req.stars_min);
 
-        if(!requiredAttributes.includes('star_rating')) requiredAttributes.push('star_rating');
+        if (!requiredAttributes.includes('star_rating')) requiredAttributes.push('star_rating');
     }
     if (req.stars_max) {
         q += ' AND star_rating<?';
         qVar.push(req.stars_max);
-        if(!requiredAttributes.includes('star_rating')) requiredAttributes.push('star_rating');
+        if (!requiredAttributes.includes('star_rating')) requiredAttributes.push('star_rating');
     }
     if (req.ar_min) {
         q += ' AND ar>=?';
         qVar.push(req.ar_min);
-        if(!requiredAttributes.includes('ar')) requiredAttributes.push('ar');
+        if (!requiredAttributes.includes('ar')) requiredAttributes.push('ar');
     }
     if (req.ar_max) {
         q += ' AND ar<?';
         qVar.push(req.ar_max);
-        if(!requiredAttributes.includes('ar')) requiredAttributes.push('ar');
+        if (!requiredAttributes.includes('ar')) requiredAttributes.push('ar');
     }
     if (req.od_min) {
         q += ' AND od>=?';
         qVar.push(req.od_min);
-        if(!requiredAttributes.includes('od')) requiredAttributes.push('od');
+        if (!requiredAttributes.includes('od')) requiredAttributes.push('od');
     }
     if (req.od_max) {
         q += ' AND od<?';
         qVar.push(req.od_max);
-        if(!requiredAttributes.includes('od')) requiredAttributes.push('od');
+        if (!requiredAttributes.includes('od')) requiredAttributes.push('od');
     }
     if (req.cs_min) {
         q += ' AND cs>=?';
         qVar.push(req.cs_min);
-        if(!requiredAttributes.includes('cs')) requiredAttributes.push('cs');
+        if (!requiredAttributes.includes('cs')) requiredAttributes.push('cs');
     }
     if (req.cs_max) {
         q += ' AND cs<?';
         qVar.push(req.cs_max);
-        if(!requiredAttributes.includes('cs')) requiredAttributes.push('cs');
+        if (!requiredAttributes.includes('cs')) requiredAttributes.push('cs');
     }
     if (req.hp_min) {
         q += ' AND hp>=?';
         qVar.push(req.hp_min);
-        if(!requiredAttributes.includes('hp')) requiredAttributes.push('hp');
+        if (!requiredAttributes.includes('hp')) requiredAttributes.push('hp');
     }
     if (req.hp_max) {
         q += ' AND hp<?';
         qVar.push(req.hp_max);
-        if(!requiredAttributes.includes('hp')) requiredAttributes.push('hp');
+        if (!requiredAttributes.includes('hp')) requiredAttributes.push('hp');
     }
     if (req.length_min) {
         q += ' AND total_length>=?';
         qVar.push(req.length_min);
-        if(!requiredAttributes.includes('total_length')) requiredAttributes.push('total_length');
+        if (!requiredAttributes.includes('total_length')) requiredAttributes.push('total_length');
     }
     if (req.length_max) {
         q += ' AND total_length<?';
         qVar.push(req.length_max);
-        if(!requiredAttributes.includes('total_length')) requiredAttributes.push('total_length');
+        if (!requiredAttributes.includes('total_length')) requiredAttributes.push('total_length');
     }
     if (req.pack) {
         q += ` AND 
       (packs LIKE '${req.pack},%' or packs LIKE '%,${req.pack},%' or packs LIKE '%,${req.pack}' or packs = '${req.pack}')
     `;
-        if(!requiredAttributes.includes('packs')) requiredAttributes.push('packs');
+        if (!requiredAttributes.includes('packs')) requiredAttributes.push('packs');
     }
     if (req.id) {
         const id_arr = req.id;
@@ -115,15 +115,15 @@ async function getBeatmaps(req) {
 
     if (req.compact) {
         querySelector = 'beatmapset_id, beatmap_id, artist, title, version, approved';
-    }else if(req.requiredAttributesOnly){
-        if(!_res[2].includes('beatmapset_id')) _res[2].push('beatmapset_id');
-        if(!_res[2].includes('beatmap_id')) _res[2].push('beatmap_id');
-        if(!_res[2].includes('artist')) _res[2].push('artist');
-        if(!_res[2].includes('title')) _res[2].push('title');
-        if(!_res[2].includes('version')) _res[2].push('version');
-        if(!_res[2].includes('approved')) _res[2].push('approved');
+    } else if (req.requiredAttributesOnly) {
+        if (!_res[2].includes('beatmapset_id')) _res[2].push('beatmapset_id');
+        if (!_res[2].includes('beatmap_id')) _res[2].push('beatmap_id');
+        if (!_res[2].includes('artist')) _res[2].push('artist');
+        if (!_res[2].includes('title')) _res[2].push('title');
+        if (!_res[2].includes('version')) _res[2].push('version');
+        if (!_res[2].includes('approved')) _res[2].push('approved');
         querySelector = _res[2].join(',');
-    }else if(req.customAttributeSet){
+    } else if (req.customAttributeSet) {
         querySelector = req.customAttributeSet.join(',');
     }
 
@@ -145,7 +145,10 @@ async function IsReachable(endpoint) {
             break;
         case 'scorerank':
             try {
-                const data = await axios.get('https://score.respektive.pw/u/10153735', { timeout: 1000 });
+                const data = await axios.get('https://score.respektive.pw/u/10153735', {
+                    timeout: 1000,
+                    headers: { "Accept-Encoding": "gzip,deflate,compress" }
+                });
                 if (data?.data?.[0] !== null) reachable = true;
             } catch (e) { }
             break;

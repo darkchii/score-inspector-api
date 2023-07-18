@@ -179,6 +179,8 @@ async function FindUser(query, single, requirePriority = true) {
             where: single ? { user_id: query } : { username: { [Op.iLike]: `%${query}%` } },
         });
 
+        console.log(requirePriority);
+
         if (rows.length > 0) {
             //find or create proxy inspector user
             rows = JSON.parse(JSON.stringify(rows));
@@ -203,7 +205,9 @@ async function FindUser(query, single, requirePriority = true) {
                 const osu_users_chunk = await GetUsers(chunk);
                 osu_users = osu_users.concat(osu_users_chunk.users);
 
-                let scoreRes = await axios.get(`https://score.respektive.pw/u/${chunk.join(',')}`);
+                let scoreRes = await axios.get(`https://score.respektive.pw/u/${chunk.join(',')}`, {
+                    headers: { "Accept-Encoding": "gzip,deflate,compress" }
+                });
                 rank_users = rank_users.concat(JSON.parse(JSON.stringify(scoreRes?.data)));
             }
 
@@ -361,7 +365,7 @@ async function GetBeatmaps(config) {
         ...(
             config.isSetID ? {
                 group: ['beatmap_id', 'set_id'],
-            }  : { }
+            } : {}
         )
     });
 

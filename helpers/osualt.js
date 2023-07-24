@@ -446,3 +446,19 @@ async function GetSystemInfo() {
     }
     return data;
 }
+
+module.exports.GetPopulation = GetPopulation;
+async function GetPopulation() {
+    let data;
+    try{
+        const rows = await AltUser.findAll({
+            attributes: ['country_code', 'country_name', [Sequelize.fn('COUNT', Sequelize.col('country_code')), 'count']],
+            group: ['country_code', 'country_name'],
+            order: [[Sequelize.col('count'), 'DESC']]
+        });
+        data = rows;
+    }catch(err){
+        throw new Error(err.message);
+    }
+    return data;
+}

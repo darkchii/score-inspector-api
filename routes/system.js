@@ -33,6 +33,7 @@ let cached_system_data = {
 
 router.get('/', async (req, res, next) => {
     // let user_count = (await connection.awaitQuery(`SELECT count(*) as c FROM inspector_users`))?.[0]?.c ?? 0;
+    const now = Date.now();
     let user_count = await InspectorUser.count();
     let total_visits = await InspectorVisitor.sum('count');
     //let total_visits = (await connection.awaitQuery(`SELECT sum(count) as c FROM inspector_visitors`))?.[0]?.c ?? 0;
@@ -41,22 +42,20 @@ router.get('/', async (req, res, next) => {
     let expressBytesSent = expressStats.getSync('size') ?? 0;
 
     //todo: optimize
-    if(cached_system_data.osuAlt.last_updated < Date.now() - 1000 * 60 * 5 || !cached_system_data.osuAlt.data) {
+    if(cached_system_data.osuAlt.last_updated < now - 1000 * 60 * 5 || !cached_system_data.osuAlt.data) {
         cached_system_data.osuAlt.data = await GetSystemInfo();
-        cached_system_data.osuAlt.last_updated = Date.now();
+        cached_system_data.osuAlt.last_updated = now;
     }
     let osu_alt_data = cached_system_data.osuAlt.data;
 
     //todo: optimize
-    if(cached_system_data.system.last_updated < Date.now() - 1000 * 60 * 5 || !cached_system_data.system.data) {
+    if(cached_system_data.system.last_updated < now - 1000 * 60 * 5 || !cached_system_data.system.data) {
         cached_system_data.system.data = {
             time: await si.time(),
             cpu: await si.cpu(),
-            mem: await si.mem(),
-            os: await si.osInfo(),
-            network: await si.networkInterfaces('default')
+            os: await si.osInfo()
         }
-        cached_system_data.system.last_updated = Date.now();
+        cached_system_data.system.last_updated = now;
     }
 
     res.json({
@@ -79,19 +78,12 @@ router.get('/', async (req, res, next) => {
                 brand: cached_system_data.system.data.cpu.brand,
                 cores: cached_system_data.system.data.cpu.cores
             },
-            memory: cached_system_data.system.data.mem,
             os: {
                 platform: cached_system_data.system.data.os.platform,
                 distro: cached_system_data.system.data.os.distro,
                 release: cached_system_data.system.data.os.release,
                 codename: cached_system_data.system.data.os.codename,
                 arch: cached_system_data.system.data.os.arch,
-            },
-            network: {
-                ifaceName: cached_system_data.system.data.network.ifaceName,
-                iface: cached_system_data.system.data.network.iface,
-                type: cached_system_data.system.data.network.type,
-                speed: cached_system_data.system.data.network.speed
             }
         }
     });

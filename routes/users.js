@@ -1,7 +1,7 @@
 const express = require('express');
 var apicache = require('apicache');
 const { GetUser: GetOsuUser, GetDailyUser, GetUsers, GetUserBeatmaps } = require('../helpers/osu');
-const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser } = require('../helpers/osualt');
+const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser, GetPopulation } = require('../helpers/osualt');
 const rateLimit = require('express-rate-limit');
 const { default: axios } = require('axios');
 const { InspectorUser } = require('../helpers/db');
@@ -126,6 +126,20 @@ router.get('/alt/find/:query', limiter, cache('10 minutes'), async function (req
     res.json(users);
   } catch (e) {
     res.json(e.message);
+  }
+});
+
+router.get('/population', limiter, cache('1 hour'), async (req, res) => {
+  let data = null;
+  try{
+    data = await GetPopulation();
+  } catch (e) {
+    res.json({ error: 'Unable to get population', message: e.message });
+  }
+  if (data !== null) {
+    res.json(data);
+  }else{
+    res.json({ error: 'Unable to get population' });
   }
 });
 

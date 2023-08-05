@@ -326,7 +326,7 @@ async function GetBestScores(period, stat, limit, loved = false) {
 module.exports.GetBeatmaps = GetBeatmaps;
 async function GetBeatmaps(config) {
     let whereClause = {
-        mode: 0,
+        mode: { [Op.in]: config.mode ? config.mode.split(',') : [0] },
         approved: { [Op.in]: config.approved ? config.approved.split(',') : [1, 2, ...(config.include_qualified ? [3] : []), ...(config.include_loved ? [4] : [])] },
         stars: { [Op.between]: [config.stars_min ?? 0, config.stars_max ?? 100000] },
         ar: { [Op.between]: [config.ar_min ?? 0, config.ar_max ?? 100000] },

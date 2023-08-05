@@ -21,7 +21,9 @@ const limiter = rateLimit({
 let cache = apicache.middleware;
 
 async function GetUserScores(req, score_attributes = undefined, beatmap_attributes = undefined) {
+    console.time('GetUserScores');
     const include_modded = req.query.ignore_modded_stars !== 'true';
+    console.time('get scores');
     let scores = await AltScore.findAll({
         attributes: score_attributes,
         where: {
@@ -65,11 +67,11 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
                         required: false
                     },
                     //get all beatmap packs by beatmap_id in one query as an array
-                    {
-                        model: AltBeatmapPack,
-                        as: 'packs',
-                        required: false,
-                    }
+                    // {
+                    //     model: AltBeatmapPack,
+                    //     as: 'packs',
+                    //     required: false,
+                    // }
                 ],
             },
             {
@@ -83,14 +85,36 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
         ],
         nest: true
     });
-    console.log('got scores')
+    console.timeEnd('get scores');
+
+    console.time('duplicate scores array')
     scores = JSON.parse(JSON.stringify(scores));
+    console.timeEnd('duplicate scores array')
 
-    console.log(`got ${scores.length} scores`);
+    let beatmap_set_ids = scores.map(score => score.beatmap.set_id);
+    let beatmap_ids = scores.map(score => score.beatmap.beatmap_id);
+    //remove duplicates and nulls
+    beatmap_set_ids = [...new Set(beatmap_set_ids)].filter(id => id);
+    beatmap_ids = [...new Set(beatmap_ids)].filter(id => id);
 
+    console.time('get beatmap packs');
+    const beatmap_packs = await AltBeatmapPack.findAll({
+        where: {
+            beatmap_id: {
+                [Op.in]: beatmap_ids
+            }
+        },
+        raw: true,
+        nest: true
+    });
+    for (const score of scores) {
+        score.beatmap.packs = beatmap_packs.filter(pack => pack.beatmap_id === score.beatmap_id);
+    }
+    console.timeEnd('get beatmap packs');
+
+    console.time('apply modded data');
     if (include_modded) {
         //const beatmap_mod_pair = scores.map(score => { return { beatmap_id: score.beatmap_id, mods: score.enabled_mods } });
-        const beatmap_ids = scores.map(score => score.beatmap_id);
         const per_fetch = 500;
         let modded_stars_cache = {};
         let unique_versions = [];
@@ -114,8 +138,6 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
             });
         }
 
-        console.log('got modded stars')
-
         for (const score of scores) {
             const int_mods = parseInt(score.enabled_mods);
             const correct_mods = CorrectMod(int_mods);
@@ -129,17 +151,11 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
                 }
             });
         };
-
-        console.log('added modded stars')
     }
+    console.timeEnd('apply modded data');
 
+    console.time('apply max playcounts');
     if (scores && scores.length > 0) {
-        //add maxplaycounts
-        let beatmap_set_ids = scores.map(score => score.beatmap.set_id);
-        let beatmap_ids = scores.map(score => score.beatmap.beatmap_id);
-        //remove duplicates and nulls
-        beatmap_set_ids = [...new Set(beatmap_set_ids)].filter(id => id);
-        beatmap_ids = [...new Set(beatmap_ids)].filter(id => id);
         if (beatmap_set_ids.length > 0 && beatmap_ids.length > 0) {
             const _max_pc = await Databases.osuAlt.query(`
                 SELECT set_id, mode, MAX(playcount) AS max_playcount FROM beatmaps
@@ -148,8 +164,6 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
             `);
 
             let max_pc = _max_pc?.[0];
-
-            console.log('got max playcounts')
 
             console.time('max pc loop')
             for (const score of scores) {
@@ -170,15 +184,15 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
                 // }
             }
             console.timeEnd('max pc loop')
-
-            console.log('applied max playcounts and packs')
         } else {
             console.warn(`[Scores] ${scores.length} scores, ${beatmap_ids} set ids found for: ${req.params.id}`);
         }
     }
+    console.timeEnd('apply max playcounts');
 
     console.log(`[Scores] Fetched ${scores.length} scores for user ${req.params.id} (include_loved: ${req.query.include_loved}, ignored modded starrating: ${req.query.ignore_modded_stars === 'true'})`);
 
+    console.timeEnd('GetUserScores');
     return scores;
 }
 

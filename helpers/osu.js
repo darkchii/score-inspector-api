@@ -189,6 +189,8 @@ async function GetCountryLeaderboard(timeout = 1000) {
                 //convert everything to number
                 if (row) {
                     country.alt_scores = Number(row.alt_scores);
+                    country.ss_total_count = Number(row.ssh_count) + Number(row.ss_count);
+                    country.s_total_count = Number(row.sh_count) + Number(row.s_count);
                     country.ssh_count = Number(row.ssh_count) ?? 0;
                     country.ss_count = Number(row.ss_count) ?? 0;
                     country.sh_count = Number(row.sh_count) ?? 0;

@@ -20,6 +20,8 @@ const { AltBeatmapEyupModel } = require('./models/AltBeatmapEyup');
 const { AltBeatmapSSRatioModel } = require('./models/AltBeatmapSSRatio');
 const { AltTopScoreModel } = require('./models/AltTopScoreModel');
 const { InspectorMedalModel } = require('./models/InspectorMedal');
+const { InspectorRoleModel } = require('./models/InspectorRole');
+const { InspectorUserRoleModel } = require('./models/InspectorUserRole');
 require('dotenv').config();
 
 let databases = {
@@ -29,6 +31,7 @@ let databases = {
 module.exports.Databases = databases;
 
 const InspectorUser = InspectorUserModel(databases.inspector);
+const InspectorRole = InspectorRoleModel(databases.inspector);
 const InspectorComment = InspectorCommentModel(databases.inspector);
 const InspectorToken = InspectorTokenModel(databases.inspector);
 const InspectorVisitor = InspectorVisitorModel(databases.inspector);
@@ -36,7 +39,11 @@ const InspectorBeatmap = InspectorBeatmapModel(databases.inspector);
 const InspectorModdedStars = InspectorModdedStarsModel(databases.inspector);
 const InspectorScoreStat = InspectorScoreStatModel(databases.inspector);
 const InspectorMedal = InspectorMedalModel(databases.inspector);
+const InspectorUserRole = InspectorUserRoleModel(databases.inspector);
 
+InspectorUser.belongsToMany(InspectorRole, { as: 'roles', through: 'inspector_user_roles', foreignKey: 'user_id', otherKey: 'role_id' });
+InspectorRole.belongsTo(InspectorUser, { as: 'roles', through: 'inspector_user_roles', foreignKey: 'user_id', otherKey: 'role_id' });
+InspectorUserRole.belongsTo(InspectorUser, { as: 'user_roles', foreignKey: 'user_id', targetKey: 'id' });
 InspectorComment.belongsTo(InspectorUser, { as: 'commentor', foreignKey: 'commentor_id', targetKey: 'osu_id' });
 InspectorVisitor.belongsTo(InspectorUser, { as: 'visitor_user', foreignKey: 'visitor_id', targetKey: 'osu_id' });
 InspectorVisitor.belongsTo(InspectorUser, { as: 'target_user', foreignKey: 'target_id', targetKey: 'osu_id' });
@@ -73,7 +80,7 @@ AltBeatmapEyup.belongsTo(AltBeatmap, { as: 'eyup_sr', foreignKey: 'beatmap_id', 
 AltBeatmap.hasOne(AltBeatmapSSRatio, { as: 'ss_ratio', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
 AltBeatmapSSRatio.belongsTo(AltBeatmap, { as: 'ss_ratio', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
 
-AltBeatmap.hasMany(AltBeatmapPack, { as: 'packs', foreignKey: 'beatmap_id'});
+AltBeatmap.hasMany(AltBeatmapPack, { as: 'packs', foreignKey: 'beatmap_id' });
 // AltBeatmapPack.belongsTo(AltBeatmap);
 
 AltUser.hasMany(AltUniqueSS, { as: 'unique_ss', foreignKey: 'user_id', sourceKey: 'user_id' });
@@ -89,6 +96,8 @@ AltUser.hasMany(AltUserAchievement, { as: 'medals', foreignKey: 'user_id', sourc
 AltUserAchievement.belongsTo(AltUser, { as: 'medals', foreignKey: 'user_id', targetKey: 'user_id' });
 
 module.exports.InspectorUser = InspectorUser;
+module.exports.InspectorRole = InspectorRole;
+module.exports.InspectorUserRole = InspectorUserRole;
 module.exports.InspectorComment = InspectorComment;
 module.exports.InspectorToken = InspectorToken;
 module.exports.InspectorVisitor = InspectorVisitor;

@@ -3,7 +3,7 @@ const { GetUser, GetDailyUser } = require("./osu");
 const mysql = require('mysql-await');
 const { default: axios } = require("axios");
 const { range } = require("./misc");
-const { InspectorToken, InspectorBeatmap, Databases, AltBeatmap } = require("./db");
+const { InspectorToken, InspectorBeatmap, Databases, AltBeatmap, InspectorUser, InspectorRole } = require("./db");
 const { Op, Sequelize } = require("sequelize");
 require('dotenv').config();
 
@@ -13,6 +13,29 @@ const connConfig = {
     database: process.env.MYSQL_DB,
     password: process.env.MYSQL_PASS,
 };
+
+module.exports.GetInspectorUser = GetInspectorUser;
+async function GetInspectorUser(id) {
+    try {
+        const inspector_user = await InspectorUser.findOne(
+            {
+                where: { osu_id: id },
+                include: [
+                    {
+                        model: InspectorRole,
+                        attributes: ['id', 'title', 'description', 'color', 'icon', 'is_visible', 'is_admin', 'is_listed'],
+                        through: { attributes: [] },
+                        as: 'roles'
+                    }
+                ]
+            });
+        return inspector_user;
+
+    } catch (e) {
+        console.error(e);
+        return null;
+    }
+}
 
 module.exports.buildQuery = buildQuery;
 function buildQuery(req) {

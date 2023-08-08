@@ -4,9 +4,9 @@ const router = express.Router();
 const crypto = require("crypto");
 require('dotenv').config();
 const rateLimit = require('express-rate-limit');
-const { InspectorUser, InspectorComment, InspectorToken, Raw, InspectorVisitor, AltUser, Databases } = require('../helpers/db');
+const { InspectorUser, InspectorComment, InspectorToken, Raw, InspectorVisitor, AltUser, Databases, InspectorRole } = require('../helpers/db');
 const { Sequelize, Op } = require('sequelize');
-const { VerifyToken } = require('../helpers/inspector');
+const { VerifyToken, GetInspectorUser } = require('../helpers/inspector');
 const { GetUsers } = require('../helpers/osu');
 
 const update_Limiter = rateLimit({
@@ -162,7 +162,8 @@ router.post('/logout', async (req, res, next) => {
 
 router.get('/get/:id', async (req, res, next) => {
     const user_id = req.params.id;
-    const user = await InspectorUser.findOne({ where: { osu_id: user_id } });
+    //const user = await InspectorUser.findOne({ where: { osu_id: user_id } });
+    const user = await GetInspectorUser(user_id);
     res.json(user);
 });
 
@@ -185,16 +186,25 @@ router.get('/visitors/get', async (req, res, next) => {
         group: ['target_id'],
         order: [[Sequelize.literal(order_by), 'DESC']],
         limit: limit,
-        include: [{
-            model: InspectorUser,
-            as: 'target_user',
-            required: false,
-        }],
+        // include: [{
+        //     model: InspectorUser,
+        //     as: 'target_user',
+        //     required: false,
+        //     include: [{
+        //         model: InspectorRole,
+        //         through: { attributes: [] },
+        //         as: 'roles',
+        //         required: false,
+        //     }]
+        // }],
         raw: true,
-        nest: true
     });
 
-    //attempt to get usernames for each user
+    //get inspector users
+    for await (const visitor of visitor_lbs) {
+        visitor.target_user = await GetInspectorUser(visitor.target_id);
+    }
+    // //attempt to get usernames for each user
     let user_ids = visitor_lbs.map((row) => row.target_id);
     let data;
     try {
@@ -208,7 +218,7 @@ router.get('/visitors/get', async (req, res, next) => {
         return;
     }
 
-    // //merge the two arrays
+    // // //merge the two arrays
     for (let i = 0; i < visitor_lbs.length; i++) {
         if (visitor_lbs[i].target_user == null) {
             visitor_lbs[i].target_user = {}

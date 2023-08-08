@@ -4,7 +4,8 @@ const { GetUser: GetOsuUser, GetDailyUser, GetUsers, GetUserBeatmaps } = require
 const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser, GetPopulation } = require('../helpers/osualt');
 const rateLimit = require('express-rate-limit');
 const { default: axios } = require('axios');
-const { InspectorUser } = require('../helpers/db');
+const { InspectorUser, InspectorRole } = require('../helpers/db');
+const { GetInspectorUser } = require('../helpers/inspector');
 
 let cache = apicache.middleware;
 const router = express.Router();
@@ -131,14 +132,14 @@ router.get('/alt/find/:query', limiter, cache('10 minutes'), async function (req
 
 router.get('/population', limiter, cache('1 hour'), async (req, res) => {
   let data = null;
-  try{
+  try {
     data = await GetPopulation();
   } catch (e) {
     res.json({ error: 'Unable to get population', message: e.message });
   }
   if (data !== null) {
     res.json(data);
-  }else{
+  } else {
     res.json({ error: 'Unable to get population' });
   }
 });
@@ -166,8 +167,9 @@ router.get('/full/:id', limiter, cache('10 minutes'), async (req, res, next) => 
     // console.log('alt api');
     altUser = await GetAltUser(real_id);
 
-    inspector_user = await InspectorUser.findOne({ where: { osu_id: req.params.id } });
+    inspector_user = await GetInspectorUser(req.params.id);
   } catch (e) {
+    console.error(e);
     res.json({ error: 'Unable to get user', message: e });
     return;
   }
@@ -182,10 +184,10 @@ router.get('/full/:id', limiter, cache('10 minutes'), async (req, res, next) => 
   }
 
   res.json({
+    inspector_user: inspector_user,
     osu: { ...osuUser, scoreRank },
     daily: dailyUser,
     alt: altUser,
-    inspector_user: inspector_user
   });
 });
 

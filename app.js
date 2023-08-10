@@ -14,6 +14,7 @@ var leaderboardsRouter = require('./routes/leaderboards');
 var loginRouter = require('./routes/login');
 var systemRouter = require('./routes/system');
 var medalsRouter = require('./routes/medals');
+var adminRouter = require('./routes/admin');
 const compression = require('compression');
 const StartCacher = require('./db_cacher');
 
@@ -66,6 +67,7 @@ app.use('/leaderboards', leaderboardsRouter);
 app.use('/login', loginRouter);
 app.use('/system', systemRouter);
 app.use('/medals', medalsRouter);
+app.use('/admin', adminRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

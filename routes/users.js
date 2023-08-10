@@ -145,11 +145,19 @@ router.get('/population', limiter, cache('1 hour'), async (req, res) => {
 });
 
 router.get('/full/:id', limiter, cache('10 minutes'), async (req, res, next) => {
+  const skippedData = {
+    daily: req.query.skipDailyData === 'true' ? true : false,
+    alt: req.query.skipAltData === 'true' ? true : false,
+    score: req.query.skipScoreRank === 'true' ? true : false,
+  }
+
+  console.log(req.query);
+
   let osuUser;
   let dailyUser;
   let altUser;
   let scoreRank;
-  let inspectorUser;
+  let inspector_user;
 
   try {
     // console.log('osu api');
@@ -162,10 +170,14 @@ router.get('/full/:id', limiter, cache('10 minutes'), async (req, res, next) => 
     if (!real_id) {
       throw new Error('User not found');
     }
-    // console.log('daily api');
-    dailyUser = await GetDailyUser(real_id, 0, 'id');
-    // console.log('alt api');
-    altUser = await GetAltUser(real_id);
+
+    if (!skippedData.daily) {
+      dailyUser = await GetDailyUser(real_id, 0, 'id');
+    }
+
+    if (!skippedData.alt) {
+      altUser = await GetAltUser(real_id);
+    }
 
     inspector_user = await GetInspectorUser(req.params.id);
   } catch (e) {
@@ -174,13 +186,15 @@ router.get('/full/:id', limiter, cache('10 minutes'), async (req, res, next) => 
     return;
   }
 
-  try {
-    let scoreRes = await axios.get(`https://score.respektive.pw/u/${req.params.id}`, {
-      headers: { "Accept-Encoding": "gzip,deflate,compress" }
-    });
-    scoreRank = scoreRes.data?.[0]?.rank;
-  } catch (e) {
-    //nothing
+  if (!skippedData.score) {
+    try {
+      let scoreRes = await axios.get(`https://score.respektive.pw/u/${req.params.id}`, {
+        headers: { "Accept-Encoding": "gzip,deflate,compress" }
+      });
+      scoreRank = scoreRes.data?.[0]?.rank;
+    } catch (e) {
+      //nothing
+    }
   }
 
   res.json({

@@ -49,6 +49,18 @@ router.get('/', async (req, res, next) => {
     let osu_alt_data = cached_system_data.osuAlt.data;
 
     //todo: optimize
+    console.time('sys time');
+    await si.time();
+    console.timeEnd('sys time');
+
+    console.time('sys cpu');
+    await si.cpu();
+    console.timeEnd('sys cpu');
+
+    console.time('sys os');
+    await si.osInfo();
+    console.timeEnd('sys os');
+
     if(cached_system_data.system.last_updated < now - 1000 * 60 * 5 || !cached_system_data.system.data) {
         cached_system_data.system.data = {
             time: await si.time(),

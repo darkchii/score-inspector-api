@@ -216,12 +216,12 @@ async function FindUser(query, single, requirePriority = true) {
                 const osu_user = osu_users?.find(x => x.id == rows[i].user_id);
                 const rank_user = rank_users?.find(x => x.user_id == rows[i].user_id);
 
-                if (rank_user) {
-                    rows[i].score_rank = rank_user;
-                }
-
+                
                 if (osu_user) {
                     rows[i].osu = osu_user;
+                    if (rank_user) {
+                        rows[i].osu.scoreRank = rank_user?.rank;
+                    }
                 }
 
                 if (inspector_user) {

@@ -6,6 +6,7 @@ const InspectorMedalModel = (db) => db.define('Medal', {
     icon_url: { type: Sequelize.STRING, allowNull: false, },
     description: { type: Sequelize.STRING, allowNull: false, },
     category: { type: Sequelize.STRING, allowNull: false, },
+    ordering: { type: Sequelize.INTEGER, allowNull: false, },
 }, {
     tableName: 'osu_medals',
     timestamps: false

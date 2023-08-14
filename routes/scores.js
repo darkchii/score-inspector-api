@@ -5,7 +5,7 @@ const { Client } = require('pg');
 const { GetBestScores, score_columns, score_columns_full, beatmap_columns, GetBeatmapScores } = require('../helpers/osualt');
 const rateLimit = require('express-rate-limit');
 const { getBeatmaps, getCompletionData } = require('../helpers/inspector');
-const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat, AltBeatmapEyup, Databases, AltBeatmapSSRatio, AltTopScore } = require('../helpers/db');
+const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat, AltBeatmapEyup, Databases, AltBeatmapSSRatio, AltTopScore, InspectorHistoricalScoreRank } = require('../helpers/db');
 const { Op, Sequelize } = require('sequelize');
 const { CorrectedSqlScoreMods, CorrectMod, ModsToString, db_now } = require('../helpers/misc');
 const { GetCountryLeaderboard } = require('../helpers/osu');
@@ -21,9 +21,7 @@ const limiter = rateLimit({
 let cache = apicache.middleware;
 
 async function GetUserScores(req, score_attributes = undefined, beatmap_attributes = undefined) {
-    console.time('GetUserScores');
     const include_modded = req.query.ignore_modded_stars !== 'true';
-    console.time('get scores');
     let scores = await AltScore.findAll({
         attributes: score_attributes,
         where: {
@@ -85,11 +83,8 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
         ],
         nest: true
     });
-    console.timeEnd('get scores');
 
-    console.time('duplicate scores array')
     scores = JSON.parse(JSON.stringify(scores));
-    console.timeEnd('duplicate scores array')
 
     let beatmap_set_ids = scores.map(score => score.beatmap.set_id);
     let beatmap_ids = scores.map(score => score.beatmap.beatmap_id);
@@ -97,7 +92,6 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
     beatmap_set_ids = [...new Set(beatmap_set_ids)].filter(id => id);
     beatmap_ids = [...new Set(beatmap_ids)].filter(id => id);
 
-    console.time('get beatmap packs');
     const beatmap_packs = await AltBeatmapPack.findAll({
         where: {
             beatmap_id: {
@@ -110,9 +104,7 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
     for (const score of scores) {
         score.beatmap.packs = beatmap_packs.filter(pack => pack.beatmap_id === score.beatmap_id);
     }
-    console.timeEnd('get beatmap packs');
 
-    console.time('apply modded data');
     if (include_modded) {
         //const beatmap_mod_pair = scores.map(score => { return { beatmap_id: score.beatmap_id, mods: score.enabled_mods } });
         const per_fetch = 500;
@@ -152,9 +144,7 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
             });
         };
     }
-    console.timeEnd('apply modded data');
 
-    console.time('apply max playcounts');
     if (scores && scores.length > 0) {
         if (beatmap_set_ids.length > 0 && beatmap_ids.length > 0) {
             const _max_pc = await Databases.osuAlt.query(`
@@ -165,7 +155,6 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
 
             let max_pc = _max_pc?.[0];
 
-            console.time('max pc loop')
             for (const score of scores) {
                 const max_pc_beatmap_index = max_pc?.findIndex(b => b.set_id === score.beatmap.set_id && b.mode === score.beatmap.mode);
                 const max_pc_beatmap = max_pc?.[max_pc_beatmap_index];
@@ -183,16 +172,9 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
                 //     score.beatmap.packs = pack_ids_beatmap;
                 // }
             }
-            console.timeEnd('max pc loop')
-        } else {
-            console.warn(`[Scores] ${scores.length} scores, ${beatmap_ids} set ids found for: ${req.params.id}`);
         }
     }
-    console.timeEnd('apply max playcounts');
 
-    console.log(`[Scores] Fetched ${scores.length} scores for user ${req.params.id} (include_loved: ${req.query.include_loved}, ignored modded starrating: ${req.query.ignore_modded_stars === 'true'})`);
-
-    console.timeEnd('GetUserScores');
     return scores;
 }
 
@@ -341,6 +323,48 @@ router.get('/activity', limiter, cache('20 minutes'), async function (req, res, 
     const { rows } = await client.query(query);
     await client.end();
     res.json(rows);
+});
+
+router.get('/ranking', limiter, cache('1 hour'), async function (req, res, next) {
+    const user_id = req.query.user_id || undefined;
+    const date = req.query.date || undefined;
+    const rank = req.query.rank || undefined;
+
+    let where_clause = {};
+    if (user_id) { where_clause.osu_id = user_id; }
+    if (date) { where_clause.date = new Date(date); }
+    if (rank) { where_clause.rank = rank; }
+
+    console.log(where_clause);
+
+    const data = await InspectorHistoricalScoreRank.findAll({
+        where: where_clause,
+        raw: true,
+        nest: true
+    });
+
+    res.json(data);
+});
+
+router.get('/ranking/dates', limiter, cache('1 hour'), async function (req, res, next) {
+    try{
+        const data = await InspectorHistoricalScoreRank.findAll({
+            attributes: [[Sequelize.fn('DISTINCT', Sequelize.col('date')), 'date']],
+            raw: true,
+            nest: true
+        });
+    
+        let dates = [];
+        data.forEach(row => {
+            dates.push(row.date);
+        });
+    
+        res.json(dates);
+    }catch(e){
+        console.error(e);
+
+        res.json([])
+    }
 });
 
 module.exports = router;

@@ -22,10 +22,11 @@ const { AltTopScoreModel } = require('./models/AltTopScoreModel');
 const { InspectorMedalModel } = require('./models/InspectorMedal');
 const { InspectorRoleModel } = require('./models/InspectorRole');
 const { InspectorUserRoleModel } = require('./models/InspectorUserRole');
+const { InspectorHistoricalScoreRankModel } = require('./models/InspectorHistoricalScoreRank');
 require('dotenv').config();
 
 let databases = {
-    inspector: new Sequelize(process.env.MYSQL_DB, process.env.MYSQL_USER, process.env.MYSQL_PASS, { host: process.env.MYSQL_HOST, dialect: 'mariadb', timezone: '+01:00', logging: false }),
+    inspector: new Sequelize(process.env.MYSQL_DB, process.env.MYSQL_USER, process.env.MYSQL_PASS, { host: process.env.MYSQL_HOST, dialect: 'mariadb', timezone: 'Europe/Amsterdam', logging: false }),
     osuAlt: new Sequelize(process.env.ALT_DB_DATABASE, process.env.ALT_DB_USER, process.env.ALT_DB_PASSWORD, { host: process.env.ALT_DB_HOST, dialect: 'postgres', logging: false })
 };
 module.exports.Databases = databases;
@@ -40,6 +41,7 @@ const InspectorModdedStars = InspectorModdedStarsModel(databases.inspector);
 const InspectorScoreStat = InspectorScoreStatModel(databases.inspector);
 const InspectorMedal = InspectorMedalModel(databases.inspector);
 const InspectorUserRole = InspectorUserRoleModel(databases.inspector);
+const InspectorHistoricalScoreRank = InspectorHistoricalScoreRankModel(databases.inspector);
 
 InspectorUser.belongsToMany(InspectorRole, { as: 'roles', through: 'inspector_user_roles', foreignKey: 'user_id', otherKey: 'role_id' });
 InspectorRole.belongsTo(InspectorUser, { as: 'roles', through: 'inspector_user_roles', foreignKey: 'user_id', otherKey: 'role_id' });
@@ -105,6 +107,7 @@ module.exports.InspectorBeatmap = InspectorBeatmap;
 module.exports.InspectorModdedStars = InspectorModdedStars;
 module.exports.InspectorScoreStat = InspectorScoreStat;
 module.exports.InspectorMedal = InspectorMedal;
+module.exports.InspectorHistoricalScoreRank = InspectorHistoricalScoreRank;
 module.exports.AltUser = AltUser;
 module.exports.AltPriorityUser = AltPriorityUser;
 module.exports.AltScore = AltScore;

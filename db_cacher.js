@@ -3,9 +3,12 @@
 
 const { Client } = require("pg");
 const { beatmap_columns } = require("./helpers/osualt");
-const { InspectorScoreStat } = require("./helpers/db");
+const { InspectorScoreStat, InspectorHistoricalScoreRank } = require("./helpers/db");
 const { Op, Sequelize } = require('sequelize');
-const { db_now } = require("./helpers/misc");
+const { db_now, sleep } = require("./helpers/misc");
+const { default: axios } = require("axios");
+const { default: axiosRetry } = require("axios-retry");
+const schedule = require('node-schedule');
 require('dotenv').config();
 
 function StartCacher() {
@@ -14,28 +17,24 @@ function StartCacher() {
 module.exports = StartCacher;
 
 async function Loop() {
-    setInterval(async () => {
+    const score_stat_job = schedule.scheduleJob('0 * * * *', function(){
         console.log("Updating score statistics");
-        await UpdateScoreStatistics(['24h', '7d', 'all']);
-    }, 1000 * 60 * 60);
+        UpdateScoreStatistics(['24h', '7d', 'all']);
+    })
 
-    setInterval(async () => {
-        console.log("Updating beatmap statistics");
-        await UpdateScoreStatistics(['30min']);
-    }, 1000 * 60 * 10);
-    //check database timezone and time
-    // const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
-    // await client.connect();
-    // const result = await client.query("SELECT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') as test, NOW() as now, CURRENT_TIMESTAMP as current_timestamp");
-    // //newest score as test (by time)
-    // const newest_score = await client.query("SELECT * FROM scores ORDER BY date_played DESC LIMIT 1");
-    // await client.end();
-    // console.log(newest_score.rows[0]);
-    // console.log(result.rows[0]);
+    const score_stat_job2 = schedule.scheduleJob('30 * * * *', function(){
+        console.log("Updating score statistics");
+        UpdateScoreStatistics(['30min']);
+    })
 
-    // first time run immediately
-    await UpdateScoreStatistics(['30min']);
-    await UpdateScoreStatistics(['24h', '7d', 'all']);
+    const score_job = schedule.scheduleJob('28 * * * *', function(){
+        console.log("Updating score statistics");
+        try{
+            UpdateScoreRanks();
+        }catch(e){
+            console.error(e);
+        }
+    })
 }
 
 const user_rows = [
@@ -95,7 +94,7 @@ async function UpdateScoreStatistics(STAT_PERIODS) {
             time_query = `AND (date_played BETWEEN ${db_now} - INTERVAL \'7 DAYS\' AND ${db_now})`;
         } else if (period === '10min') {
             time_query = `AND (date_played BETWEEN ${db_now} - INTERVAL \'10 MIN\' AND ${db_now})`;
-        }else if (period === '30min') {
+        } else if (period === '30min') {
             time_query = `AND (date_played BETWEEN ${db_now} - INTERVAL \'30 MIN\' AND ${db_now})`;
         }
 
@@ -182,4 +181,76 @@ async function UpdateScoreStatistics(STAT_PERIODS) {
     await client.end();
 
     // console.log(_res);
+}
+
+const SCORE_RANK_PAGES = 200;
+async function UpdateScoreRanks() {
+    const FULL_LIST = [];
+
+    let RETRIES = 0;
+    let CURRENT_PAGE = 1;
+
+    while (CURRENT_PAGE <= SCORE_RANK_PAGES) {
+        // const data = await axios.get(`https://score.respektive.pw/rankings/?page=${CURRENT_PAGE}`);
+        const client = axios.create({
+            baseURL: 'https://score.respektive.pw',
+            timeout: 2500
+        });
+        axiosRetry(client, { retries: 3 });
+
+        const data = await client.get(`/rankings/?page=${CURRENT_PAGE}`);
+
+        let _data = null;
+        try {
+            _data = Object.values(data?.data);
+        } catch (e) {
+            console.log(`[SCORE RANKS] Failed to fetch page ${CURRENT_PAGE}, retrying ...`);
+            await sleep(1000);
+            RETRIES++;
+            continue;
+        }
+
+        if (!_data || !_data.length || _data.length === 0) {
+            if (RETRIES >= 3) {
+                console.log(`[SCORE RANKS] Failed to fetch page ${CURRENT_PAGE} 3 times, skipping ...`);
+                CURRENT_PAGE++;
+                RETRIES = 0;
+                continue;
+            }
+
+            console.log(`[SCORE RANKS] Failed to fetch page ${CURRENT_PAGE}, retrying ...`);
+            await sleep(1000);
+            RETRIES++;
+            continue;
+        }
+
+        //add objects of lb to FULL_LIST
+        for await (const row of _data) {
+            FULL_LIST.push(row);
+        }
+
+        RETRIES = 0;
+        CURRENT_PAGE++;
+    }
+
+    console.log(`[SCORE RANKS] Fetched ${FULL_LIST.length} score rank pairs.`);
+    console.log(`[SCORE RANKS] Updating database ...`);
+
+    let FIXED_ARR = [];
+    const CURRENT_TIME = new Date();
+    //get current day in DD/MM/YYYY format
+    for await (const row of FULL_LIST) {
+        const obj = {
+            osu_id: row.user_id,
+            username: row.username,
+            rank: row.rank,
+            ranked_score: row.score,
+            date: CURRENT_TIME
+        }
+        FIXED_ARR.push(obj);
+    }
+    // console.log(FIXED_ARR);
+    await InspectorHistoricalScoreRank.bulkCreate(FIXED_ARR);
+
+    console.log(`[SCORE RANKS] Updated database.`);
 }

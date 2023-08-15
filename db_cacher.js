@@ -27,7 +27,8 @@ async function Loop() {
         UpdateScoreStatistics(['30min']);
     })
 
-    const score_job = schedule.scheduleJob('28 * * * *', function(){
+    //update score ranks every day at 00:01
+    const score_job = schedule.scheduleJob('1 0 * * *', function(){
         console.log("Updating score statistics");
         try{
             UpdateScoreRanks();

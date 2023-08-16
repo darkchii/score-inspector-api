@@ -23,6 +23,8 @@ const { InspectorMedalModel } = require('./models/InspectorMedal');
 const { InspectorRoleModel } = require('./models/InspectorRole');
 const { InspectorUserRoleModel } = require('./models/InspectorUserRole');
 const { InspectorHistoricalScoreRankModel } = require('./models/InspectorHistoricalScoreRank');
+const { OsuUserModel } = require('./models/OsuUser');
+const { InspectorUserMilestoneModel } = require('./models/InspectorMilestone');
 require('dotenv').config();
 
 let databases = {
@@ -42,6 +44,9 @@ const InspectorScoreStat = InspectorScoreStatModel(databases.inspector);
 const InspectorMedal = InspectorMedalModel(databases.inspector);
 const InspectorUserRole = InspectorUserRoleModel(databases.inspector);
 const InspectorHistoricalScoreRank = InspectorHistoricalScoreRankModel(databases.inspector);
+const InspectorUserMilestone = InspectorUserMilestoneModel(databases.inspector);
+
+const InspectorOsuUser = OsuUserModel(databases.inspector);
 
 InspectorUser.belongsToMany(InspectorRole, { as: 'roles', through: 'inspector_user_roles', foreignKey: 'user_id', otherKey: 'role_id' });
 InspectorRole.belongsTo(InspectorUser, { as: 'roles', through: 'inspector_user_roles', foreignKey: 'user_id', otherKey: 'role_id' });
@@ -49,6 +54,8 @@ InspectorUserRole.belongsTo(InspectorUser, { as: 'user_roles', foreignKey: 'user
 InspectorComment.belongsTo(InspectorUser, { as: 'commentor', foreignKey: 'commentor_id', targetKey: 'osu_id' });
 InspectorVisitor.belongsTo(InspectorUser, { as: 'visitor_user', foreignKey: 'visitor_id', targetKey: 'osu_id' });
 InspectorVisitor.belongsTo(InspectorUser, { as: 'target_user', foreignKey: 'target_id', targetKey: 'osu_id' });
+InspectorUserMilestone.belongsTo(InspectorOsuUser, { as: 'user', foreignKey: 'user_id', targetKey: 'user_id' });
+InspectorUserMilestone.belongsTo(InspectorUser, { as: 'inspector_user', foreignKey: 'user_id', targetKey: 'osu_id' });
 
 const AltUser = AltUserModel(databases.osuAlt);
 const AltPriorityUser = AltPriorityUserModel(databases.osuAlt);
@@ -108,6 +115,9 @@ module.exports.InspectorModdedStars = InspectorModdedStars;
 module.exports.InspectorScoreStat = InspectorScoreStat;
 module.exports.InspectorMedal = InspectorMedal;
 module.exports.InspectorHistoricalScoreRank = InspectorHistoricalScoreRank;
+module.exports.InspectorOsuUser = InspectorOsuUser;
+module.exports.InspectorUserMilestone = InspectorUserMilestone;
+
 module.exports.AltUser = AltUser;
 module.exports.AltPriorityUser = AltPriorityUser;
 module.exports.AltScore = AltScore;

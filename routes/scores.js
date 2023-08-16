@@ -4,8 +4,8 @@ var router = express.Router();
 const { Client } = require('pg');
 const { GetBestScores, score_columns, score_columns_full, beatmap_columns, GetBeatmapScores } = require('../helpers/osualt');
 const rateLimit = require('express-rate-limit');
-const { getBeatmaps, getCompletionData } = require('../helpers/inspector');
-const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat, AltBeatmapEyup, Databases, AltBeatmapSSRatio, AltTopScore, InspectorHistoricalScoreRank, InspectorUser, InspectorRole } = require('../helpers/db');
+const { getBeatmaps, getCompletionData, DefaultInspectorUser } = require('../helpers/inspector');
+const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat, AltBeatmapEyup, Databases, AltBeatmapSSRatio, AltTopScore, InspectorHistoricalScoreRank, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser } = require('../helpers/db');
 const { Op, Sequelize } = require('sequelize');
 const { CorrectedSqlScoreMods, CorrectMod, ModsToString, db_now } = require('../helpers/misc');
 const { GetCountryLeaderboard, GetUsers } = require('../helpers/osu');
@@ -426,6 +426,75 @@ router.get('/ranking/dates', limiter, cache('1 hour'), async function (req, res,
 
         res.json([])
     }
+});
+
+router.get('/milestones/user/:id', limiter, cache('1 hour'), async function (req, res, next) {
+    const user_id = req.params.id;
+    const limit = req.query.limit || 10;
+    const offset = req.query.offset || 0;
+
+    const milestones = await InspectorUserMilestone.findAll({
+        where: {
+            user_id: user_id
+        },
+        order: [
+            ['time', 'DESC']
+        ],
+        limit: limit,
+        offset: offset,
+        raw: true,
+        nest: true,
+        include: [
+            {
+                model: InspectorOsuUser,
+                as: 'user',
+                required: true
+            }, {
+                model: InspectorUser,
+                as: 'inspector_user'
+            }
+        ]
+    });
+    res.json(milestones);
+});
+
+router.get('/milestones', limiter, cache('1 hour'), async function (req, res, next) {
+    const limit = req.query.limit || 100;
+    const offset = req.query.offset || 0;
+
+    const milestones = await InspectorUserMilestone.findAll({
+        order: [
+            ['time', 'DESC']
+        ],
+        limit: limit,
+        offset: offset,
+        raw: true,
+        nest: true,
+        include: [
+            {
+                model: InspectorOsuUser,
+                as: 'user',
+                required: true
+            }, {
+                model: InspectorUser,
+                as: 'inspector_user'
+            }
+        ]
+    });
+
+    // milestones.forEach(milestone => {
+    //     milestone.inspector_user = DefaultInspectorUser(milestone.inspector_user, milestone.user.username, milestone.user.user_id);
+    // });
+    for (const milestone of milestones) {
+        milestone.inspector_user = DefaultInspectorUser(milestone.inspector_user, milestone.user.username, milestone.user.user_id);
+    }
+
+    res.json(milestones);
+});
+
+router.get('/milestones/count', limiter, cache('1 hour'), async function (req, res, next) {
+    const count = await InspectorUserMilestone.count();
+    res.json(count);
 });
 
 module.exports = router;

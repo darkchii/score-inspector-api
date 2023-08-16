@@ -329,24 +329,40 @@ router.get('/ranking', limiter, cache('1 hour'), async function (req, res, next)
     let user_id, date, rank = undefined;
     let limit = 100;
     let page = 0;
+    let sort = 'rank'
     try {
         user_id = req.query.user_id || undefined;
         date = req.query.date || undefined;
         rank = req.query.rank || undefined;
         limit = Number(req.query.limit) || 10000;
         page = Number(req.query.page) || 1;
+        sort = req.query.sort || 'rank';
     } catch (e) {
         res.status(400).json({ "error": "Invalid parameters" });
         return;
     }
 
     let where_clause = {};
+    let sort_clause = '';
     if (user_id) { where_clause.osu_id = user_id; }
     if (date) { where_clause.date = date; }
     if (rank) { where_clause.rank = rank; }
+    switch (sort) {
+        default:
+        case 'rank':
+            sort_clause = 'rank ASC';
+            break;
+        case 'rank_gain':
+            sort_clause = '(old_rank - rank) DESC';
+            break;
+        case 'score_gain':
+            sort_clause = '(ranked_score - old_ranked_score) DESC';
+            break;
+    }
 
     const data = await InspectorHistoricalScoreRank.findAll({
         where: where_clause,
+        order: Sequelize.literal(sort_clause),
         limit: limit,
         offset: (page - 1) * limit,
         raw: true,
@@ -355,53 +371,37 @@ router.get('/ranking', limiter, cache('1 hour'), async function (req, res, next)
 
     if (where_clause.date) {
         //we also want to add the rank of the user in the previous day
-        const yesterday = new Date(date);
-        yesterday.setDate(yesterday.getDate() - 1);
-        for await (const row of data) {
-            const yesterday_rank = await InspectorHistoricalScoreRank.findOne({
-                where: {
+        try {
+            data.forEach(row => {
+                row.inspector_user = {
+                    known_username: row.username,
                     osu_id: row.osu_id,
-                    date: yesterday.toISOString().split('T')[0]
-                },
-                raw: true,
-                nest: true
+                    roles: [],
+                };
             });
-            const rank_diff = (row.rank - yesterday_rank?.rank) ?? 0;
-            const score_diff = (row.ranked_score - yesterday_rank?.ranked_score) ?? 0;
-            row.rank_diff = rank_diff !== null ? rank_diff : 0;
-            row.score_diff = score_diff !== null ? score_diff : 0;
+
+            const inspectorUsers = await InspectorUser.findAll({
+                where: { osu_id: data.map(row => row.osu_id) },
+                include: [
+                    {
+                        model: InspectorRole,
+                        attributes: ['id', 'title', 'description', 'color', 'icon', 'is_visible', 'is_admin', 'is_listed'],
+                        through: { attributes: [] },
+                        as: 'roles'
+                    }
+                ]
+            });
+            if (inspectorUsers) {
+                inspectorUsers.forEach(inspector_user => {
+                    const row = data.find(row => row.osu_id === inspector_user.osu_id);
+                    row.inspector_user = inspector_user;
+                });
+            }
+        } catch (e) {
+            console.error(e);
         }
     }
 
-    try {
-        data.forEach(row => {
-            row.inspector_user = {
-                known_username: row.username,
-                osu_id: row.osu_id,
-                roles: [],
-            };
-        });
-
-        const inspectorUsers = await InspectorUser.findAll({
-            where: { osu_id: data.map(row => row.osu_id) },
-            include: [
-                {
-                    model: InspectorRole,
-                    attributes: ['id', 'title', 'description', 'color', 'icon', 'is_visible', 'is_admin', 'is_listed'],
-                    through: { attributes: [] },
-                    as: 'roles'
-                }
-            ]
-        });
-        if (inspectorUsers) {
-            inspectorUsers.forEach(inspector_user => {
-                const row = data.find(row => row.osu_id === inspector_user.osu_id);
-                row.inspector_user = inspector_user;
-            });
-        }
-    } catch (e) {
-        console.error(e);
-    }
 
     console.log(data.length);
     res.json(data);

@@ -238,14 +238,29 @@ async function UpdateScoreRanks() {
     console.log(`[SCORE RANKS] Updating database ...`);
 
     let FIXED_ARR = [];
-    const CURRENT_TIME = new Date();
+    //current time but 1 day ago
+    const CURRENT_TIME = new Date(new Date().getTime() - 86400000).toISOString().split('T')[0];
+    const DAY_BEFORE = new Date(new Date().getTime() - 86400000 * 2).toISOString().split('T')[0];
+
+    //get entire set from day before
+    const DAY_BEFORE_SET = await InspectorHistoricalScoreRank.findAll({
+        where: {
+            date: DAY_BEFORE
+        }
+    });
+
     //get current day in DD/MM/YYYY format
     for await (const row of FULL_LIST) {
+        //get user from day before
+        const user = DAY_BEFORE_SET?.find(x => x.osu_id === row.user_id);
+
         const obj = {
             osu_id: row.user_id,
             username: row.username,
             rank: row.rank,
+            old_rank: user ? user.rank : null,
             ranked_score: row.score,
+            old_ranked_score: user ? user.ranked_score : null,
             date: CURRENT_TIME
         }
         FIXED_ARR.push(obj);

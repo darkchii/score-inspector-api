@@ -6,7 +6,9 @@ const InspectorHistoricalScoreRankModel = (db) => db.define('HistoricalScoreRank
     osu_id: { type: Sequelize.INTEGER, allowNull: false, },
     username: { type: Sequelize.STRING, allowNull: false, },
     rank: { type: Sequelize.INTEGER, allowNull: false, },
+    old_rank: { type: Sequelize.INTEGER, allowNull: false, },
     ranked_score: { type: Sequelize.INTEGER, allowNull: false, },
+    old_ranked_score: { type: Sequelize.INTEGER, allowNull: false, },
 }, {
     tableName: 'score_rank_history',
     timestamps: false

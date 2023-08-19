@@ -49,6 +49,7 @@ router.post('/', async (req, res, next) => {
     //get own data
 
     let userResponse = null;
+    let friendsResponse = null;
     try {
         userResponse = await axios.get('https://osu.ppy.sh/api/v2/me', {
             headers: {
@@ -56,7 +57,17 @@ router.post('/', async (req, res, next) => {
                 "Authorization": `Bearer ${access_token}`
             }
         });
+
+        friendsResponse = await axios.get('https://osu.ppy.sh/api/v2/friends', {
+            headers: {
+                "Accept-Encoding": "gzip,deflate,compress",
+                "Authorization": `Bearer ${access_token}`
+            }
+        });
+
+        console.log(friendsResponse);
     } catch (err) {
+        console.error(err);
         res.status(401).json({ error: 'Unable to get user data' });
         return;
     }

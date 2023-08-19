@@ -8,7 +8,7 @@ const { getBeatmaps, getCompletionData, DefaultInspectorUser } = require('../hel
 const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat, AltBeatmapEyup, Databases, AltBeatmapSSRatio, AltTopScore, InspectorHistoricalScoreRank, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser } = require('../helpers/db');
 const { Op, Sequelize } = require('sequelize');
 const { CorrectedSqlScoreMods, CorrectMod, ModsToString, db_now } = require('../helpers/misc');
-const { GetCountryLeaderboard, GetUsers } = require('../helpers/osu');
+const { GetUsers } = require('../helpers/osu');
 require('dotenv').config();
 
 const limiter = rateLimit({
@@ -276,6 +276,16 @@ router.get('/stats', limiter, async function (req, res, next) {
         });
     }
 
+    const pp_distribution = await Databases.osuAlt.query(`
+    SELECT count(*) AS count, floor(pp / 100) * 100 AS pp_range
+    FROM scores
+    WHERE pp > 0
+    AND NULLIF(pp, 'NaN'::NUMERIC) IS NOT NULL
+    GROUP BY pp_range
+    ORDER BY pp_range ASC`);
+
+    data.pp_distribution = pp_distribution?.[0] ?? [];
+
     res.json(data);
 });
 
@@ -380,6 +390,10 @@ router.get('/ranking', limiter, cache('1 hour'), async function (req, res, next)
                 };
             });
 
+            const osuUsers = await GetUsers(data.map(row => row.osu_id));
+
+            console.log(osuUsers);
+
             const inspectorUsers = await InspectorUser.findAll({
                 where: { osu_id: data.map(row => row.osu_id) },
                 include: [
@@ -391,6 +405,14 @@ router.get('/ranking', limiter, cache('1 hour'), async function (req, res, next)
                     }
                 ]
             });
+
+            if (osuUsers && osuUsers.users) {
+                osuUsers.users.forEach(osu_user => {
+                    const row = data.find(row => row.osu_id === osu_user.id);
+                    row.osu_user = osu_user;
+                });
+            }
+
             if (inspectorUsers) {
                 inspectorUsers.forEach(inspector_user => {
                     const row = data.find(row => row.osu_id === inspector_user.osu_id);
@@ -428,6 +450,28 @@ router.get('/ranking/dates', limiter, cache('1 hour'), async function (req, res,
     }
 });
 
+router.get('/ranking/stats', limiter, cache('1 hour'), async function (req, res, next) {
+    let daily_total_ranked_score;
+    try{
+        //get the total ranked score of each unique day
+        daily_total_ranked_score = await InspectorHistoricalScoreRank.findAll({
+            attributes: [
+                'date',
+                [Sequelize.fn('SUM', Sequelize.col('ranked_score')), 'total_ranked_score']
+            ],
+            group: ['date'],
+            raw: true,
+            nest: true
+        });
+    } catch (e) {
+        console.error(e);
+    }
+
+    res.json({
+        daily_total_ranked_score: daily_total_ranked_score ?? []
+    });
+});
+
 router.get('/milestones/user/:id', limiter, cache('1 hour'), async function (req, res, next) {
     const user_id = req.params.id;
     const limit = req.query.limit || 10;
@@ -459,15 +503,22 @@ router.get('/milestones/user/:id', limiter, cache('1 hour'), async function (req
 });
 
 router.get('/milestones', limiter, cache('1 hour'), async function (req, res, next) {
-    const limit = req.query.limit || 100;
-    const offset = req.query.offset || 0;
+    let limit = 100;
+    let page = 0;
+    try {
+        limit = Number(req.query.limit) || 10000;
+        page = Number(req.query.page) || 1;
+    } catch (e) {
+        res.status(400).json({ "error": "Invalid parameters" });
+        return;
+    }
 
     const milestones = await InspectorUserMilestone.findAll({
         order: [
             ['time', 'DESC']
         ],
         limit: limit,
-        offset: offset,
+        offset: (page - 1) * limit,
         raw: true,
         nest: true,
         include: [
@@ -495,6 +546,29 @@ router.get('/milestones', limiter, cache('1 hour'), async function (req, res, ne
 router.get('/milestones/count', limiter, cache('1 hour'), async function (req, res, next) {
     const count = await InspectorUserMilestone.count();
     res.json(count);
+});
+
+router.get('/milestones/stats', limiter, cache('1 hour'), async function (req, res, next) {
+    let recorded_milestones, recorded_milestones_today, users;
+    try {
+        recorded_milestones = await InspectorUserMilestone.count();
+        recorded_milestones_today = await InspectorUserMilestone.count({
+            where: {
+                time: {
+                    //mariaDB
+                    [Op.gte]: Sequelize.literal(`DATE(NOW())`)
+                }
+            }
+        });
+        users = await InspectorOsuUser.count();
+    } catch (err) {
+        console.error(err);
+    }
+    res.json({
+        recorded_milestones: recorded_milestones ?? 0,
+        recorded_milestones_today: recorded_milestones_today ?? 0,
+        users: users ?? 0
+    });
 });
 
 module.exports = router;

@@ -192,6 +192,22 @@ const SCORE_RANK_PAGES = 200;
 async function UpdateScoreRanks() {
     const FULL_LIST = [];
 
+    const CURRENT_TIME = new Date(new Date().getTime() - 86400000 * 0.5).toISOString().split('T')[0];
+    const DAY_BEFORE = new Date(new Date().getTime() - 86400000 * 1.5).toISOString().split('T')[0];
+
+    //check if CURRENT_TIME is already in database
+    const exists = await InspectorHistoricalScoreRank.findOne({
+        where: {
+            date: CURRENT_TIME
+        }
+    });
+
+    if (exists) {
+        console.log(`[SCORE RANKS] ${CURRENT_TIME} already exists in database, retrying in a bit ...`);
+        await sleep(1000 * 60 * 5); //5 minutes
+        return UpdateScoreRanks();
+    }
+
     let RETRIES = 0;
     let CURRENT_PAGE = 1;
 
@@ -203,10 +219,10 @@ async function UpdateScoreRanks() {
         });
         axiosRetry(client, { retries: 3 });
 
-        const data = await client.get(`/rankings/?page=${CURRENT_PAGE}`);
 
         let _data = null;
         try {
+            const data = await client.get(`/rankings/?page=${CURRENT_PAGE}`);
             _data = Object.values(data?.data);
         } catch (e) {
             console.log(`[SCORE RANKS] Failed to fetch page ${CURRENT_PAGE}, retrying ...`);
@@ -243,8 +259,6 @@ async function UpdateScoreRanks() {
 
     let FIXED_ARR = [];
     //current time but 1 day ago
-    const CURRENT_TIME = new Date(new Date().getTime() - 86400000).toISOString().split('T')[0];
-    const DAY_BEFORE = new Date(new Date().getTime() - 86400000 * 2).toISOString().split('T')[0];
 
     //get entire set from day before
     const DAY_BEFORE_SET = await InspectorHistoricalScoreRank.findAll({
@@ -270,6 +284,7 @@ async function UpdateScoreRanks() {
         FIXED_ARR.push(obj);
     }
     // console.log(FIXED_ARR);
+    if (FIXED_ARR.length !== 10000) return;
     await InspectorHistoricalScoreRank.bulkCreate(FIXED_ARR);
 
     console.log(`[SCORE RANKS] Updated database.`);
@@ -334,6 +349,48 @@ const ACHIEVEMENT_INTERVALS = [
         stats: ['pp'],
         dir: '>',
         interval: 1000
+    }, {
+        name: 'Playtime',
+        stats: ['playtime'],
+        dir: '>',
+        interval: 360000 //every 100 hours is a milestone
+    }, {
+        name: 'Playcount',
+        stats: ['playcount'],
+        dir: '>',
+        interval: 10000
+    }, {
+        name: 'Level',
+        stats: ['level'],
+        dir: '>',
+        interval: 1
+    }, {
+        name: 'Global Rank',
+        stats: ['global_rank'],
+        dir: '<',
+        interval: 100000, //every 100000 ranks is a milestone
+        intervalAlternative: [
+            {
+                dir: '<',
+                check: 200000,
+                interval: 10000 //if rank under 200000, every 10000 ranks is a milestone
+            },
+            {
+                dir: '<',
+                check: 10000,
+                interval: 1000 //if rank under 10000, every 1000 ranks is a milestone
+            },
+            {
+                dir: '<',
+                check: 1000,
+                interval: 100 //if rank under 1000, every 100 ranks is a milestone
+            },
+            {
+                dir: '<',
+                check: 100,
+                interval: 10 //if rank under 100, every 10 ranks is a milestone
+            }
+        ]
     }
 ]
 
@@ -365,22 +422,34 @@ async function UpdateUsers() {
 
             if (old_stat === -1 || new_stat === -1) continue;
 
-            let normalized_old_stat = Math.floor(old_stat / achievement.interval);
-            let normalized_new_stat = Math.floor(new_stat / achievement.interval);
+            let interval = achievement.interval;
 
-            if(normalized_old_stat === normalized_new_stat) continue;
-            if(achievement.dir === '>' && normalized_new_stat < normalized_old_stat) continue;
-            if(achievement.dir === '<' && normalized_new_stat > normalized_old_stat) continue;
+            if (achievement.intervalAlternative) {
+                for await (const alt of achievement.intervalAlternative) {
+                    if (alt.dir === '<' && new_stat < alt.check && interval > alt.interval) {
+                        interval = alt.interval;
+                    } else if (alt.dir === '>' && new_stat > alt.check && interval < alt.interval) {
+                        interval = alt.interval;
+                    }
+                }
+            }
 
-            const reached_milestone = achievement.dir === '>' ? normalized_new_stat  : normalized_old_stat;
+            let normalized_old_stat = Math.floor(old_stat / interval);
+            let normalized_new_stat = Math.floor(new_stat / interval);
+
+            if (normalized_old_stat === normalized_new_stat) continue;
+            if (achievement.dir === '>' && normalized_new_stat < normalized_old_stat) continue;
+            if (achievement.dir === '<' && normalized_new_stat > normalized_old_stat) continue;
+
+            const reached_milestone = achievement.dir === '>' ? normalized_new_stat : normalized_old_stat;
 
             await InspectorUserMilestone.create({
                 user_id: user.user_id,
                 achievement: achievement.name,
-                count: reached_milestone * achievement.interval,
+                count: reached_milestone * interval,
                 time: new Date()
             });
-            console.log(`[MILESTONE] ${user.username} reached ${reached_milestone * achievement.interval} (${achievement.name})`)
+            console.log(`[MILESTONE] ${user.username} reached ${reached_milestone * interval} (${achievement.name})`)
         }
     }
 
@@ -389,4 +458,5 @@ async function UpdateUsers() {
         updateOnDuplicate: columns
     });
 }
-UpdateUsers();
+// UpdateScoreRanks();
+// UpdateUsers();

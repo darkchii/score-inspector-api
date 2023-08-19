@@ -277,12 +277,11 @@ router.get('/stats', limiter, async function (req, res, next) {
     }
 
     const pp_distribution = await Databases.osuAlt.query(`
-    SELECT count(*) AS count, floor(pp / 100) * 100 AS pp_range
-    FROM scores
-    WHERE pp > 0
-    AND NULLIF(pp, 'NaN'::NUMERIC) IS NOT NULL
-    GROUP BY pp_range
-    ORDER BY pp_range ASC`);
+        SELECT COUNT(*) AS count, FLOOR(pp / 100) * 100 AS pp_range
+        FROM scores
+        WHERE pp > 0 AND NULLIF(pp, 'NaN'::NUMERIC) IS NOT NULL
+        GROUP BY FLOOR(pp / 100) * 100
+        ORDER BY pp_range ASC;`);
 
     data.pp_distribution = pp_distribution?.[0] ?? [];
 
@@ -452,7 +451,7 @@ router.get('/ranking/dates', limiter, cache('1 hour'), async function (req, res,
 
 router.get('/ranking/stats', limiter, cache('1 hour'), async function (req, res, next) {
     let daily_total_ranked_score;
-    try{
+    try {
         //get the total ranked score of each unique day
         daily_total_ranked_score = await InspectorHistoricalScoreRank.findAll({
             attributes: [

@@ -55,12 +55,13 @@ async function AuthorizedApiCall(url, type = 'get', api_version = null, timeout 
         case 'get':
             res = await axios.get(url, {
                 headers,
-                timeout
+                timeout: parseInt(timeout)
             });
             break;
         case 'post':
             res = await axios.post(url, {
-                headers
+                headers,
+                timeout: parseInt(timeout)
             });
             break;
     }
@@ -90,14 +91,29 @@ async function GetUserBeatmaps(username, type = 'ranked', limit = 100, offset = 
 
 module.exports.GetUsers = GetUsers;
 async function GetUsers(id_array, timeout = 5000) {
-    const url = `https://osu.ppy.sh/api/v2/users?ids[]=${id_array.join('&ids[]=')}`;
-    // console.log(url);
-    const res = await AuthorizedApiCall(url, 'get', null, timeout);
-    try {
-        return res.data;
-    } catch (err) {
-        throw new Error('Unable to get users: ' + err.message);
+    let users = [];
+    let split_array = [];
+
+    let cloned_ids = JSON.parse(JSON.stringify(id_array));
+    //split array into chunks of 50
+    while (cloned_ids.length > 0) {
+        split_array.push(cloned_ids.splice(0, 50));
     }
+
+    //get data from osu api
+    for (let i = 0; i < split_array.length; i++) {
+        try {
+            const url = `https://osu.ppy.sh/api/v2/users?ids[]=${split_array[i].join('&ids[]=')}`;
+            const res = await AuthorizedApiCall(url, 'get', null, timeout);
+            let _users = JSON.parse(JSON.stringify(res.data))?.users;
+            users = [...users, ..._users];
+        } catch (err) {
+            console.error(err);
+            throw new Error('Unable to get users: ' + err.message);
+        }
+    }
+
+    return users;
 }
 
 module.exports.GetDailyUser = GetDailyUser;

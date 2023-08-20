@@ -2,7 +2,7 @@ const moment = require("moment/moment");
 const { Op, Sequelize, where } = require("sequelize");
 const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, AltModdedStars, Databases, InspectorUser } = require("./db");
 const { CorrectedSqlScoreMods, CorrectedSqlScoreModsCustom } = require("./misc");
-const { GetUsers } = require("./osu");
+const { GetUsers: GetOsuUsers } = require("./osu");
 const { default: axios } = require("axios");
 require('dotenv').config();
 
@@ -159,6 +159,26 @@ async function GetUser(id) {
     return data;
 }
 
+module.exports.GetUsers = GetUsers;
+async function GetUsers(id_array) {
+    let data;
+    try {
+        const rows = await AltUser.findAll({
+            where: { user_id: id_array },
+            include: [
+                { model: AltUniqueSS, as: 'unique_ss', attributes: ['beatmap_id'], required: false },
+                { model: AltUniqueFC, as: 'unique_fc', attributes: ['beatmap_id'], required: false },
+                { model: AltUniqueDTFC, as: 'unique_dt_fc', attributes: ['beatmap_id'], required: false },
+                { model: AltUserAchievement, as: 'medals', attributes: ['achievement_id', 'achieved_at'], required: false }],
+        });
+        data = rows;
+    } catch (err) {
+        throw new Error(err.message);
+    }
+    return data;
+}
+
+
 module.exports.FindUser = FindUser;
 async function FindUser(query, single, requirePriority = true) {
     let data;
@@ -202,7 +222,7 @@ async function FindUser(query, single, requirePriority = true) {
 
             for (let i = 0; i < chunks.length; i++) {
                 const chunk = chunks[i];
-                const osu_users_chunk = await GetUsers(chunk);
+                const osu_users_chunk = await GetOsuUsers(chunk);
                 osu_users = osu_users.concat(osu_users_chunk.users);
 
                 let scoreRes = await axios.get(`https://score.respektive.pw/u/${chunk.join(',')}`, {
@@ -290,7 +310,7 @@ async function GetBestScores(period, stat, limit, loved = false) {
 
         data = rows[0];
 
-        const { users } = await GetUsers(data.map(x => x.user_id));
+        const { users } = await GetOsuUsers(data.map(x => x.user_id));
         for await (let score of data) {
             // add the beatmap data
             const beatmap_rows = await Databases.osuAlt.query(`

@@ -9,6 +9,7 @@ const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedSta
 const { Op, Sequelize } = require('sequelize');
 const { CorrectedSqlScoreMods, CorrectMod, ModsToString, db_now } = require('../helpers/misc');
 const { GetUsers } = require('../helpers/osu');
+const request = require("supertest");
 require('dotenv').config();
 
 const limiter = rateLimit({
@@ -276,14 +277,29 @@ router.get('/stats', limiter, async function (req, res, next) {
         });
     }
 
-    const pp_distribution = await Databases.osuAlt.query(`
-        SELECT COUNT(*) AS count, FLOOR(pp / 100) * 100 AS pp_range
-        FROM scores
-        WHERE pp > 0 AND NULLIF(pp, 'NaN'::NUMERIC) IS NOT NULL
-        GROUP BY FLOOR(pp / 100) * 100
-        ORDER BY pp_range ASC;`);
+    const pp_distribution = JSON.parse((await InspectorScoreStat.findOne({
+        where: {
+            key: 'pp_distribution',
+            period: 'misc'
+        },
+        raw: true,
+        nest: true
+    }))?.value);
 
-    data.pp_distribution = pp_distribution?.[0] ?? [];
+    if (pp_distribution) {
+        const user_ids = pp_distribution.map(row => row.most_common_user_id);
+        const unique_user_ids = [...new Set(user_ids)];
+
+        const client = request(req.app);
+        const users = await client.get(`/users/full/${unique_user_ids.join(',')}?force_array=false&skipDailyData=true`);
+    
+        pp_distribution.forEach(row => {
+            const user = users.body.find(user => user.osu.id === row.most_common_user_id);
+            row.most_common_user = user;
+        });
+    }
+
+    data.pp_distribution = pp_distribution ?? [];
 
     res.json(data);
 });

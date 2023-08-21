@@ -160,17 +160,22 @@ async function GetUser(id) {
 }
 
 module.exports.GetUsers = GetUsers;
-async function GetUsers(id_array) {
+async function GetUsers(id_array, include_sub_data = true) {
     let data;
     try {
+        console.log(`Get(Alt)Users: ${id_array}`);
+        let _id_array = id_array;
+        if(!Array.isArray(id_array)) _id_array = id_array.split(',');
         const rows = await AltUser.findAll({
-            where: { user_id: id_array },
-            include: [
+            where: { user_id: _id_array },
+            include: include_sub_data ? [
                 { model: AltUniqueSS, as: 'unique_ss', attributes: ['beatmap_id'], required: false },
                 { model: AltUniqueFC, as: 'unique_fc', attributes: ['beatmap_id'], required: false },
                 { model: AltUniqueDTFC, as: 'unique_dt_fc', attributes: ['beatmap_id'], required: false },
-                { model: AltUserAchievement, as: 'medals', attributes: ['achievement_id', 'achieved_at'], required: false }],
+                { model: AltUserAchievement, as: 'medals', attributes: ['achievement_id', 'achieved_at'], required: false }]
+                : [],
         });
+        console.log(rows.length);
         data = rows;
     } catch (err) {
         throw new Error(err.message);

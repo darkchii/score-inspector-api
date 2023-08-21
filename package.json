@@ -34,5 +34,8 @@
     "request": "^2.88.2",
     "sequelize": "^6.28.0",
     "systeminformation": "^5.16.9"
+  },
+  "devDependencies": {
+    "supertest": "^6.3.3"
   }
 }

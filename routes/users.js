@@ -151,6 +151,9 @@ router.get('/full/:ids', limiter, cache('10 minutes'), async (req, res, next) =>
     score: req.query.skipScoreRank === 'true' ? true : false,
   }
 
+  console.log(`Skipped data:`);
+  console.log(skippedData);
+
   //split ids in array of integers
   let ids = req.params.ids.split(',').map(id => parseInt(id));
 
@@ -190,7 +193,7 @@ router.get('/full/:ids', limiter, cache('10 minutes'), async (req, res, next) =>
       daily_users = users;
     }),
     //alt users
-    skippedData.alt ? null : GetAltUsers(ids).then(users => {
+    skippedData.alt ? null : GetAltUsers(ids, ids.length===1).then(users => {
       alt_users = JSON.parse(JSON.stringify(users));
     }),
     //score ranks

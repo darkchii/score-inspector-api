@@ -3,7 +3,7 @@
 
 const { Client } = require("pg");
 const { beatmap_columns } = require("./helpers/osualt");
-const { InspectorScoreStat, InspectorHistoricalScoreRank, AltUser, InspectorOsuUser, InspectorUserMilestone } = require("./helpers/db");
+const { InspectorScoreStat, InspectorHistoricalScoreRank, AltUser, InspectorOsuUser, InspectorUserMilestone, Databases } = require("./helpers/db");
 const { Op, Sequelize } = require('sequelize');
 const { db_now, sleep } = require("./helpers/misc");
 const { default: axios } = require("axios");
@@ -17,18 +17,18 @@ function StartCacher() {
 module.exports = StartCacher;
 
 async function Loop() {
-    const score_stat_job = schedule.scheduleJob('0 * * * *', function () {
+    const score_stat_job = schedule.scheduleJob('0 * * * *', function () { //every hour
         console.log("Updating score statistics");
         UpdateScoreStatistics(['24h', '7d', 'all']);
     })
 
-    const score_stat_job2 = schedule.scheduleJob('30 * * * *', function () {
+    const score_stat_job2 = schedule.scheduleJob('30 * * * *', function () { //every 30 minutes
         console.log("Updating score statistics");
         UpdateScoreStatistics(['30min']);
     })
 
     //update score ranks every day at 00:01
-    const score_job = schedule.scheduleJob('1 0 * * *', function () {
+    const score_job = schedule.scheduleJob('1 0 * * *', function () { //every day
         console.log("Updating score statistics");
         try {
             UpdateScoreRanks();
@@ -37,8 +37,22 @@ async function Loop() {
         }
     });
 
-    const milestone_job = schedule.scheduleJob('0 */1 * * *', function () {
+    const performance_distribution_job = schedule.scheduleJob('0 * * * *', function () { //every hour
+        console.log("Updating performance distribution");
+        try {
+            UpdatePerformanceDistribution();
+        } catch (e) {
+            console.error(e);
+        }
+    });
 
+    const milestone_job = schedule.scheduleJob('0 */1 * * *', function () { //every hour
+        console.log("Updating users");
+        try {
+            UpdateUsers();
+        } catch (e) {
+            console.error(e);
+        }
     });
 }
 
@@ -49,6 +63,70 @@ const user_rows = [
     { key: "user_most_score", select: "sum(score)" },
     { key: "user_top_score", select: "max(score)" },
 ]
+
+async function UpdatePerformanceDistribution() {
+    console.log(`[PP DISTRIBUTION] Updating ...`);
+    const pp_distribution = await Databases.osuAlt.query(`
+    WITH FilteredScores AS (
+        SELECT
+            pp,
+            user_id,
+            FLOOR(pp / 100) * 100 AS pp_range
+        FROM scores
+        WHERE pp > 0 AND NULLIF(pp, 'NaN'::NUMERIC) IS NOT NULL
+    ),
+    RangeCounts AS (
+        SELECT 
+            pp_range,
+            COUNT(*) AS count
+        FROM FilteredScores
+        GROUP BY pp_range
+    ),
+    UserCountsPerRange AS (
+        SELECT
+            pp_range,
+            user_id,
+            COUNT(*) AS user_count
+        FROM FilteredScores
+        GROUP BY pp_range, user_id
+    ),
+    RankedUserCounts AS (
+        SELECT
+            pp_range,
+            user_id,
+            user_count,
+            ROW_NUMBER() OVER (PARTITION BY pp_range ORDER BY user_count DESC) AS rank
+        FROM UserCountsPerRange
+    )
+    SELECT
+        RC.count,
+        RC.pp_range,
+        RUC.user_id AS most_common_user_id,
+        RUC.user_count AS most_common_user_id_count
+    FROM RangeCounts RC
+    JOIN RankedUserCounts RUC ON RC.pp_range = RUC.pp_range AND RUC.rank = 1
+    ORDER BY RC.pp_range ASC;
+    `);
+
+    console.log(`[PP DISTRIBUTION] Got ${pp_distribution[0].length} rows.`);
+    if (pp_distribution && pp_distribution[0]) {
+        const pp_distribution_json = JSON.stringify(pp_distribution[0]);
+
+        //check if pp_distribution already exists
+        const row = await InspectorScoreStat.findOne({
+            where: {
+                key: 'pp_distribution',
+                period: 'misc'
+            }
+        });
+
+        if (row) {
+            await InspectorScoreStat.update({ value: pp_distribution_json }, { where: { key: 'pp_distribution', period: 'misc' } });
+        } else {
+            await InspectorScoreStat.create({ key: 'pp_distribution', period: 'misc', value: pp_distribution_json });
+        }
+    }
+}
 
 async function UpdateScoreStatistics(STAT_PERIODS) {
     const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
@@ -460,3 +538,4 @@ async function UpdateUsers() {
 }
 // UpdateScoreRanks();
 // UpdateUsers();
+// UpdatePerformanceDistribution();

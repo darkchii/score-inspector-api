@@ -228,7 +228,7 @@ async function FindUser(query, single, requirePriority = true) {
             for (let i = 0; i < chunks.length; i++) {
                 const chunk = chunks[i];
                 const osu_users_chunk = await GetOsuUsers(chunk);
-                osu_users = osu_users.concat(osu_users_chunk.users);
+                osu_users = osu_users.concat(osu_users_chunk);
 
                 let scoreRes = await axios.get(`https://score.respektive.pw/u/${chunk.join(',')}`, {
                     headers: { "Accept-Encoding": "gzip,deflate,compress" }

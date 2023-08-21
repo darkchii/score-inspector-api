@@ -421,8 +421,8 @@ router.get('/ranking', limiter, cache('1 hour'), async function (req, res, next)
                 ]
             });
 
-            if (osuUsers && osuUsers.users) {
-                osuUsers.users.forEach(osu_user => {
+            if (osuUsers && inspectorUsers) {
+                osuUsers.forEach(osu_user => {
                     const row = data.find(row => row.osu_id === osu_user.id);
                     row.osu_user = osu_user;
                 });

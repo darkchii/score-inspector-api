@@ -126,7 +126,8 @@ router.get('/alt/find/:query', limiter, cache('10 minutes'), async function (req
     const users = await FindUser(req.params.query, req.query.single, false);
     res.json(users);
   } catch (e) {
-    res.json(e.message);
+    console.error(e);
+    res.json(e);
   }
 });
 
@@ -248,57 +249,6 @@ router.get('/full/:ids', limiter, cache('10 minutes'), async (req, res, next) =>
   } else {
     res.json(data);
   }
-
-  // let osuUser;
-  // let dailyUser;
-  // let altUser;
-  // let scoreRank;
-  // let inspector_user;
-
-  // try {
-  //   // console.log('osu api');
-  //   try {
-  //     osuUser = await GetOsuUser(req.params.id, 'osu', 'id');
-  //   } catch (e) {
-  //     osuUser = await GetOsuUser(req.params.id, 'osu', 'username');
-  //   }
-  //   const real_id = osuUser?.id;
-  //   if (!real_id) {
-  //     throw new Error('User not found');
-  //   }
-
-  //   if (!skippedData.daily) {
-  //     dailyUser = await GetDailyUser(real_id, 0, 'id');
-  //   }
-
-  //   if (!skippedData.alt) {
-  //     altUser = await GetAltUser(real_id);
-  //   }
-
-  //   inspector_user = await GetInspectorUser(req.params.id);
-  // } catch (e) {
-  //   console.error(e);
-  //   res.json({ error: 'Unable to get user', message: e });
-  //   return;
-  // }
-
-  // if (!skippedData.score) {
-  //   try {
-  //     let scoreRes = await axios.get(`https://score.respektive.pw/u/${req.params.id}`, {
-  //       headers: { "Accept-Encoding": "gzip,deflate,compress" }
-  //     });
-  //     scoreRank = scoreRes.data?.[0]?.rank;
-  //   } catch (e) {
-  //     //nothing
-  //   }
-  // }
-
-  // res.json({
-  //   inspector_user: inspector_user,
-  //   osu: { ...osuUser, scoreRank },
-  //   daily: dailyUser,
-  //   alt: altUser,
-  // });
 });
 
 

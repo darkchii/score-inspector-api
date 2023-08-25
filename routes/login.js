@@ -401,18 +401,8 @@ router.post('/update_profile', update_Limiter, async (req, res, next) => {
     }
 
     //check if token is valid
-    let result = await InspectorToken.findAll({
-        where: {
-            token: token,
-            osu_id: user_id,
-            date_created: {
-                [Op.gt]: Sequelize.literal(`subdate(current_date, ${SESSION_DAYS})`)
-            }
-        },
-        raw: true,
-        nest: true
-    });
-    if (result.length === 0) {
+    let result = await VerifyToken(token, user_id);
+    if (!result) {
         res.status(401).json({ error: 'Invalid token' });
         return;
     }

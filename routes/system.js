@@ -34,12 +34,19 @@ let cached_system_data = {
 router.get('/', async (req, res, next) => {
     // let user_count = (await connection.awaitQuery(`SELECT count(*) as c FROM inspector_users`))?.[0]?.c ?? 0;
     const now = Date.now();
-    let user_count = await InspectorUser.count();
-    let total_visits = await InspectorVisitor.sum('count');
-    //let total_visits = (await connection.awaitQuery(`SELECT sum(count) as c FROM inspector_visitors`))?.[0]?.c ?? 0;
+    let data = {};
 
-    let expressRequests = expressStats.getSync('requests') ?? 0;
-    let expressBytesSent = expressStats.getSync('size') ?? 0;
+    await Promise.all([
+        InspectorUser.count(),
+        InspectorVisitor.sum('count'),
+        expressStats.get('requests'),
+        expressStats.get('size')
+    ]).then((values) => {
+        data.user_count = values[0];
+        data.total_visits = values[1];
+        data.expressRequests = values[2];
+        data.expressBytesSent = values[3];
+    });
 
     //todo: optimize
     if(cached_system_data.osuAlt.last_updated < now - 1000 * 60 * 5 || !cached_system_data.osuAlt.data) {
@@ -47,19 +54,6 @@ router.get('/', async (req, res, next) => {
         cached_system_data.osuAlt.last_updated = now;
     }
     let osu_alt_data = cached_system_data.osuAlt.data;
-
-    //todo: optimize
-    console.time('sys time');
-    await si.time();
-    console.timeEnd('sys time');
-
-    console.time('sys cpu');
-    await si.cpu();
-    console.timeEnd('sys cpu');
-
-    console.time('sys os');
-    await si.osInfo();
-    console.timeEnd('sys os');
 
     if(cached_system_data.system.last_updated < now - 1000 * 60 * 5 || !cached_system_data.system.data) {
         cached_system_data.system.data = {
@@ -73,11 +67,11 @@ router.get('/', async (req, res, next) => {
     res.json({
         database: {
             inspector: {
-                user_count: user_count,
-                total_visits: total_visits,
+                user_count: data.user_count,
+                total_visits: data.total_visits,
                 api: {
-                    requests: expressRequests,
-                    bytes_sent: expressBytesSent
+                    requests: data.expressRequests,
+                    bytes_sent: data.expressBytesSent
                 }
             },
             alt: osu_alt_data
@@ -104,12 +98,19 @@ router.get('/', async (req, res, next) => {
 router.get('/status/', cache('1 hour'), async (req, res) => {
     const status = {};
 
-    //check osualt database
-    status.osualt = await IsReachable('osualt');
-    status.osuv2 = await IsReachable('osuv2');
-    status.beatmaps = await IsReachable('beatmaps');
-    status.scorerank = await IsReachable('scorerank');
-    status.osudaily = await IsReachable('osudaily');
+    await Promise.all([
+        IsReachable('osualt'),
+        IsReachable('osuv2'),
+        IsReachable('beatmaps'),
+        IsReachable('scorerank'),
+        IsReachable('osudaily')
+    ]).then((values) => {
+        status.osualt = values[0];
+        status.osuv2 = values[1];
+        status.beatmaps = values[2];
+        status.scorerank = values[3];
+        status.osudaily = values[4];
+    });
 
     res.json(status);
 });

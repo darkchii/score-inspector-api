@@ -1,5 +1,5 @@
 const { Client } = require("pg");
-const { GetUser, GetDailyUser, GetOsuUser, GetOsuUsers } = require("./osu");
+const { GetDailyUser, GetOsuUser, GetOsuUsers } = require("./osu");
 const mysql = require('mysql-await');
 const { default: axios } = require("axios");
 const { range } = require("./misc");
@@ -184,7 +184,7 @@ async function IsReachable(endpoint) {
             break;
         case 'osuv2':
             try {
-                const test_user = await GetUser('peppy', 'osu', 'username', 1000);
+                const test_user = await GetOsuUser('peppy', 'osu', 'username', 1000);
                 if (test_user?.id == 2) reachable = true;
             } catch (e) { }
             break;

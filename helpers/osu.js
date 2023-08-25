@@ -69,8 +69,8 @@ async function AuthorizedApiCall(url, type = 'get', api_version = null, timeout 
     return res;
 }
 
-module.exports.GetUser = GetUser;
-async function GetUser(username, mode = 'osu', key = 'username', timeout = 10000) {
+module.exports.GetOsuUser = GetOsuUser;
+async function GetOsuUser(username, mode = 'osu', key = 'username', timeout = 10000) {
     const res = await AuthorizedApiCall(`https://osu.ppy.sh/api/v2/users/${username}/${mode}?key=${key}`, 'get', null, timeout);
     try {
         return res.data;
@@ -89,8 +89,8 @@ async function GetUserBeatmaps(username, type = 'ranked', limit = 100, offset = 
     }
 }
 
-module.exports.GetUsers = GetUsers;
-async function GetUsers(id_array, timeout = 5000) {
+module.exports.GetOsuUsers = GetOsuUsers;
+async function GetOsuUsers(id_array, timeout = 5000) {
     let users = [];
     let split_array = [];
 

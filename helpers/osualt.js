@@ -159,8 +159,8 @@ async function GetUser(id) {
     return data;
 }
 
-module.exports.GetUsers = GetUsers;
-async function GetUsers(id_array, include_sub_data = true) {
+module.exports.GetAltUsers = GetAltUsers;
+async function GetAltUsers(id_array, include_sub_data = true) {
     let data;
     try {
         console.log(`Get(Alt)Users: ${id_array}`);

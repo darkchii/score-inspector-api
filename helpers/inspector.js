@@ -1,10 +1,11 @@
 const { Client } = require("pg");
-const { GetUser, GetDailyUser } = require("./osu");
+const { GetUser, GetDailyUser, GetOsuUser, GetOsuUsers } = require("./osu");
 const mysql = require('mysql-await');
 const { default: axios } = require("axios");
 const { range } = require("./misc");
-const { InspectorToken, InspectorBeatmap, Databases, AltBeatmap, InspectorUser, InspectorRole, InspectorOsuUser } = require("./db");
+const { InspectorBeatmap, Databases, AltBeatmap, InspectorUser, InspectorRole, InspectorOsuUser, InspectorUserAccessToken, InspectorUserFriend } = require("./db");
 const { Op, Sequelize } = require("sequelize");
+const { GetAltUsers } = require("./osualt");
 require('dotenv').config();
 
 const connConfig = {
@@ -328,23 +329,65 @@ function getCompletionData(scores, beatmaps) {
 
 const SESSION_DAYS = 3;
 module.exports.VerifyToken = VerifyToken;
-async function VerifyToken(session_token, user_id) {
-    const result = await InspectorToken.findOne({
+async function VerifyToken(session_token, user_id, refresh = false) {
+    const result = await InspectorUserAccessToken.findOne({
         where: {
-            token: session_token,
+            access_token: session_token,
             osu_id: user_id,
-            date_created: {
-                [Op.gt]: Sequelize.literal(`SUBDATE(CURRENT_TIMESTAMP, ${SESSION_DAYS})`)
-            }
+            // created_at: {
+            //     [Op.gt]: Sequelize.literal(`CURRENT_TIMESTAMP - INTERVAL '1 second' * expires_in`)
+            // }
         }
     });
-    return result === null ? false : true;
+
+    //check if created_at + expires_in is greater than current time
+    let valid = result !== null && result !== undefined;
+    if (valid) {
+        console.log(`[TOKEN DEBUG] Found token for ${user_id}`);
+        const created_at = new Date(result.created_at);
+        const expires_in = result.expires_in;
+        const now = new Date();
+        const diff = now - created_at;
+        const diff_in_seconds = diff / 1000;
+        valid = diff_in_seconds < expires_in;
+
+        if (!valid && refresh) {
+            console.log(`[TOKEN DEBUG] Token for ${user_id} is expired`);
+            //try to refresh token
+            const refresh_token = result.refresh_token;
+            const refresh_result = await axios.post('https://osu.ppy.sh/oauth/token', {
+                client_id: process.env.CLIENT_ID,
+                client_secret: process.env.CLIENT_SECRET,
+                grant_type: 'refresh_token',
+                refresh_token: refresh_token,
+                scope: 'identify public friends.read',
+            });
+            if (refresh_result?.data?.access_token !== null) {
+                //update token
+                console.log(`[TOKEN DEBUG] Refreshed token for ${user_id}`);
+                await InspectorUserAccessToken.update({
+                    access_token: refresh_result.data.access_token,
+                    refresh_token: refresh_result.data.refresh_token,
+                    expires_in: refresh_result.data.expires_in,
+                    created_at: new Date(),
+                }, {
+                    where: {
+                        access_token: session_token,
+                        osu_id: user_id,
+                    }
+                });
+                valid = true;
+            }
+        }
+    }
+
+    return valid;
 }
 
 module.exports.DefaultInspectorUser = DefaultInspectorUser;
-function DefaultInspectorUser(inspector_user, username, osu_id){
+function DefaultInspectorUser(inspector_user, username, osu_id) {
     let _inspector_user = inspector_user;
-    if(inspector_user === null || inspector_user === undefined || inspector_user?.id === null){
+    if (inspector_user === null || inspector_user === undefined || inspector_user?.id === null) {
         console.log(`Creating new inspector user for ${username}`);
         _inspector_user = {
             known_username: username,
@@ -353,4 +396,133 @@ function DefaultInspectorUser(inspector_user, username, osu_id){
         }
     }
     return _inspector_user;
+}
+
+module.exports.InspectorRefreshFriends = InspectorRefreshFriends;
+async function InspectorRefreshFriends(access_token, osu_id) {
+    if (!osu_id || !access_token) {
+        throw new Error('Missing parameters');
+        return;
+    }
+
+    const isTokenValid = await VerifyToken(access_token, osu_id);
+
+    if (!isTokenValid) {
+        throw new Error('Invalid token');
+        return;
+    }
+
+    const friends_response = await axios.get('https://osu.ppy.sh/api/v2/friends', {
+        headers: {
+            "Accept-Encoding": "gzip,deflate,compress",
+            "Authorization": `Bearer ${access_token}`
+        }
+    });
+
+    let friend_array = [];
+
+    if (friends_response?.data?.length > 0) {
+        //clear old friends
+        await InspectorUserFriend.destroy({
+            where: {
+                primary_osu_id: osu_id
+            }
+        });
+
+        for (const friend of friends_response.data) {
+            friend_array.push({
+                primary_osu_id: osu_id,
+                friend_osu_id: friend.id,
+                friend_username: friend.username,
+            });
+        }
+
+        await InspectorUserFriend.bulkCreate(friend_array);
+    }
+}
+
+module.exports.getFullUsers = async function (user_ids, skippedData = { daily: false, alt: false, score: false }) {
+    //split ids in array of integers
+    let ids = user_ids;
+
+    if(typeof user_ids === 'string') {
+        ids = user_ids.split(',').map(id => parseInt(id));
+    }
+
+    let data = [];
+
+    //we create arrays of each type of user data, and then we merge them together
+    let inspector_users = [];
+    let osu_users = [];
+    let daily_users = [];
+    let alt_users = [];
+    let score_ranks = [];
+
+    await Promise.all([
+        //inspector users
+        InspectorUser.findAll({
+            where: {
+                osu_id: ids
+            },
+            include: [{
+                model: InspectorRole,
+                attributes: ['id', 'title', 'description', 'color', 'icon', 'is_visible', 'is_admin', 'is_listed'],
+                through: { attributes: [] },
+                as: 'roles'
+            }]
+        }).then(users => {
+            inspector_users = users;
+        }),
+        //osu users
+        ids.length === 1 ? GetOsuUser(ids[0], 'osu', 'id').then(user => {
+            osu_users = [user];
+        }) : GetOsuUsers(ids).then(users => {
+            osu_users = users;
+        }),
+        //daily users
+        skippedData.daily ? null : Promise.all(ids.map(id => GetDailyUser(id, 0, 'id'))).then(users => {
+            daily_users = users;
+        }),
+        //alt users
+        skippedData.alt ? null : GetAltUsers(ids, ids.length === 1).then(users => {
+            alt_users = JSON.parse(JSON.stringify(users));
+        }),
+        //score ranks
+        skippedData.score ? null : axios.get(`https://score.respektive.pw/u/${ids.join(',')}`, {
+            headers: { "Accept-Encoding": "gzip,deflate,compress" }
+        }).then(res => {
+            score_ranks = res.data;
+        })
+    ]);
+
+    //we merge the data together
+    ids.forEach(id => {
+        let user = {};
+
+        let osu_user = osu_users.find(user => user.id == id);
+        if (!osu_user) return;
+        let score_rank = score_ranks.find(user => user.user_id == id);
+        user.osu = { ...osu_user, score_rank };
+
+        let inspector_user = inspector_users.find(user => user.osu_id == id);
+        user.inspector_user = DefaultInspectorUser(inspector_user, osu_user.username, osu_user.id);
+
+        if (!skippedData.daily) {
+            try {
+                let daily_user = daily_users.find(user => user.osu_id == id);
+                user.daily = daily_user;
+            } catch (err) {
+
+            }
+        }
+
+        if (!skippedData.alt) {
+            let alt_user = alt_users.find(user => user.user_id == id);
+            user.alt = alt_user;
+        }
+
+        data.push(user);
+    });
+
+    return data;
 }

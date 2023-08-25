@@ -1,7 +1,6 @@
 const { Sequelize } = require('sequelize');
 const { AltUserModel } = require('./models/AltUser');
 const { InspectorCommentModel } = require('./models/InspectorComment');
-const { InspectorTokenModel } = require('./models/InspectorToken');
 const { InspectorUserModel } = require('./models/InspectorUser');
 const { InspectorVisitorModel } = require('./models/InspectorVisitor');
 const { AltScoreModel } = require('./models/AltScoreModel');
@@ -25,6 +24,8 @@ const { InspectorUserRoleModel } = require('./models/InspectorUserRole');
 const { InspectorHistoricalScoreRankModel } = require('./models/InspectorHistoricalScoreRank');
 const { OsuUserModel } = require('./models/OsuUser');
 const { InspectorUserMilestoneModel } = require('./models/InspectorMilestone');
+const { InspectorUserAccessTokenModel } = require('./models/InspectorUserAccessToken');
+const { InspectorUserFriendModel } = require('./models/InspectorUserFriend');
 require('dotenv').config();
 
 let databases = {
@@ -34,9 +35,10 @@ let databases = {
 module.exports.Databases = databases;
 
 const InspectorUser = InspectorUserModel(databases.inspector);
+const InspectorUserAccessToken = InspectorUserAccessTokenModel(databases.inspector);
+const InspectorUserFriend = InspectorUserFriendModel(databases.inspector);
 const InspectorRole = InspectorRoleModel(databases.inspector);
 const InspectorComment = InspectorCommentModel(databases.inspector);
-const InspectorToken = InspectorTokenModel(databases.inspector);
 const InspectorVisitor = InspectorVisitorModel(databases.inspector);
 const InspectorBeatmap = InspectorBeatmapModel(databases.inspector);
 const InspectorModdedStars = InspectorModdedStarsModel(databases.inspector);
@@ -105,10 +107,11 @@ AltUser.hasMany(AltUserAchievement, { as: 'medals', foreignKey: 'user_id', sourc
 AltUserAchievement.belongsTo(AltUser, { as: 'medals', foreignKey: 'user_id', targetKey: 'user_id' });
 
 module.exports.InspectorUser = InspectorUser;
+module.exports.InspectorUserAccessToken = InspectorUserAccessToken;
+module.exports.InspectorUserFriend = InspectorUserFriend;
 module.exports.InspectorRole = InspectorRole;
 module.exports.InspectorUserRole = InspectorUserRole;
 module.exports.InspectorComment = InspectorComment;
-module.exports.InspectorToken = InspectorToken;
 module.exports.InspectorVisitor = InspectorVisitor;
 module.exports.InspectorBeatmap = InspectorBeatmap;
 module.exports.InspectorModdedStars = InspectorModdedStars;

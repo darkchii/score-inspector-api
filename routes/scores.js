@@ -8,8 +8,8 @@ const { getBeatmaps, getCompletionData, DefaultInspectorUser } = require('../hel
 const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat, AltBeatmapEyup, Databases, AltBeatmapSSRatio, AltTopScore, InspectorHistoricalScoreRank, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser } = require('../helpers/db');
 const { Op, Sequelize } = require('sequelize');
 const { CorrectedSqlScoreMods, CorrectMod, ModsToString, db_now } = require('../helpers/misc');
-const { GetUsers } = require('../helpers/osu');
 const request = require("supertest");
+const { GetOsuUsers } = require('../helpers/osu');
 require('dotenv').config();
 
 const limiter = rateLimit({
@@ -405,7 +405,7 @@ router.get('/ranking', limiter, cache('1 hour'), async function (req, res, next)
                 };
             });
 
-            const osuUsers = await GetUsers(data.map(row => row.osu_id));
+            const osuUsers = await GetOsuUsers(data.map(row => row.osu_id));
 
             console.log(osuUsers);
 

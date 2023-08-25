@@ -4,9 +4,9 @@ const router = express.Router();
 const crypto = require("crypto");
 require('dotenv').config();
 const rateLimit = require('express-rate-limit');
-const { InspectorUser, InspectorComment, InspectorToken, Raw, InspectorVisitor, AltUser, Databases, InspectorRole } = require('../helpers/db');
+const { InspectorUser, InspectorComment, InspectorToken, Raw, InspectorVisitor, AltUser, Databases, InspectorRole, InspectorUserAccessToken, InspectorUserFriend } = require('../helpers/db');
 const { Sequelize, Op } = require('sequelize');
-const { VerifyToken, GetInspectorUser } = require('../helpers/inspector');
+const { VerifyToken, GetInspectorUser, InspectorRefreshFriends, getFullUsers } = require('../helpers/inspector');
 const { GetUsers } = require('../helpers/osu');
 
 const update_Limiter = rateLimit({
@@ -49,7 +49,6 @@ router.post('/', async (req, res, next) => {
     //get own data
 
     let userResponse = null;
-    let friendsResponse = null;
     try {
         userResponse = await axios.get('https://osu.ppy.sh/api/v2/me', {
             headers: {
@@ -57,15 +56,6 @@ router.post('/', async (req, res, next) => {
                 "Authorization": `Bearer ${access_token}`
             }
         });
-
-        friendsResponse = await axios.get('https://osu.ppy.sh/api/v2/friends', {
-            headers: {
-                "Accept-Encoding": "gzip,deflate,compress",
-                "Authorization": `Bearer ${access_token}`
-            }
-        });
-
-        console.log(friendsResponse);
     } catch (err) {
         console.error(err);
         res.status(401).json({ error: 'Unable to get user data' });
@@ -80,11 +70,8 @@ router.post('/', async (req, res, next) => {
         return;
     }
 
-    //clear out old tokens
-    InspectorToken.destroy({ where: { date_created: { [Op.lt]: Sequelize.literal(`SUBDATE(CURRENT_TIMESTAMP, ${SESSION_DAYS})`) } } });
-
-    //check if user exists in db
-    const user = await InspectorUser.findOne({ where: { osu_id: user_id } });
+    // //check if user exists in db
+    let user = await InspectorUser.findOne({ where: { osu_id: user_id } });
 
     //if user doesn't exist, add them
     if (user === null) {
@@ -96,37 +83,38 @@ router.post('/', async (req, res, next) => {
             await connection.end();
             return;
         }
+
+        user = registeredUser;
     } else {
         //update username if it's different
         await InspectorUser.update({ known_username: username }, { where: { osu_id: user_id } });
     }
 
-    //check if user already has a token
-    let token = null;
-    try {
-        token = await crypto.randomBytes(64).toString('hex');
-    } catch (e) {
-        res.json({ error: 'Unable to generate token' });
-        return;
-    }
 
-    if (token === null) {
-        res.json({ error: 'Unable to generate token' });
-        return;
-    }
+    //remove old token entry if it exists
+    await InspectorUserAccessToken.destroy({ where: { osu_id: user_id } });
 
-    //add token to db
+    //add new token entry
+    await InspectorUserAccessToken.create(
+        {
+            user_id: user.id,
+            osu_id: user_id,
+            access_token: access_token,
+            refresh_token: refresh_token,
+            expires_in: expires_in,
+            created_at: new Date(),
+        });
+
     try {
-        InspectorToken.create({ osu_id: user_id, token: token, date_created: new Date() });
-    } catch (e) {
-        res.json({ error: 'Unable to save token' });
-        return;
+        await InspectorRefreshFriends(access_token, user_id);
+    } catch (err) {
+        console.error(err);
     }
 
     const login_data = {
         user_id: user_id,
         username: username,
-        token: token,
+        token: access_token,
     }
 
     res.json(login_data);
@@ -140,13 +128,7 @@ router.post('/validate_token', async (req, res, next) => {
         res.status(401).json({ error: 'Invalid token' });
         return;
     }
-
-    const result = await VerifyToken(session_token, user_id);
-
-    if (result === true) {
-        //refresh token
-        InspectorToken.update({ date_created: new Date() }, { where: { token: session_token } });
-    }
+    const result = await VerifyToken(session_token, user_id, true);
 
     res.json({ valid: result !== false });
 });
@@ -160,14 +142,7 @@ router.post('/logout', async (req, res, next) => {
         return;
     }
 
-    InspectorToken.destroy({
-        where: {
-            [Op.or]: [
-                { token: session_token },
-                { osu_id: user_id, date_created: { [Op.lt]: Sequelize.literal(`SUBDATE(CURRENT_TIMESTAMP, ${SESSION_DAYS})`) } }
-            ]
-        }
-    });
+    InspectorUserAccessToken.destroy({ where: { osu_id: user_id } });
     res.json({ result: true });
 });
 
@@ -326,6 +301,37 @@ router.all('/visitors/get/:id', async (req, res, next) => {
     }
 
     res.json(result);
+});
+
+router.get('/friends/:id', async (req, res, next) => {
+    //check if user exists and allows public friends listing
+    const user_id = req.params.id;
+    const user = await InspectorUser.findOne({ where: { osu_id: user_id } });
+
+    if (user == null) {
+        res.status(401).json({ error: 'Invalid user' });
+        return;
+    }
+
+    if (!user.is_friends_public) {
+        res.status(401).json({ error: 'Friends list is private' });
+        return;
+    }
+
+    //get friends
+    const friends = (await InspectorUserFriend.findAll({
+        attributes: ['friend_osu_id'],
+        where: { primary_osu_id: user_id },
+        raw: true,
+        nest: true
+    }))?.map((row) => row.friend_osu_id);
+
+    let full_users = [];
+    if (friends.length > 0) {
+        full_users = await getFullUsers(friends, { daily: true, alt: true, score: true });
+    }
+
+    res.json(full_users);
 });
 
 router.post('/update_visitor', update_Limiter, async (req, res, next) => {

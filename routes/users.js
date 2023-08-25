@@ -1,11 +1,9 @@
 const express = require('express');
 var apicache = require('apicache');
-const { GetUser: GetOsuUser, GetDailyUser, GetUsers, GetUserBeatmaps, GetUser } = require('../helpers/osu');
-const { IsRegistered, GetAllUsers, GetUser: GetAltUser, GetUsers: GetAltUsers, FindUser, GetPopulation } = require('../helpers/osualt');
+const { GetUser: GetOsuUser, GetDailyUser, GetUsers, GetUserBeatmaps } = require('../helpers/osu');
+const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser, GetPopulation } = require('../helpers/osualt');
 const rateLimit = require('express-rate-limit');
-const { default: axios } = require('axios');
-const { InspectorUser, InspectorRole } = require('../helpers/db');
-const { GetInspectorUser, DefaultInspectorUser } = require('../helpers/inspector');
+const { getFullUsers } = require('../helpers/inspector');
 
 let cache = apicache.middleware;
 const router = express.Router();
@@ -152,91 +150,14 @@ router.get('/full/:ids', limiter, cache('10 minutes'), async (req, res, next) =>
     score: req.query.skipScoreRank === 'true' ? true : false,
   }
 
-  console.log(`Skipped data:`);
-  console.log(skippedData);
+  let ids = req.params.ids;
 
-  //split ids in array of integers
-  let ids = req.params.ids.split(',').map(id => parseInt(id));
+  if (typeof req.params.ids === 'string') {
+    ids = req.params.ids.split(',').map(id => parseInt(id));
+  }
 
-  console.log(ids);
-  let data = [];
+  const data = await getFullUsers(ids, skippedData);
 
-  //we create arrays of each type of user data, and then we merge them together
-  let inspector_users = [];
-  let osu_users = [];
-  let daily_users = [];
-  let alt_users = [];
-  let score_ranks = [];
-
-  await Promise.all([
-    //inspector users
-    InspectorUser.findAll({
-      where: {
-        osu_id: ids
-      },
-      include: [{
-        model: InspectorRole,
-        attributes: ['id', 'title', 'description', 'color', 'icon', 'is_visible', 'is_admin', 'is_listed'],
-        through: { attributes: [] },
-        as: 'roles'
-      }]
-    }).then(users => {
-      inspector_users = users;
-    }),
-    //osu users
-    ids.length === 1 ? GetUser(ids[0], 'osu', 'id').then(user => {
-      osu_users = [user];
-    }) : GetUsers(ids).then(users => {
-      osu_users = users;
-    }),
-    //daily users
-    skippedData.daily ? null : Promise.all(ids.map(id => GetDailyUser(id, 0, 'id'))).then(users => {
-      daily_users = users;
-    }),
-    //alt users
-    skippedData.alt ? null : GetAltUsers(ids, ids.length===1).then(users => {
-      alt_users = JSON.parse(JSON.stringify(users));
-    }),
-    //score ranks
-    skippedData.score ? null : axios.get(`https://score.respektive.pw/u/${ids.join(',')}`, {
-      headers: { "Accept-Encoding": "gzip,deflate,compress" }
-    }).then(res => {
-      score_ranks = res.data;
-    })
-  ]);
-
-  //we merge the data together
-  ids.forEach(id => {
-    let user = {};
-
-    let osu_user = osu_users.find(user => user.id == id);
-    if (!osu_user) return;
-    let score_rank = score_ranks.find(user => user.user_id == id);
-    user.osu = { ...osu_user, score_rank };
-
-    let inspector_user = inspector_users.find(user => user.osu_id == id);
-    user.inspector_user = DefaultInspectorUser(inspector_user, osu_user.username, osu_user.id);
-
-    if (!skippedData.daily) {
-      try {
-        let daily_user = daily_users.find(user => user.osu_id == id);
-        user.daily = daily_user;
-      } catch (err) {
-
-      }
-    }
-
-    if (!skippedData.alt) {
-      let alt_user = alt_users.find(user => user.user_id == id);
-      user.alt = alt_user;
-    }
-
-    data.push(user);
-  });
-
-  console.log(`Array or not?`);
-  console.log(`IDs length: ${ids.length}, expected length: 1`);
-  console.log(`Force array: ${req.query.force_array}, expected: false`);
   if (ids.length === 1 && (req.query.force_array === undefined || req.query.force_array === 'false')) {
     //old way of returning user, we keep it for compatibility so we don't have to change the frontend
     console.log(`Returning single user`);

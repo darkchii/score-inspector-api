@@ -2,8 +2,8 @@ const moment = require("moment/moment");
 const { Op, Sequelize, where } = require("sequelize");
 const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, AltModdedStars, Databases, InspectorUser } = require("./db");
 const { CorrectedSqlScoreMods, CorrectedSqlScoreModsCustom } = require("./misc");
-const { GetUsers: GetOsuUsers } = require("./osu");
 const { default: axios } = require("axios");
+const { GetOsuUsers } = require("./osu");
 require('dotenv').config();
 
 const beatmap_columns = `
@@ -315,7 +315,7 @@ async function GetBestScores(period, stat, limit, loved = false) {
 
         data = rows[0];
 
-        const { users } = await GetOsuUsers(data.map(x => x.user_id));
+        const users = await GetOsuUsers(data.map(x => x.user_id));
         for await (let score of data) {
             // add the beatmap data
             const beatmap_rows = await Databases.osuAlt.query(`

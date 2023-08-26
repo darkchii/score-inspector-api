@@ -270,18 +270,26 @@ const SCORE_RANK_PAGES = 200;
 async function UpdateScoreRanks() {
     const FULL_LIST = [];
 
-    const CURRENT_TIME = new Date(new Date().getTime() - 86400000 * 0.5).toISOString().split('T')[0];
-    const DAY_BEFORE = new Date(new Date().getTime() - 86400000 * 1.5).toISOString().split('T')[0];
+    //get a Date object of yesterday 00:00:00
+    const YESTERDAY = new Date();
+    YESTERDAY.setDate(YESTERDAY.getDate() - 1);
+    YESTERDAY.setHours(0, 0, 0, 0);
+
+
+    //get a Date object of the day before yesterday 00:00:00
+    const DAY_BEFORE_YESTERDAY = new Date();
+    DAY_BEFORE_YESTERDAY.setDate(DAY_BEFORE_YESTERDAY.getDate() - 2);
+    DAY_BEFORE_YESTERDAY.setHours(0, 0, 0, 0);
 
     //check if CURRENT_TIME is already in database
     const exists = await InspectorHistoricalScoreRank.findOne({
         where: {
-            date: CURRENT_TIME
+            date: YESTERDAY
         }
     });
 
     if (exists) {
-        console.log(`[SCORE RANKS] ${CURRENT_TIME} already exists in database, retrying in a bit ...`);
+        console.log(`[SCORE RANKS] ${YESTERDAY} already exists in database, retrying in a bit ...`);
         await sleep(1000 * 60 * 5); //5 minutes
         return UpdateScoreRanks();
     }
@@ -341,7 +349,8 @@ async function UpdateScoreRanks() {
     //get entire set from day before
     const DAY_BEFORE_SET = await InspectorHistoricalScoreRank.findAll({
         where: {
-            date: DAY_BEFORE
+            //convert to YYYY-MM-DD format, omitting time
+            date: DAY_BEFORE_YESTERDAY
         }
     });
 
@@ -357,12 +366,13 @@ async function UpdateScoreRanks() {
             old_rank: user ? user.rank : null,
             ranked_score: row.score,
             old_ranked_score: user ? user.ranked_score : null,
-            date: CURRENT_TIME
+            date: YESTERDAY
         }
         FIXED_ARR.push(obj);
     }
     // console.log(FIXED_ARR);
     if (FIXED_ARR.length !== 10000) return;
+
     await InspectorHistoricalScoreRank.bulkCreate(FIXED_ARR);
 
     console.log(`[SCORE RANKS] Updated database.`);

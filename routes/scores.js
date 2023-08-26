@@ -291,7 +291,7 @@ router.get('/stats', limiter, async function (req, res, next) {
         const unique_user_ids = [...new Set(user_ids)];
 
         const client = request(req.app);
-        const users = await client.get(`/users/full/${unique_user_ids.join(',')}?force_array=false&skipDailyData=true`);
+        const users = await client.get(`/users/full/${unique_user_ids.join(',')}?force_array=false&skipDailyData=true`).set('Origin', req.headers.origin);
     
         pp_distribution.forEach(row => {
             const user = users.body.find(user => user.osu.id === row.most_common_user_id);

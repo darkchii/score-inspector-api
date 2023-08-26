@@ -355,13 +355,18 @@ async function VerifyToken(session_token, user_id, refresh = false) {
             console.log(`[TOKEN DEBUG] Token for ${user_id} is expired`);
             //try to refresh token
             const refresh_token = result.refresh_token;
-            const refresh_result = await axios.post('https://osu.ppy.sh/oauth/token', {
-                client_id: process.env.CLIENT_ID,
-                client_secret: process.env.CLIENT_SECRET,
-                grant_type: 'refresh_token',
-                refresh_token: refresh_token,
-                scope: 'identify public friends.read',
-            });
+            let refresh_result = null;
+            try{
+                refresh_result = await axios.post('https://osu.ppy.sh/oauth/token', {
+                    client_id: process.env.OSU_CLIENT_ID,
+                    client_secret: process.env.OSU_CLIENT_SECRET,
+                    grant_type: 'refresh_token',
+                    refresh_token: refresh_token,
+                    scope: 'identify public friends.read',
+                });
+            }catch(err){
+                throw new Error('Unable to refresh token, please relogin');
+            }
             if (refresh_result?.data?.access_token !== null) {
                 //update token
                 console.log(`[TOKEN DEBUG] Refreshed token for ${user_id}`);

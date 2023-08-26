@@ -128,9 +128,17 @@ router.post('/validate_token', async (req, res, next) => {
         res.status(401).json({ error: 'Invalid token' });
         return;
     }
-    const result = await VerifyToken(session_token, user_id, true);
 
-    res.json({ valid: result !== false });
+    let result = false;
+    let error = "";
+
+    try{
+        result = await VerifyToken(session_token, user_id, true);
+    }catch(err){
+        error = err.message;
+    }
+    
+    res.json({ valid: result !== false, error: error });
 });
 
 router.post('/logout', async (req, res, next) => {

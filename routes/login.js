@@ -7,7 +7,7 @@ const rateLimit = require('express-rate-limit');
 const { InspectorUser, InspectorComment, InspectorToken, Raw, InspectorVisitor, AltUser, Databases, InspectorRole, InspectorUserAccessToken, InspectorUserFriend } = require('../helpers/db');
 const { Sequelize, Op } = require('sequelize');
 const { VerifyToken, GetInspectorUser, InspectorRefreshFriends, getFullUsers } = require('../helpers/inspector');
-const { GetUsers } = require('../helpers/osu');
+const { GetUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET } = require('../helpers/osu');
 
 const update_Limiter = rateLimit({
     windowMs: 60 * 1000, // 15 minutes
@@ -27,8 +27,8 @@ router.post('/', async (req, res, next) => {
 
     try {
         authResponse = await axios.post('https://osu.ppy.sh/oauth/token', {
-            client_id: dev_mode ? process.env.OSU_CLIENT_ID_DEV : process.env.OSU_CLIENT_ID,
-            client_secret: dev_mode ? process.env.OSU_CLIENT_SECRET_DEV : process.env.OSU_CLIENT_SECRET,
+            client_id: OSU_CLIENT_ID,
+            client_secret: OSU_CLIENT_SECRET,
             code: auth_code,
             grant_type: 'authorization_code',
             redirect_uri: redirect

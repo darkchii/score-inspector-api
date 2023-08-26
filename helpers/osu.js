@@ -7,6 +7,12 @@ const axios = require('axios').default;
 let stored_token = null;
 let refetch_token = null;
 
+const OSU_CLIENT_ID = process.env.NODE_ENV === 'production' ? process.env.OSU_CLIENT_ID : process.env.OSU_CLIENT_ID_DEV;
+const OSU_CLIENT_SECRET = process.env.NODE_ENV === 'production' ? process.env.OSU_CLIENT_SECRET : process.env.OSU_CLIENT_SECRET_DEV;
+
+module.exports.OSU_CLIENT_ID = OSU_CLIENT_ID;
+module.exports.OSU_CLIENT_SECRET = OSU_CLIENT_SECRET;
+
 async function Login(client_id, client_secret) {
     const data = {
         client_id,
@@ -30,7 +36,7 @@ async function Login(client_id, client_secret) {
 async function AuthorizedApiCall(url, type = 'get', api_version = null, timeout = 10000) {
     if (stored_token === null || refetch_token === null || refetch_token < Date.now()) {
         try {
-            stored_token = await Login(process.env.OSU_CLIENT_ID, process.env.OSU_CLIENT_SECRET);
+            stored_token = await Login(OSU_CLIENT_ID, OSU_CLIENT_SECRET);
         } catch (err) {
             throw new Error('Unable to get osu!apiv2 token: ' + err.message);
         }

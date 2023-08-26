@@ -1,5 +1,5 @@
 const { Client } = require("pg");
-const { GetDailyUser, GetOsuUser, GetOsuUsers } = require("./osu");
+const { GetDailyUser, GetOsuUser, GetOsuUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET } = require("./osu");
 const mysql = require('mysql-await');
 const { default: axios } = require("axios");
 const { range } = require("./misc");
@@ -358,8 +358,8 @@ async function VerifyToken(session_token, user_id, refresh = false) {
             let refresh_result = null;
             try{
                 refresh_result = await axios.post('https://osu.ppy.sh/oauth/token', {
-                    client_id: process.env.OSU_CLIENT_ID,
-                    client_secret: process.env.OSU_CLIENT_SECRET,
+                    client_id: OSU_CLIENT_ID,
+                    client_secret: OSU_CLIENT_SECRET,
                     grant_type: 'refresh_token',
                     refresh_token: refresh_token,
                     scope: 'identify public friends.read',

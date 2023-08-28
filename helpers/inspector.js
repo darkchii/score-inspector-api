@@ -407,7 +407,7 @@ async function InspectorRefreshFriends(access_token, osu_id) {
         return;
     }
 
-    const isTokenValid = await VerifyToken(access_token, osu_id);
+    const isTokenValid = await VerifyToken(access_token, osu_id, true);
 
     if (!isTokenValid) {
         throw new Error('Invalid token');

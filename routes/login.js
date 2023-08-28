@@ -7,7 +7,7 @@ const rateLimit = require('express-rate-limit');
 const { InspectorUser, InspectorComment, InspectorToken, Raw, InspectorVisitor, AltUser, Databases, InspectorRole, InspectorUserAccessToken, InspectorUserFriend } = require('../helpers/db');
 const { Sequelize, Op } = require('sequelize');
 const { VerifyToken, GetInspectorUser, InspectorRefreshFriends, getFullUsers } = require('../helpers/inspector');
-const { GetUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET } = require('../helpers/osu');
+const { GetUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET, GetOsuUsers } = require('../helpers/osu');
 
 const update_Limiter = rateLimit({
     windowMs: 60 * 1000, // 15 minutes
@@ -256,7 +256,7 @@ router.all('/visitors/get/:id', async (req, res, next) => {
         // check for login token
         const token = req.body.token;
 
-        if (token == null || !(await VerifyToken(token, user_id))) {
+        if (token == null || !(await VerifyToken(token, user_id, true))) {
             res.status(401).json({ error: 'Invalid token' });
             return;
         }
@@ -278,8 +278,8 @@ router.all('/visitors/get/:id', async (req, res, next) => {
         //get users for each chunk
         let users = [];
         for await (const chunk of target_id_chunks) {
-            let user_chunk = await GetUsers(chunk);
-            users = users.concat(user_chunk?.users);
+            let user_chunk = await GetOsuUsers(chunk);
+            users = users.concat(user_chunk);
         }
 
         //for each user, add the inspector user object if it exists
@@ -340,6 +340,21 @@ router.get('/friends/:id', async (req, res, next) => {
     }
 
     res.json(full_users);
+});
+
+router.post('/friends/refresh', async (req, res, next) => {
+    const user_id = req.body.user_id;
+    const token = req.body.token;
+
+    //refresh friends
+    try{
+        await InspectorRefreshFriends(token, user_id);
+    }catch(err){
+        res.status(401).json({ error: 'Invalid token' });
+        return;
+    }
+
+    res.json({});
 });
 
 router.post('/update_visitor', update_Limiter, async (req, res, next) => {

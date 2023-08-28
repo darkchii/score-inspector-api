@@ -334,9 +334,6 @@ async function VerifyToken(session_token, user_id, refresh = false) {
         where: {
             access_token: session_token,
             osu_id: user_id,
-            // created_at: {
-            //     [Op.gt]: Sequelize.literal(`CURRENT_TIMESTAMP - INTERVAL '1 second' * expires_in`)
-            // }
         }
     });
 
@@ -350,39 +347,39 @@ async function VerifyToken(session_token, user_id, refresh = false) {
         const diff = now - created_at;
         const diff_in_seconds = diff / 1000;
         valid = diff_in_seconds < expires_in;
+    }
 
-        if (!valid && refresh) {
-            console.log(`[TOKEN DEBUG] Token for ${user_id} is expired`);
-            //try to refresh token
-            const refresh_token = result.refresh_token;
-            let refresh_result = null;
-            try{
-                refresh_result = await axios.post('https://osu.ppy.sh/oauth/token', {
-                    client_id: OSU_CLIENT_ID,
-                    client_secret: OSU_CLIENT_SECRET,
-                    grant_type: 'refresh_token',
-                    refresh_token: refresh_token,
-                    scope: 'identify public friends.read',
-                });
-            }catch(err){
-                throw new Error('Unable to refresh token, please relogin');
-            }
-            if (refresh_result?.data?.access_token !== null) {
-                //update token
-                console.log(`[TOKEN DEBUG] Refreshed token for ${user_id}`);
-                await InspectorUserAccessToken.update({
-                    access_token: refresh_result.data.access_token,
-                    refresh_token: refresh_result.data.refresh_token,
-                    expires_in: refresh_result.data.expires_in,
-                    created_at: new Date(),
-                }, {
-                    where: {
-                        access_token: session_token,
-                        osu_id: user_id,
-                    }
-                });
-                valid = true;
-            }
+    if (!valid && refresh) {
+        console.log(`[TOKEN DEBUG] Token for ${user_id} is expired`);
+        //try to refresh token
+        const refresh_token = result.refresh_token;
+        let refresh_result = null;
+        try{
+            refresh_result = await axios.post('https://osu.ppy.sh/oauth/token', {
+                client_id: OSU_CLIENT_ID,
+                client_secret: OSU_CLIENT_SECRET,
+                grant_type: 'refresh_token',
+                refresh_token: refresh_token,
+                scope: 'identify public friends.read',
+            });
+        }catch(err){
+            throw new Error('Unable to refresh token, please relogin');
+        }
+        if (refresh_result?.data?.access_token !== null) {
+            //update token
+            console.log(`[TOKEN DEBUG] Refreshed token for ${user_id}`);
+            await InspectorUserAccessToken.update({
+                access_token: refresh_result.data.access_token,
+                refresh_token: refresh_result.data.refresh_token,
+                expires_in: refresh_result.data.expires_in,
+                created_at: new Date(),
+            }, {
+                where: {
+                    access_token: session_token,
+                    osu_id: user_id,
+                }
+            });
+            valid = true;
         }
     }
 

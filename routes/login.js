@@ -6,7 +6,7 @@ require('dotenv').config();
 const rateLimit = require('express-rate-limit');
 const { InspectorUser, InspectorComment, InspectorToken, Raw, InspectorVisitor, AltUser, Databases, InspectorRole, InspectorUserAccessToken, InspectorUserFriend } = require('../helpers/db');
 const { Sequelize, Op } = require('sequelize');
-const { VerifyToken, GetInspectorUser, InspectorRefreshFriends, getFullUsers } = require('../helpers/inspector');
+const { VerifyToken, GetInspectorUser, InspectorRefreshFriends, getFullUsers, GetToken } = require('../helpers/inspector');
 const { GetUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET, GetOsuUsers } = require('../helpers/osu');
 
 const update_Limiter = rateLimit({
@@ -137,8 +137,15 @@ router.post('/validate_token', async (req, res, next) => {
     }catch(err){
         error = err.message;
     }
+
+    let data;
+    try{
+        data = await GetToken(user_id);
+    }catch(err){
+        console.error(err);
+    }
     
-    res.json({ valid: result !== false, error: error });
+    res.json({ valid: result !== false, error: error, data: data});
 });
 
 router.post('/logout', async (req, res, next) => {

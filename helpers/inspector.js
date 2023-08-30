@@ -386,6 +386,17 @@ async function VerifyToken(session_token, user_id, refresh = false) {
     return valid;
 }
 
+module.exports.GetToken = GetToken;
+async function GetToken(user_id) {
+    const result = await InspectorUserAccessToken.findOne({
+        where: {
+            osu_id: user_id,
+        }
+    });
+
+    return result;
+}
+
 module.exports.DefaultInspectorUser = DefaultInspectorUser;
 function DefaultInspectorUser(inspector_user, username, osu_id) {
     let _inspector_user = inspector_user;

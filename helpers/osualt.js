@@ -245,7 +245,7 @@ async function FindUser(query, single, requirePriority = true) {
                 if (osu_user) {
                     rows[i].osu = osu_user;
                     if (rank_user) {
-                        rows[i].osu.scoreRank = rank_user?.rank;
+                        rows[i].osu.score_rank = rank_user;
                     }
                 }
 

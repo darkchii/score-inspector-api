@@ -30,17 +30,18 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(compression({ level: 9 }));
-let cors_whitelist = ['https://score.kirino.sh'];
-if(process.env.NODE_ENV === 'development') cors_whitelist.push('http://localhost:3006');
-// app.use(cors({
-//   origin: (origin, callback) => {
-//     if (cors_whitelist.indexOf(origin) !== -1) {
-//       callback(null, true)
-//     } else {
-//       callback(new Error('Not allowed by CORS'))
-//     }
-//   }
-// }));
+let cors_whitelist = ['https://score.kirino.sh', 'https://beta.score.kirino.sh'];
+if (process.env.NODE_ENV === 'production') {
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (cors_whitelist.indexOf(origin) !== -1) {
+        callback(null, true)
+      } else {
+        callback(new Error('Not allowed by CORS'))
+      }
+    }
+  }));
+}
 
 // app.use(function customErrorHandler(err, req, res, next) {
 //   res.status(400).send({ error: 'Invalid JSON' });

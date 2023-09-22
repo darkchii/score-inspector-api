@@ -3,12 +3,12 @@ var apicache = require('apicache');
 var router = express.Router();
 const { Client } = require('pg');
 const rateLimit = require('express-rate-limit');
-const { GetUsers } = require('../helpers/osu');
 const { HasScores, GetBeatmaps } = require('../helpers/osualt');
 const { GetBeatmapCount } = require('../helpers/inspector');
 const e = require('express');
 const { parse } = require('../helpers/misc');
 const { InspectorUser } = require('../helpers/db');
+const { GetOsuUsers } = require('../helpers/osu');
 require('dotenv').config();
 let cache = apicache.middleware;
 
@@ -254,7 +254,7 @@ router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
 
         if (queryInfo[2] === 'users') {
             try {
-                const users = await GetUsers(rows.map(row => row.user_id));
+                const users = await GetOsuUsers(rows.map(row => row.user_id));
                 if (users) {
                     users.forEach(osu_user => {
                         const row = rows.find(row => row.user_id === osu_user.id);

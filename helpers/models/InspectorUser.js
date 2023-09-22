@@ -6,6 +6,7 @@ const InspectorUserModel = (db) => db.define('User', {
     known_username: { type: Sequelize.STRING, allowNull: false, },
     background_image: { type: Sequelize.STRING, allowNull: true, },
     is_friends_public: { type: Sequelize.BOOLEAN, allowNull: false, },
+    is_visitors_public: { type: Sequelize.BOOLEAN, allowNull: false, },
     is_banned: { type: Sequelize.BOOLEAN, allowNull: false, },
 }, {
     tableName: 'inspector_users',

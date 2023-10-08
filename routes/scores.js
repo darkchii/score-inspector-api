@@ -288,10 +288,12 @@ router.get('/stats', limiter, async function (req, res, next) {
 
     if (pp_distribution) {
         const user_ids = pp_distribution.map(row => row.most_common_user_id);
-        const unique_user_ids = [...new Set(user_ids)];
+        //new set of unique user ids excluding nulls
+        // let unique_user_ids = [...new Set(user_ids)];
+        const unique_user_ids = user_ids.filter(id => id);
 
         const client = request(req.app);
-        const users = await client.get(`/users/full/${unique_user_ids.join(',')}?force_array=false&skipDailyData=true`).set('Origin', req.headers.origin);
+        const users = await client.get(`/users/full/${unique_user_ids.join(',')}?force_array=false&skipDailyData=true`).set('Origin', req.headers.origin || req.headers.host);
     
         pp_distribution.forEach(row => {
             const user = users.body.find(user => user.osu.id === row.most_common_user_id);

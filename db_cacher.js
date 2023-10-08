@@ -66,66 +66,115 @@ const user_rows = [
 
 async function UpdatePerformanceDistribution() {
     console.log(`[PP DISTRIBUTION] Updating ...`);
-    const pp_distribution = await Databases.osuAlt.query(`
-    WITH FilteredScores AS (
-        SELECT
-            pp,
-            user_id,
-            FLOOR(pp / 100) * 100 AS pp_range
-        FROM scores
-        WHERE pp > 0 AND NULLIF(pp, 'NaN'::NUMERIC) IS NOT NULL
-    ),
-    RangeCounts AS (
-        SELECT 
-            pp_range,
-            COUNT(*) AS count
-        FROM FilteredScores
-        GROUP BY pp_range
-    ),
-    UserCountsPerRange AS (
-        SELECT
-            pp_range,
-            user_id,
-            COUNT(*) AS user_count
-        FROM FilteredScores
-        GROUP BY pp_range, user_id
-    ),
-    RankedUserCounts AS (
-        SELECT
-            pp_range,
-            user_id,
-            user_count,
-            ROW_NUMBER() OVER (PARTITION BY pp_range ORDER BY user_count DESC) AS rank
-        FROM UserCountsPerRange
-    )
-    SELECT
-        RC.count,
-        RC.pp_range,
-        RUC.user_id AS most_common_user_id,
-        RUC.user_count AS most_common_user_id_count
-    FROM RangeCounts RC
-    JOIN RankedUserCounts RUC ON RC.pp_range = RUC.pp_range AND RUC.rank = 1
-    ORDER BY RC.pp_range ASC;
-    `);
 
-    console.log(`[PP DISTRIBUTION] Got ${pp_distribution[0].length} rows.`);
-    if (pp_distribution && pp_distribution[0]) {
-        const pp_distribution_json = JSON.stringify(pp_distribution[0]);
+    console.log(`[PP DISTRIBUTION] Get highest PP value ...`);
 
-        //check if pp_distribution already exists
-        const row = await InspectorScoreStat.findOne({
+    const highest_pp = await Databases.osuAlt.query(`SELECT MAX(pp) FROM scores WHERE pp > 0 AND NULLIF(pp, 'NaN'::NUMERIC) IS NOT NULL;`);
+
+    console.log(`[PP DISTRIBUTION] Got highest PP value: ${highest_pp[0][0].max}.`);
+
+    //create a table of 100s from 0 to highest_pp
+    const pp_table = [];
+    for (let i = 0; i <= highest_pp[0][0].max; i += 100) {
+        pp_table.push(i);
+    }
+
+    //for each 100, get the amount of scores that have that pp, and the user with the most scores at that pp
+    const pp_distribution = [];
+    for await (const pp of pp_table) {
+        const PP_QUERY = 'ROUND(pp)';
+        //find the amount of scores with pp between pp and pp+100
+        const score_count = await Databases.osuAlt.query(`SELECT COUNT(*) FROM scores WHERE ${PP_QUERY} >= ${pp} AND ${PP_QUERY} < ${pp + 100} AND pp > 0 AND NULLIF(pp, 'NaN'::NUMERIC) IS NOT NULL;`);
+
+        //find the user with the most scores with pp between pp and pp+100
+        const user_count = await Databases.osuAlt.query(`SELECT user_id, COUNT(*) FROM scores WHERE ${PP_QUERY} >= ${pp} AND ${PP_QUERY} < ${pp + 100} AND pp > 0 AND NULLIF(pp, 'NaN'::NUMERIC) IS NOT NULL GROUP BY user_id ORDER BY COUNT(*) DESC LIMIT 1;`);
+
+        pp_distribution.push({
+            count: score_count[0][0].count,
+            pp_range: pp,
+            most_common_user_id: user_count?.[0]?.[0]?.user_id ?? null,
+            most_common_user_id_count: user_count?.[0]?.[0]?.count ?? null
+        });
+
+        console.log(`[PP DISTRIBUTION] ${pp} - ${pp+100} done.`);
+    }
+
+    console.log(`[PP DISTRIBUTION] Got ${pp_distribution.length} rows.`);
+
+    console.log(pp_distribution);
+
+    if (pp_distribution && pp_distribution.length > 0) {
+        const pp_distribution_json = JSON.stringify(pp_distribution);
+
+        //delete old pp_distribution rows
+        await InspectorScoreStat.destroy({
             where: {
-                key: 'pp_distribution',
-                period: 'misc'
+                key: 'pp_distribution'
             }
         });
 
-        if (row) {
-            await InspectorScoreStat.update({ value: pp_distribution_json }, { where: { key: 'pp_distribution', period: 'misc' } });
-        } else {
-            await InspectorScoreStat.create({ key: 'pp_distribution', period: 'misc', value: pp_distribution_json });
-        }
+        await InspectorScoreStat.create({ key: 'pp_distribution', period: 'misc', value: pp_distribution_json });
     }
+
+
+
+    // const pp_distribution = await Databases.osuAlt.query(`
+    // WITH FilteredScores AS (
+    //     SELECT
+    //         ROUND(pp / 100.0) * 100,
+    //         user_id,
+    //         FLOOR(pp / 100) * 100 AS pp_range
+    //     FROM scores
+    //     WHERE pp > 0 AND NULLIF(pp, 'NaN'::NUMERIC) IS NOT NULL
+    // ),
+    // RangeCounts AS (
+    //     SELECT 
+    //         pp_range,
+    //         COUNT(*) AS count
+    //     FROM FilteredScores
+    //     GROUP BY pp_range
+    // ),
+    // UserCountsPerRange AS (
+    //     SELECT
+    //         pp_range,
+    //         user_id,
+    //         COUNT(*) AS user_count
+    //     FROM FilteredScores
+    //     GROUP BY pp_range, user_id
+    // ),
+    // RankedUserCounts AS (
+    //     SELECT
+    //         pp_range,
+    //         user_id,
+    //         user_count,
+    //         ROW_NUMBER() OVER (PARTITION BY pp_range ORDER BY user_count DESC) AS rank
+    //     FROM UserCountsPerRange
+    // )
+    // SELECT
+    //     RC.count,
+    //     RC.pp_range,
+    //     RUC.user_id AS most_common_user_id,
+    //     RUC.user_count AS most_common_user_id_count
+    // FROM RangeCounts RC
+    // JOIN RankedUserCounts RUC ON RC.pp_range = RUC.pp_range AND RUC.rank = 1
+    // ORDER BY RC.pp_range ASC;
+    // `);
+
+    // console.log(pp_distribution[0]);
+
+    // console.log(`[PP DISTRIBUTION] Got ${pp_distribution[0].length} rows.`);
+    // if (pp_distribution && pp_distribution[0]) {
+    //     const pp_distribution_json = JSON.stringify(pp_distribution[0]);
+
+    //     //delete old pp_distribution rows
+    //     await InspectorScoreStat.destroy({
+    //         where: {
+    //             key: 'pp_distribution'
+    //         }
+    //     });
+
+    //     await InspectorScoreStat.create({ key: 'pp_distribution', period: 'misc', value: pp_distribution_json });
+    // }
 }
 
 async function UpdateScoreStatistics(STAT_PERIODS) {

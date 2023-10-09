@@ -1,91 +1,96 @@
-const { default: axios } = require('axios');
-var apicache = require('apicache');
-var express = require('express');
-const request = require('request');
-const { RankTest, GetCountryLeaderboard } = require('../helpers/osu');
-var router = express.Router();
-const rateLimit = require('express-rate-limit');
-const { InspectorRole, InspectorUserRole, InspectorUser } = require('../helpers/db');
-require('dotenv').config();
+var cors = require('cors');
 
-const limiter = rateLimit({
-  windowMs: 60 * 1000, // 15 minutes
-  max: 60, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-});
+var privateAdminRoute = require('./private/admin');
+var privateBeatmapsRoute = require('./private/beatmaps');
+var privateLeaderboardsRoute = require('./private/leaderboards');
+var privateLoginRoute = require('./private/login');
+var privateMedalsRoute = require('./private/medals');
+var privateScoresRoute = require('./private/scores');
+var privateSystemRoute = require('./private/system');
+var privateUsersRoute = require('./private/users');
+var privateIndexRoute = require('./private/index');
 
-let cache = apicache.middleware;
+var publicUsersRoute = require('./public/users');
+const { validateApiKey } = require('../helpers/inspector');
 
-router.get('/proxy/:url', async (req, res) => {
-  try {
-    const url = Buffer.from(req.params.url, 'base64').toString('utf-8');
-    req.pipe(request(url)).pipe(res);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+let privateRoutes = [
+    {
+        path: '/admin',
+        route: privateAdminRoute
+    }, {
+        path: '/beatmaps',
+        route: privateBeatmapsRoute
+    }, {
+        path: '/leaderboards',
+        route: privateLeaderboardsRoute
+    }, {
+        path: '/login',
+        route: privateLoginRoute
+    }, {
+        path: '/medals',
+        route: privateMedalsRoute
+    }, {
+        path: '/scores',
+        route: privateScoresRoute
+    }, {
+        path: '/system',
+        route: privateSystemRoute
+    }, {
+        path: '/users',
+        route: privateUsersRoute
+    }, {
+        path: '/',
+        route: privateIndexRoute
+    }
+];
 
-router.get('/country_list', limiter, cache('1 hour'), async (req, res) => {
-  var data = null;
-  try {
-    data = await GetCountryLeaderboard();
-  } catch (err) {
-    res.json({ error: 'Unable to get data', message: err.message });
-  }
-  if (data !== null) {
-    res.json(data);
-  }
-  // res.json(user);
-});
+let publicRoutes = [
+    {
+        path: '/public/users',
+        route: publicUsersRoute
+    }
+];
 
-router.get('/roles', limiter, cache('1 hour'), async (req, res) => {
-  var data = null;
-  try {
-    data = await InspectorRole.findAll({
-      attributes: ['id', 'title', 'description', 'color', 'icon', 'is_visible', 'is_admin', 'is_listed'],
-    });
-  } catch (err) {
-    res.json({ error: 'Unable to get data', message: err.message });
-  }
-  if (data !== null) {
-    res.json(data);
-  }
-});
-
-router.get('/roles/:id', limiter, cache('1 hour'), async (req, res) => {
-  var data = null;
-  try {
-    // const role = await InspectorRole.findOne({
-    //   where: { id: req.params.id },
-    //   attributes: ['id', 'title', 'description', 'color', 'icon', 'is_visible', 'is_admin', 'is_listed'],
-    // });
-
-    const userRoles = await InspectorUserRole.findAll({
-      where: { role_id: req.params.id },
-    });
-
-    const users = await InspectorUser.findAll({
-      where: { id: userRoles.map((ur) => ur.user_id) },
-      include: [
-        {
-          model: InspectorRole,
-          attributes: ['id', 'title', 'description', 'color', 'icon', 'is_visible', 'is_admin', 'is_listed'],
-          through: { attributes: [] },
-          as: 'roles'
+let cors_whitelist = ['https://score.kirino.sh', 'https://beta.score.kirino.sh'];
+module.exports.ApplyRoutes = ApplyRoutes;
+function ApplyRoutes(app) {
+    privateRoutes.forEach(route => {
+        if (route.path !== '/') {
+            app.use(route.path, cors({
+                origin: (origin, callback) => {
+                    if (cors_whitelist.indexOf(origin) !== -1) {
+                        callback(null, true)
+                    } else {
+                        callback(new Error('Not allowed by CORS'))
+                    }
+                }
+            }));
         }
-      ]
+        app.use(route.path, route.route);
     });
 
-    data = users;
-  }
-  catch (err) {
-    console.error(err);
-    res.json({ error: 'Unable to get data', message: err.message });
-  }
-  if (data !== null) {
-    res.json(data);
-  }
-});
+    publicRoutes.forEach(route => {
+        app.use(route.path, async function(req, res, next){
+            //check both query and header, prioritize header
+            let api_key = req.headers['x-api-key'];
+            if (!api_key) {
+                api_key = req.query.key;
+            }
 
-module.exports = router;
+            if (!api_key) {
+                res.status(401).json({ error: 'No API key provided. Use \'key\' parameter in url or \'x-api-key\' header' });
+                return;
+            }
+
+            const is_valid = await validateApiKey(api_key);
+
+            if (!is_valid) {
+                res.status(401).json({ error: 'Invalid API key provided' });
+                return;
+            }
+
+            next();
+        })
+        app.use(route.path, route.route);
+    });
+}

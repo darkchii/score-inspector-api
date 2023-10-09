@@ -4,10 +4,10 @@ const router = express.Router();
 const crypto = require("crypto");
 require('dotenv').config();
 const rateLimit = require('express-rate-limit');
-const { InspectorUser, InspectorComment, InspectorToken, Raw, InspectorVisitor, AltUser, Databases, InspectorRole, InspectorUserAccessToken, InspectorUserFriend } = require('../helpers/db');
+const { InspectorUser, InspectorComment, InspectorToken, Raw, InspectorVisitor, AltUser, Databases, InspectorRole, InspectorUserAccessToken, InspectorUserFriend } = require('../../helpers/db');
 const { Sequelize, Op } = require('sequelize');
-const { VerifyToken, GetInspectorUser, InspectorRefreshFriends, getFullUsers, GetToken } = require('../helpers/inspector');
-const { GetUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET, GetOsuUsers } = require('../helpers/osu');
+const { VerifyToken, GetInspectorUser, InspectorRefreshFriends, getFullUsers, GetToken } = require('../../helpers/inspector');
+const { GetUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET, GetOsuUsers } = require('../../helpers/osu');
 
 const update_Limiter = rateLimit({
     windowMs: 60 * 1000, // 15 minutes

@@ -1,3 +1,5 @@
+var cors = require('cors');
+
 module.exports.parse = parse;
 function parse(str) {
     var args = [].slice.call(arguments, 1),

@@ -1,9 +1,9 @@
 const express = require('express');
 var apicache = require('apicache');
-const { GetUser: GetOsuUser, GetDailyUser, GetUsers, GetUserBeatmaps } = require('../helpers/osu');
-const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser, GetPopulation } = require('../helpers/osualt');
+const { GetUser: GetOsuUser, GetDailyUser, GetUsers, GetUserBeatmaps } = require('../../helpers/osu');
+const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser, GetPopulation } = require('../../helpers/osualt');
 const rateLimit = require('express-rate-limit');
-const { getFullUsers } = require('../helpers/inspector');
+const { getFullUsers } = require('../../helpers/inspector');
 
 let cache = apicache.middleware;
 const router = express.Router();

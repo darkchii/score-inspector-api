@@ -3,10 +3,10 @@ const moment = require('moment');
 const mysql = require('mysql-await');
 var apicache = require('apicache');
 const rateLimit = require('express-rate-limit');
-const { buildQuery } = require('../helpers/inspector');
-const { AltModdedStars, AltBeatmap, AltBeatmapPack, Databases, InspectorMedal } = require('../helpers/db');
+const { buildQuery } = require('../../helpers/inspector');
+const { AltModdedStars, AltBeatmap, AltBeatmapPack, Databases, InspectorMedal } = require('../../helpers/db');
 const { default: axios } = require('axios');
-const { GetBeatmaps } = require('../helpers/osualt');
+const { GetBeatmaps } = require('../../helpers/osualt');
 
 const router = express.Router();
 let cache = apicache.middleware;

@@ -2,14 +2,14 @@ var express = require('express');
 var apicache = require('apicache');
 var router = express.Router();
 const { Client } = require('pg');
-const { GetBestScores, score_columns, score_columns_full, beatmap_columns, GetBeatmapScores } = require('../helpers/osualt');
+const { GetBestScores, score_columns, score_columns_full, beatmap_columns, GetBeatmapScores } = require('../../helpers/osualt');
 const rateLimit = require('express-rate-limit');
-const { getBeatmaps, getCompletionData, DefaultInspectorUser } = require('../helpers/inspector');
-const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat, AltBeatmapEyup, Databases, AltBeatmapSSRatio, AltTopScore, InspectorHistoricalScoreRank, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser } = require('../helpers/db');
+const { getBeatmaps, getCompletionData, DefaultInspectorUser } = require('../../helpers/inspector');
+const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat, AltBeatmapEyup, Databases, AltBeatmapSSRatio, AltTopScore, InspectorHistoricalScoreRank, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser } = require('../../helpers/db');
 const { Op, Sequelize } = require('sequelize');
-const { CorrectedSqlScoreMods, CorrectMod, ModsToString, db_now } = require('../helpers/misc');
+const { CorrectedSqlScoreMods, CorrectMod, ModsToString, db_now } = require('../../helpers/misc');
 const request = require("supertest");
-const { GetOsuUsers } = require('../helpers/osu');
+const { GetOsuUsers } = require('../../helpers/osu');
 require('dotenv').config();
 
 const limiter = rateLimit({

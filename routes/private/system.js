@@ -3,14 +3,14 @@ var router = express.Router();
 const os = require("os");
 const si = require('systeminformation');
 const mysql = require('mysql-await');
-const { IsReachable } = require('../helpers/inspector');
+const { IsReachable } = require('../../helpers/inspector');
 var apicache = require('apicache');
-const { GetSystemInfo } = require('../helpers/osualt');
+const { GetSystemInfo } = require('../../helpers/osualt');
 const { uptime } = require('process');
 require('dotenv').config();
 let cache = apicache.middleware;
 var persistentCache = require('persistent-cache');
-const { InspectorUser, InspectorVisitor } = require('../helpers/db');
+const { InspectorUser, InspectorVisitor } = require('../../helpers/db');
 var expressStats = persistentCache();
 
 const connConfig = {

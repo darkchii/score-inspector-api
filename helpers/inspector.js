@@ -539,3 +539,14 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
 
     return data;
 }
+
+module.exports.validateApiKey = async function (api_key) {
+    //we dont care who uses it, just if it exists
+    const result = await InspectorUser.findOne({
+        where: {
+            api_key: api_key
+        }
+    });
+
+    return result !== null;
+}

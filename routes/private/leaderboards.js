@@ -3,12 +3,12 @@ var apicache = require('apicache');
 var router = express.Router();
 const { Client } = require('pg');
 const rateLimit = require('express-rate-limit');
-const { HasScores, GetBeatmaps } = require('../helpers/osualt');
-const { GetBeatmapCount } = require('../helpers/inspector');
+const { HasScores, GetBeatmaps } = require('../../helpers/osualt');
+const { GetBeatmapCount } = require('../../helpers/inspector');
 const e = require('express');
-const { parse } = require('../helpers/misc');
-const { InspectorUser } = require('../helpers/db');
-const { GetOsuUsers } = require('../helpers/osu');
+const { parse } = require('../../helpers/misc');
+const { InspectorUser } = require('../../helpers/db');
+const { GetOsuUsers } = require('../../helpers/osu');
 require('dotenv').config();
 let cache = apicache.middleware;
 

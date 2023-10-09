@@ -101,8 +101,6 @@ async function UpdatePerformanceDistribution() {
 
     console.log(`[PP DISTRIBUTION] Got ${pp_distribution.length} rows.`);
 
-    console.log(pp_distribution);
-
     if (pp_distribution && pp_distribution.length > 0) {
         const pp_distribution_json = JSON.stringify(pp_distribution);
 
@@ -114,67 +112,11 @@ async function UpdatePerformanceDistribution() {
         });
 
         await InspectorScoreStat.create({ key: 'pp_distribution', period: 'misc', value: pp_distribution_json });
+
+        console.log(`[PP DISTRIBUTION] Updated database.`);
+    }else{
+        console.log(`[PP DISTRIBUTION] No rows found, is scores table empty? ...`);
     }
-
-
-
-    // const pp_distribution = await Databases.osuAlt.query(`
-    // WITH FilteredScores AS (
-    //     SELECT
-    //         ROUND(pp / 100.0) * 100,
-    //         user_id,
-    //         FLOOR(pp / 100) * 100 AS pp_range
-    //     FROM scores
-    //     WHERE pp > 0 AND NULLIF(pp, 'NaN'::NUMERIC) IS NOT NULL
-    // ),
-    // RangeCounts AS (
-    //     SELECT 
-    //         pp_range,
-    //         COUNT(*) AS count
-    //     FROM FilteredScores
-    //     GROUP BY pp_range
-    // ),
-    // UserCountsPerRange AS (
-    //     SELECT
-    //         pp_range,
-    //         user_id,
-    //         COUNT(*) AS user_count
-    //     FROM FilteredScores
-    //     GROUP BY pp_range, user_id
-    // ),
-    // RankedUserCounts AS (
-    //     SELECT
-    //         pp_range,
-    //         user_id,
-    //         user_count,
-    //         ROW_NUMBER() OVER (PARTITION BY pp_range ORDER BY user_count DESC) AS rank
-    //     FROM UserCountsPerRange
-    // )
-    // SELECT
-    //     RC.count,
-    //     RC.pp_range,
-    //     RUC.user_id AS most_common_user_id,
-    //     RUC.user_count AS most_common_user_id_count
-    // FROM RangeCounts RC
-    // JOIN RankedUserCounts RUC ON RC.pp_range = RUC.pp_range AND RUC.rank = 1
-    // ORDER BY RC.pp_range ASC;
-    // `);
-
-    // console.log(pp_distribution[0]);
-
-    // console.log(`[PP DISTRIBUTION] Got ${pp_distribution[0].length} rows.`);
-    // if (pp_distribution && pp_distribution[0]) {
-    //     const pp_distribution_json = JSON.stringify(pp_distribution[0]);
-
-    //     //delete old pp_distribution rows
-    //     await InspectorScoreStat.destroy({
-    //         where: {
-    //             key: 'pp_distribution'
-    //         }
-    //     });
-
-    //     await InspectorScoreStat.create({ key: 'pp_distribution', period: 'misc', value: pp_distribution_json });
-    // }
 }
 
 async function UpdateScoreStatistics(STAT_PERIODS) {

@@ -52,6 +52,9 @@ let publicRoutes = [
 ];
 
 let cors_whitelist = ['https://score.kirino.sh', 'https://beta.score.kirino.sh'];
+if(process.env.NODE_ENV !== 'production'){
+    cors_whitelist.push('http://localhost:3006');
+}
 module.exports.ApplyRoutes = ApplyRoutes;
 function ApplyRoutes(app) {
     privateRoutes.forEach(route => {
@@ -89,6 +92,7 @@ function ApplyRoutes(app) {
                 return;
             }
 
+            req.api_key = api_key;
             next();
         })
         app.use(route.path, route.route);

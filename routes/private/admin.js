@@ -4,6 +4,7 @@ const router = express.Router();
 require('dotenv').config();
 const rateLimit = require('express-rate-limit');
 const { InspectorUser, InspectorRole } = require('../../helpers/db');
+const { VerifyToken, GetInspectorUser } = require('../../helpers/inspector');
 
 const update_Limiter = rateLimit({
     windowMs: 60 * 1000, // 15 minutes

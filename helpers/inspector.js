@@ -541,6 +541,9 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
 }
 
 module.exports.validateApiKey = async function (api_key) {
+    //if api_key is empty or null or whatever, return false
+    if (!api_key) return false;
+
     //we dont care who uses it, just if it exists
     const result = await InspectorUser.findOne({
         where: {

@@ -65,12 +65,6 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
                         as: 'ss_ratio',
                         required: false
                     },
-                    //get all beatmap packs by beatmap_id in one query as an array
-                    // {
-                    //     model: AltBeatmapPack,
-                    //     as: 'packs',
-                    //     required: false,
-                    // }
                 ],
             },
             {
@@ -93,7 +87,7 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
     beatmap_set_ids = [...new Set(beatmap_set_ids)].filter(id => id);
     beatmap_ids = [...new Set(beatmap_ids)].filter(id => id);
 
-    console.time('beatmap_packs');
+
     const beatmap_packs = await AltBeatmapPack.findAll({
         where: {
             beatmap_id: {
@@ -111,13 +105,10 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
 
         _beatmap_packs[pack.beatmap_id].push(pack);
     });
-    console.timeEnd('beatmap_packs');
 
-    console.time('beatmap_packs_assign');
     for (const score of scores) {
         score.beatmap.packs = _beatmap_packs[score.beatmap_id] ?? [];
     }
-    console.timeEnd('beatmap_packs_assign');
 
     if (include_modded) {
         const query_prepare = [];
@@ -199,7 +190,6 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
             }
         }
     }
-    // return [];
     return scores;
 }
 

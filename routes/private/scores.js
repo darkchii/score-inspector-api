@@ -201,8 +201,8 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
             }
         }
     }
-    return [];
-    // return scores;
+    // return [];
+    return scores;
 }
 
 /* Get the entire list of scores of a user */

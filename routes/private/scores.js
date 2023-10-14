@@ -26,7 +26,8 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
     let scores = await AltScore.findAll({
         attributes: score_attributes,
         where: {
-            user_id: req.params.id
+            user_id: req.params.id,
+            ...(req.query.beatmap_id ? { beatmap_id: req.query.beatmap_id } : {}) //for development purposes
         },
         order: [
             [req.query.order ?? 'pp', req.query.dir ?? 'DESC']
@@ -136,13 +137,15 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
         }
         const _modded_stars = await Promise.all(promises);
         let modded_stars = {};
-        _modded_stars[0].forEach(_stars => {
-            // modded_stars.push(..._stars);
-            if(!modded_stars[_stars.beatmap_id]){
-                modded_stars[_stars.beatmap_id] = [];
-            }
-
-            modded_stars[_stars.beatmap_id].push(_stars);
+        _modded_stars.forEach(_stars_subset => {
+            _stars_subset.forEach(_stars => {
+                // modded_stars.push(..._stars);
+                if(!modded_stars[_stars.beatmap_id]){
+                    modded_stars[_stars.beatmap_id] = [];
+                }
+    
+                modded_stars[_stars.beatmap_id].push(_stars);
+            });
         });
 
         for (const score of scores) {

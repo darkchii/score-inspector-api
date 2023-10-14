@@ -93,6 +93,7 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
     beatmap_set_ids = [...new Set(beatmap_set_ids)].filter(id => id);
     beatmap_ids = [...new Set(beatmap_ids)].filter(id => id);
 
+    console.time('beatmap_packs');
     const beatmap_packs = await AltBeatmapPack.findAll({
         where: {
             beatmap_id: {
@@ -102,14 +103,25 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
         raw: true,
         nest: true
     });
+    let _beatmap_packs = {};
+    beatmap_packs.forEach(pack => {
+        if (!_beatmap_packs[pack.beatmap_id]) {
+            _beatmap_packs[pack.beatmap_id] = [];
+        }
+
+        _beatmap_packs[pack.beatmap_id].push(pack);
+    });
+    console.timeEnd('beatmap_packs');
+
+    console.time('beatmap_packs_assign');
     for (const score of scores) {
-        score.beatmap.packs = beatmap_packs.filter(pack => pack.beatmap_id === score.beatmap_id);
+        score.beatmap.packs = _beatmap_packs[score.beatmap_id] ?? [];
     }
+    console.timeEnd('beatmap_packs_assign');
 
     if (include_modded) {
         const query_prepare = [];
 
-        console.time('modded_stars prep')
         for (const score of scores) {
             const int_mods = parseInt(score.enabled_mods);
             const correct_mods = CorrectMod(int_mods);
@@ -119,17 +131,7 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
                 mods: correct_mods
             })
         }
-        console.timeEnd('modded_stars prep')
 
-        console.time('modded_stars query')
-        // const modded_stars = await InspectorModdedStars.findAll({
-        //     where: {
-        //         [Op.or]: query_prepare
-        //     },
-        //     raw: true,
-        //     nest: true
-        // });
-        // do per 100
         let promises = [];
         for (let i = 0; i < query_prepare.length; i += 100) {
             const query = query_prepare.slice(i, i + 100);
@@ -151,10 +153,7 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
 
             modded_stars[_stars.beatmap_id].push(_stars);
         });
-        // console.log(modded_stars);
-        console.timeEnd('modded_stars query')
 
-        console.time('modded_stars assign')
         for (const score of scores) {
             const modded_srs = modded_stars[score.beatmap_id] ?? [];
             if(modded_srs.length > 0){
@@ -169,7 +168,6 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
                 }
             }
         }
-        console.timeEnd('modded_stars assign')
     }
 
     if (scores && scores.length > 0) {

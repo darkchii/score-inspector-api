@@ -242,15 +242,13 @@ router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
             return;
         }
 
-        console.time('query');
         const { rows } = await client.query(queryInfo[0], queryInfo[1]);
-        console.timeEnd('query');
+        await client.end();
 
         const total_users = rows[0]?.total_users ?? 0;
         rows.forEach(row => {
             row.total_users = undefined;
         });
-        await client.end();
 
         if (queryInfo[2] === 'users') {
             try {
@@ -270,7 +268,7 @@ router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
                     });
                 }
             } catch (e) {
-                console.log(e);
+                console.error(e);
             }
         }
         if (queryInfo[2] === 'beatmaps' || queryInfo[2] === 'beatmapsets') {
@@ -278,7 +276,6 @@ router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
             try {
                 const idPropertyField = queryInfo[2] === 'beatmaps' ? 'beatmap_id' : 'set_id';
                 const beatmaps = await GetBeatmaps({ id: rows.map(row => row[idPropertyField]), include_loved: 'true', include_qualified: 'true', isSetID: queryInfo[2] === 'beatmapsets' });
-                console.log(beatmaps.length);
                 if (beatmaps) {
                     beatmaps.forEach(osu_beatmap => {
                         const row = rows.find(row => row[idPropertyField] == osu_beatmap[idPropertyField]);
@@ -288,7 +285,7 @@ router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
                     });
                 }
             } catch (e) {
-                console.log(e);
+                console.error(e);
             }
         }
 

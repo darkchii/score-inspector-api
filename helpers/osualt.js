@@ -304,12 +304,16 @@ async function GetBestScores(period, stat, limit, loved = false) {
         }
         //create a subquery which orders and limits the scores, then afterwards join the users and beatmaps
         const query = `
-            SELECT * FROM scores
-            WHERE ${stat} > 0 
-            AND NULLIF(${stat}, 'NaN'::NUMERIC) IS NOT NULL 
-            ${period_check !== null ? `AND date_played > NOW() - INTERVAL '${period_check} days'` : ''}
+            WITH filtered_scores AS (
+                SELECT *
+                FROM scores
+                WHERE ${stat} > 0 AND ${stat} IS NOT NULL AND ${stat} <> 'NaN'::NUMERIC
+                ${period_check !== null ? `AND date_played > NOW() - INTERVAL '${period_check} days'` : ''}
+            )
+            SELECT * FROM filtered_scores
             ORDER BY ${stat} DESC
-            LIMIT ${limit}`;
+            LIMIT ${limit}
+        `;
 
         const rows = await Databases.osuAlt.query(query);
 

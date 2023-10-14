@@ -48,20 +48,35 @@ router.get('/', async (req, res, next) => {
         data.expressBytesSent = values[3];
     });
 
-    //todo: optimize
+    let promises = [];
     if(cached_system_data.osuAlt.last_updated < now - 1000 * 60 * 5 || !cached_system_data.osuAlt.data) {
-        cached_system_data.osuAlt.data = await GetSystemInfo();
-        cached_system_data.osuAlt.last_updated = now;
+        promises.push(GetSystemInfo().then((data) => {
+            cached_system_data.osuAlt.data = data;
+            cached_system_data.osuAlt.last_updated = now;
+        }));
     }
     let osu_alt_data = cached_system_data.osuAlt.data;
 
     if(cached_system_data.system.last_updated < now - 1000 * 60 * 5 || !cached_system_data.system.data) {
-        cached_system_data.system.data = {
-            time: await si.time(),
-            cpu: await si.cpu(),
-            os: await si.osInfo()
-        }
-        cached_system_data.system.last_updated = now;
+        cached_system_data.system.data = {};
+        promises.push(new Promise((resolve, reject) => {
+            cached_system_data.system.data.time = si.time();
+            cached_system_data.system.last_updated = now;
+            resolve();
+        }));
+        promises.push(si.cpu().then((data) => {
+            cached_system_data.system.data.cpu = data;
+            cached_system_data.system.last_updated = now;
+        }));
+        promises.push(si.osInfo().then((data) => {
+            cached_system_data.system.data.os = data;
+            cached_system_data.system.last_updated = now;
+        }));
+
+    }
+
+    if(promises.length > 0) {
+        await Promise.all(promises);
     }
 
     res.json({

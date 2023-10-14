@@ -6,15 +6,6 @@ var logger = require('morgan');
 var cache = require('persistent-cache');
 var cors = require('cors');
 
-// var indexRouter = require('./routes/index');
-// var usersRouter = require('./routes/users');
-// var beatmapsRouter = require('./routes/beatmaps');
-// var scoresRouter = require('./routes/scores');
-// var leaderboardsRouter = require('./routes/leaderboards');
-// var loginRouter = require('./routes/login');
-// var systemRouter = require('./routes/system');
-// var medalsRouter = require('./routes/medals');
-// var adminRouter = require('./routes/admin');
 const compression = require('compression');
 const StartCacher = require('./db_cacher');
 const { ApplyRoutes } = require('./routes');
@@ -32,8 +23,6 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(compression({ level: 9 }));
 
-// app.use(cors());
-
 var expressStats = cache();
 app.use(function (req, res, next) {
   res.on('finish', function () {
@@ -47,15 +36,6 @@ app.use(function (req, res, next) {
   next();
 });
 
-// app.use('/', indexRouter);
-// app.use('/users', usersRouter);
-// app.use('/beatmaps', beatmapsRouter);
-// app.use('/scores', scoresRouter);
-// app.use('/leaderboards', leaderboardsRouter);
-// app.use('/login', loginRouter);
-// app.use('/system', systemRouter);
-// app.use('/medals', medalsRouter);
-// app.use('/admin', adminRouter);
 ApplyRoutes(app);
 
 // catch 404 and forward to error handler

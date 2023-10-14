@@ -10,7 +10,7 @@ var privateSystemRoute = require('./private/system');
 var privateUsersRoute = require('./private/users');
 var privateIndexRoute = require('./private/index');
 
-var publicUsersRoute = require('./public/users');
+var publicAltRoute = require('./public/alt');
 const { validateApiKey } = require('../helpers/inspector');
 
 let privateRoutes = [
@@ -46,8 +46,8 @@ let privateRoutes = [
 
 let publicRoutes = [
     {
-        path: '/public/users',
-        route: publicUsersRoute
+        path: '/public/alt',
+        route: publicAltRoute
     }
 ];
 
@@ -58,17 +58,17 @@ if(process.env.NODE_ENV !== 'production'){
 module.exports.ApplyRoutes = ApplyRoutes;
 function ApplyRoutes(app) {
     privateRoutes.forEach(route => {
-        if (route.path !== '/') {
-            app.use(route.path, cors({
-                origin: (origin, callback) => {
-                    if (cors_whitelist.indexOf(origin) !== -1) {
-                        callback(null, true)
-                    } else {
-                        callback(new Error('Not allowed by CORS'))
-                    }
-                }
-            }));
-        }
+        // if (route.path !== '/') {
+        //     app.use(route.path, cors({
+        //         origin: (origin, callback) => {
+        //             if (cors_whitelist.indexOf(origin) !== -1) {
+        //                 callback(null, true)
+        //             } else {
+        //                 callback(new Error('Not allowed by CORS'))
+        //             }
+        //         }
+        //     }));
+        // }
         app.use(route.path, route.route);
     });
 

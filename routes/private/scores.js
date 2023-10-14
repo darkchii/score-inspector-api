@@ -107,43 +107,69 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
     }
 
     if (include_modded) {
-        //const beatmap_mod_pair = scores.map(score => { return { beatmap_id: score.beatmap_id, mods: score.enabled_mods } });
-        const per_fetch = 500;
-        let modded_stars_cache = {};
-        let unique_versions = [];
-        for (let i = 0; i < beatmap_ids.length; i += per_fetch) {
-            const modded_stars = await InspectorModdedStars.findAll({
-                where: {
-                    beatmap_id: {
-                        [Op.in]: beatmap_ids
-                    }
-                },
-                limit: per_fetch,
-                offset: i,
-                raw: true,
-                nest: true
-            });
-            modded_stars.forEach(modded_star => {
-                if (!unique_versions.includes(modded_star.version)) {
-                    unique_versions.push(modded_star.version);
-                }
-                modded_stars_cache[`${modded_star.beatmap_id}-${modded_star.mods}-${modded_star.version}`] = modded_star;
-            });
-        }
+        const query_prepare = [];
 
+        console.time('modded_stars prep')
         for (const score of scores) {
             const int_mods = parseInt(score.enabled_mods);
             const correct_mods = CorrectMod(int_mods);
-            unique_versions.forEach(version => {
-                if (score.beatmap.modded_sr === undefined) {
-                    score.beatmap.modded_sr = {};
+            // query_prepare.push(`(beatmap_id = ${score.beatmap_id} AND mods = ${correct_mods})`);
+            query_prepare.push({
+                beatmap_id: score.beatmap_id,
+                mods: correct_mods
+            })
+        }
+        console.timeEnd('modded_stars prep')
+
+        console.time('modded_stars query')
+        // const modded_stars = await InspectorModdedStars.findAll({
+        //     where: {
+        //         [Op.or]: query_prepare
+        //     },
+        //     raw: true,
+        //     nest: true
+        // });
+        // do per 100
+        let promises = [];
+        for (let i = 0; i < query_prepare.length; i += 100) {
+            const query = query_prepare.slice(i, i + 100);
+            promises.push(InspectorModdedStars.findAll({
+                where: {
+                    [Op.or]: query
+                },
+                raw: true,
+                nest: true
+            }));
+        }
+        const _modded_stars = await Promise.all(promises);
+        let modded_stars = {};
+        _modded_stars[0].forEach(_stars => {
+            // modded_stars.push(..._stars);
+            if(!modded_stars[_stars.beatmap_id]){
+                modded_stars[_stars.beatmap_id] = [];
+            }
+
+            modded_stars[_stars.beatmap_id].push(_stars);
+        });
+        // console.log(modded_stars);
+        console.timeEnd('modded_stars query')
+
+        console.time('modded_stars assign')
+        for (const score of scores) {
+            const modded_srs = modded_stars[score.beatmap_id] ?? [];
+            if(modded_srs.length > 0){
+                for (const modded_sr of modded_srs) {
+                    let version = modded_sr.version;
+    
+                    if (score.beatmap.modded_sr === undefined) {
+                        score.beatmap.modded_sr = {};
+                    }
+    
+                    score.beatmap.modded_sr[version] = modded_sr;
                 }
-                const sr = modded_stars_cache[`${score.beatmap_id}-${correct_mods}-${version}`];
-                if (sr) {
-                    score.beatmap.modded_sr[version] = sr;
-                }
-            });
-        };
+            }
+        }
+        console.timeEnd('modded_stars assign')
     }
 
     if (scores && scores.length > 0) {
@@ -175,8 +201,8 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
             }
         }
     }
-
-    return scores;
+    return [];
+    // return scores;
 }
 
 /* Get the entire list of scores of a user */
@@ -294,7 +320,7 @@ router.get('/stats', limiter, async function (req, res, next) {
 
         const client = request(req.app);
         const users = await client.get(`/users/full/${unique_user_ids.join(',')}?force_array=false&skipDailyData=true`).set('Origin', req.headers.origin || req.headers.host);
-    
+
         pp_distribution.forEach(row => {
             const user = users.body.find(user => user.osu.id === row.most_common_user_id);
             row.most_common_user = user;

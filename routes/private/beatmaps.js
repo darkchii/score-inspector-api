@@ -4,9 +4,11 @@ const mysql = require('mysql-await');
 var apicache = require('apicache');
 const rateLimit = require('express-rate-limit');
 const { buildQuery } = require('../../helpers/inspector');
-const { AltModdedStars, AltBeatmap, AltBeatmapPack, Databases } = require('../../helpers/db');
+const { AltModdedStars, AltBeatmap, AltBeatmapPack, Databases, InspectorModdedStars } = require('../../helpers/db');
 const { default: axios } = require('axios');
 const { GetBeatmaps } = require('../../helpers/osualt');
+const { Op, Sequelize } = require('sequelize');
+const { CorrectedSqlScoreMods, CorrectedSqlScoreModsCustom, CorrectMod } = require('../../helpers/misc');
 
 const router = express.Router();
 let cache = apicache.middleware;
@@ -37,7 +39,7 @@ router.get('/packs', limiter, cache('1 hour'), async (req, res) => {
 
 router.get('/pack_details', limiter, cache('24 hours'), async (req, res) => {
     let result = await axios.get(`https://osu.ppy.sh/api/get_packs?k=${process.env.OSU_APIV1}`, {
-        headers: { "Accept-Encoding": "gzip,deflate,compress" } 
+        headers: { "Accept-Encoding": "gzip,deflate,compress" }
     });
 
     res.json(result?.data ?? []);
@@ -204,7 +206,8 @@ router.get('/yearly', limiter, cache('1 hour'), async (req, res) => {
 
 router.get('/:id', limiter, cache('1 hour'), async (req, res) => {
     const mode = req.query.mode !== undefined ? req.query.mode : 0;
-    try{
+    const mods = req.query.mods_enum !== undefined ? req.query.mods_enum : null;
+    try {
 
         //let result = await connection.awaitQuery('SELECT * FROM beatmap WHERE beatmap_id=? AND mode=?', [req.params.id, mode]);
         let result = await AltBeatmap.findOne({
@@ -214,18 +217,44 @@ router.get('/:id', limiter, cache('1 hour'), async (req, res) => {
             }
         });
 
-        if(result !== null){
+        if (result !== null) {
             result = JSON.parse(JSON.stringify(result));
         }
-    
-        const sr_result = await AltModdedStars.findAll({
-            where: {
-                beatmap_id: req.params.id
-            }
-        });
-        result.modded_sr = sr_result;
+
+        if (mods) {
+            let res = {};
+            const correctedMods = CorrectMod(parseInt(mods));
+
+            const sr_result = await AltModdedStars.findOne({
+                where: {
+                    beatmap_id: req.params.id,
+                    mods_enum: correctedMods
+                }
+            });
+            res = {...JSON.parse(JSON.stringify(sr_result)) };
+
+            const sr_results = await InspectorModdedStars.findAll({
+                where: {
+                    beatmap_id: req.params.id,
+                    mods: correctedMods
+                }
+            });
+            // console.log(sr_results);
+            sr_results.forEach(sr => {
+                const version = sr.version;
+                res[version] = sr;
+            });
+            result.modded_sr = res;
+        } else {
+            const sr_result = await AltModdedStars.findAll({
+                where: {
+                    beatmap_id: req.params.id
+                }
+            });
+            result.modded_sr = sr_result;
+        }
         res.json(result);
-    }catch(e){
+    } catch (e) {
         console.error(e);
         res.json([]);
     }

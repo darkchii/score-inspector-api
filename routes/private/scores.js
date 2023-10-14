@@ -423,8 +423,6 @@ router.get('/ranking', limiter, cache('1 hour'), async function (req, res, next)
 
             const osuUsers = await GetOsuUsers(data.map(row => row.osu_id));
 
-            console.log(osuUsers);
-
             const inspectorUsers = await InspectorUser.findAll({
                 where: { osu_id: data.map(row => row.osu_id) },
                 include: [
@@ -455,8 +453,6 @@ router.get('/ranking', limiter, cache('1 hour'), async function (req, res, next)
         }
     }
 
-
-    console.log(data.length);
     res.json(data);
 });
 

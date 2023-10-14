@@ -41,7 +41,6 @@ router.get('/osu/beatmaps/:id/:type', limiter, cache('1 hour'), async (req, res)
   let data = null;
   try {
     data = await GetUserBeatmaps(req.params.id, _type, limit, offset);
-    console.log('beatmaps: ', data.length);
   } catch (err) {
     res.json({ error: 'Unable to get user beatmaps', message: err.message });
   }
@@ -160,7 +159,6 @@ router.get('/full/:ids', limiter, cache('10 minutes'), async (req, res, next) =>
 
   if (ids.length === 1 && (req.query.force_array === undefined || req.query.force_array === 'false')) {
     //old way of returning user, we keep it for compatibility so we don't have to change the frontend
-    console.log(`Returning single user`);
     res.json({
       inspector_user: data[0].inspector_user,
       osu: data[0].osu,

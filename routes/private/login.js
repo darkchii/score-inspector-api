@@ -132,20 +132,20 @@ router.post('/validate_token', async (req, res, next) => {
     let result = false;
     let error = "";
 
-    try{
+    try {
         result = await VerifyToken(session_token, user_id, true);
-    }catch(err){
+    } catch (err) {
         error = err.message;
     }
 
     let data;
-    try{
+    try {
         data = await GetToken(user_id);
-    }catch(err){
+    } catch (err) {
         console.error(err);
     }
-    
-    res.json({ valid: result !== false, error: error, data: data});
+
+    res.json({ valid: result !== false, error: error, data: data });
 });
 
 router.post('/logout', async (req, res, next) => {
@@ -223,7 +223,6 @@ router.get('/visitors/get', async (req, res, next) => {
     for (let i = 0; i < visitor_lbs.length; i++) {
         if (visitor_lbs[i].target_user == null) {
             visitor_lbs[i].target_user = {}
-            console.log('created target_user for ' + visitor_lbs[i].target_id);
         };
 
         for (let j = 0; j < data.length; j++) {
@@ -354,9 +353,9 @@ router.post('/friends/refresh', async (req, res, next) => {
     const token = req.body.token;
 
     //refresh friends
-    try{
+    try {
         await InspectorRefreshFriends(token, user_id);
-    }catch(err){
+    } catch (err) {
         res.status(401).json({ error: 'Invalid token' });
         return;
     }
@@ -402,7 +401,7 @@ router.post('/update_visitor', update_Limiter, async (req, res, next) => {
     });
     if (result.length > 0) {
         //update visit date
-        console.log(await InspectorVisitor.update({
+        await InspectorVisitor.update({
             last_visit: Sequelize.literal('CURRENT_TIMESTAMP'),
             count: Sequelize.literal('count + 1')
         },
@@ -411,7 +410,7 @@ router.post('/update_visitor', update_Limiter, async (req, res, next) => {
                     visitor_id: visitor_id,
                     target_id: target_id,
                 }
-            }));
+            });
 
     } else {
         result = await InspectorVisitor.create({ visitor_id: visitor_id, target_id: target_id, last_visit: new Date(), count: 1 });
@@ -494,7 +493,6 @@ router.get('/comments/get/:id', async (req, res, next) => {
     }
 
     const comments = await InspectorComment.findAll({
-        logging: console.log,
         where: { target_id: user_id },
         include: [{
             model: InspectorUser,

@@ -171,7 +171,6 @@ router.get('/monthly', limiter, cache('1 hour'), async (req, res) => {
 
     const query = 'SELECT MONTH(approved_date) as month, YEAR(approved_date) as year, SUM(total_length) as length, SUM(max_score) as score, COUNT(*) as amount FROM beatmap WHERE mode=? AND (approved=1 OR approved=2 ' + (req.query.loved === 'true' ? 'OR approved=4' : '') + ') GROUP BY YEAR(approved_date), MONTH(approved_date)';
     const result = await connection.awaitQuery(query, [mode]);
-    console.log(query);
     res.json(result);
 
     await connection.end();
@@ -239,7 +238,7 @@ router.get('/:id', limiter, cache('1 hour'), async (req, res) => {
                     mods: correctedMods
                 }
             });
-            // console.log(sr_results);
+
             sr_results.forEach(sr => {
                 const version = sr.version;
                 res[version] = sr;

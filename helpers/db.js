@@ -30,7 +30,7 @@ require('dotenv').config();
 
 let databases = {
     inspector: new Sequelize(process.env.MYSQL_DB, process.env.MYSQL_USER, process.env.MYSQL_PASS, { host: process.env.MYSQL_HOST, dialect: 'mariadb', timezone: 'Europe/Amsterdam', logging: false }),
-    osuAlt: new Sequelize(process.env.ALT_DB_DATABASE, process.env.ALT_DB_USER, process.env.ALT_DB_PASSWORD, { host: process.env.ALT_DB_HOST, dialect: 'postgres', logging: false })
+    osuAlt: new Sequelize(process.env.ALT_DB_DATABASE, process.env.ALT_DB_USER, process.env.ALT_DB_PASSWORD, { host: process.env.ALT_DB_HOST, dialect: 'postgres', timezone: 'America/Toronto', logging: false })
 };
 module.exports.Databases = databases;
 
@@ -41,7 +41,10 @@ const InspectorRole = InspectorRoleModel(databases.inspector);
 const InspectorComment = InspectorCommentModel(databases.inspector);
 const InspectorVisitor = InspectorVisitorModel(databases.inspector);
 const InspectorBeatmap = InspectorBeatmapModel(databases.inspector);
-const InspectorModdedStars = InspectorModdedStarsModel(databases.inspector);
+const InspectorModdedStars2014May = InspectorModdedStarsModel(databases.inspector, '2014may');
+const InspectorModdedStars2014July = InspectorModdedStarsModel(databases.inspector, '2014july');
+const InspectorModdedStars2018 = InspectorModdedStarsModel(databases.inspector, '2018');
+const InspectorModdedStars2019 = InspectorModdedStarsModel(databases.inspector, '2019');
 const InspectorScoreStat = InspectorScoreStatModel(databases.inspector);
 const InspectorMedal = InspectorMedalModel(databases.inspector);
 const InspectorUserRole = InspectorUserRoleModel(databases.inspector);
@@ -106,6 +109,12 @@ AltUniqueDTFC.belongsTo(AltUser, { as: 'unique_dt_fc', foreignKey: 'user_id', ta
 AltUser.hasMany(AltUserAchievement, { as: 'medals', foreignKey: 'user_id', sourceKey: 'user_id' });
 AltUserAchievement.belongsTo(AltUser, { as: 'medals', foreignKey: 'user_id', targetKey: 'user_id' });
 
+module.exports.InspectorModdedStars = {
+    '2014may': InspectorModdedStars2014May,
+    '2014july': InspectorModdedStars2014July,
+    '2018': InspectorModdedStars2018,
+    '2019': InspectorModdedStars2019
+};
 module.exports.InspectorUser = InspectorUser;
 module.exports.InspectorUserAccessToken = InspectorUserAccessToken;
 module.exports.InspectorUserFriend = InspectorUserFriend;
@@ -114,7 +123,6 @@ module.exports.InspectorUserRole = InspectorUserRole;
 module.exports.InspectorComment = InspectorComment;
 module.exports.InspectorVisitor = InspectorVisitor;
 module.exports.InspectorBeatmap = InspectorBeatmap;
-module.exports.InspectorModdedStars = InspectorModdedStars;
 module.exports.InspectorScoreStat = InspectorScoreStat;
 module.exports.InspectorMedal = InspectorMedal;
 module.exports.InspectorHistoricalScoreRank = InspectorHistoricalScoreRank;

@@ -112,54 +112,81 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
     }
 
     if (include_modded) {
+        //first move contents of score.beatmap.modded_sr to score.beatmap.modded_sr['live']
+
+        for (const score of scores) {
+            if (score.beatmap.modded_sr) {
+                let temp = score.beatmap.modded_sr;
+                score.beatmap.modded_sr = {};
+                score.beatmap.modded_sr['live'] = temp;
+            }
+        }
+
+        const MODDED_SRS = [
+            '2014may',
+            '2014july',
+            '2018',
+            '2019',
+        ]
+
+
         const query_prepare = [];
+        const beatmap_id_mod_map = {};
 
         for (const score of scores) {
             const int_mods = parseInt(score.enabled_mods);
             const correct_mods = CorrectMod(int_mods);
-            // query_prepare.push(`(beatmap_id = ${score.beatmap_id} AND mods = ${correct_mods})`);
-            query_prepare.push({
-                beatmap_id: score.beatmap_id,
-                mods: correct_mods
-            })
+            query_prepare.push(score.beatmap_id);
+
+            if (!beatmap_id_mod_map[score.beatmap_id]) {
+                beatmap_id_mod_map[score.beatmap_id] = [];
+            }
+
+            beatmap_id_mod_map[score.beatmap_id] = correct_mods;
         }
 
-        let promises = [];
-        for (let i = 0; i < query_prepare.length; i += 100) {
-            const query = query_prepare.slice(i, i + 100);
-            promises.push(InspectorModdedStars.findAll({
+        for await (const version of MODDED_SRS) {
+            let _modded_stars = await InspectorModdedStars[version].findAll({
                 where: {
-                    [Op.or]: query
+                    beatmap_id: {
+                        [Op.in]: query_prepare
+                    }
                 },
                 raw: true,
                 nest: true
-            }));
-        }
-        const _modded_stars = await Promise.all(promises);
-        let modded_stars = {};
-        _modded_stars.forEach(_stars_subset => {
-            _stars_subset.forEach(_stars => {
-                // modded_stars.push(..._stars);
-                if(!modded_stars[_stars.beatmap_id]){
+            });
+            let modded_stars = {};
+            let modded_stars_base = {};
+            _modded_stars.forEach(_stars => {
+                if (_stars.mods === 0) {
+                    modded_stars_base[_stars.beatmap_id] = structuredClone(_stars);
+                }
+                if (beatmap_id_mod_map[_stars.beatmap_id] !== _stars.mods) {
+                    return;
+                }
+
+                if (!modded_stars[_stars.beatmap_id]) {
                     modded_stars[_stars.beatmap_id] = [];
                 }
-    
-                modded_stars[_stars.beatmap_id].push(_stars);
-            });
-        });
 
-        for (const score of scores) {
-            const modded_srs = modded_stars[score.beatmap_id] ?? [];
-            if(modded_srs.length > 0){
-                for (const modded_sr of modded_srs) {
-                    let version = modded_sr.version;
-    
-                    if (score.beatmap.modded_sr === undefined) {
-                        score.beatmap.modded_sr = {};
-                    }
-    
-                    score.beatmap.modded_sr[version] = modded_sr;
+                modded_stars[_stars.beatmap_id] = _stars;
+            });
+            
+            Object.keys(modded_stars_base).forEach(beatmap_id => {
+                if (!modded_stars[beatmap_id]) {
+                    modded_stars[beatmap_id] = {};
                 }
+
+                modded_stars[beatmap_id].base = modded_stars_base[beatmap_id];
+            });
+
+            for (const score of scores) {
+                const modded_sr = modded_stars[score.beatmap_id] ?? [];
+                if (score.beatmap.modded_sr === undefined) {
+                    score.beatmap.modded_sr = {};
+                }
+
+                score.beatmap.modded_sr[version] = modded_sr;
             }
         }
     }
@@ -193,11 +220,12 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
             }
         }
     }
+
     return scores;
 }
 
 /* Get the entire list of scores of a user */
-router.get('/user/:id', limiter, cache('1 hour'), async function (req, res, next) {
+router.get('/user/:id', limiter, cache('1 minute'), async function (req, res, next) {
     const rows = await GetUserScores(req);
     res.json(rows);
 });

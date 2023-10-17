@@ -1,8 +1,7 @@
 const { Sequelize } = require("sequelize");
 
-const InspectorModdedStarsModel = (db) => db.define('ModdedStars', {
+const InspectorModdedStarsModel = (db, version) => db.define('ModdedStars', {
     beatmap_id: { type: Sequelize.INTEGER, primaryKey: true, allowNull: false, },
-    version: { type: Sequelize.STRING, allowNull: false, },
     mods: { type: Sequelize.SMALLINT, primaryKey: true, allowNull: false, },
     star_rating: { type: Sequelize.FLOAT, allowNull: true, },
     aim_diff: { type: Sequelize.FLOAT, allowNull: true, },
@@ -15,7 +14,7 @@ const InspectorModdedStarsModel = (db) => db.define('ModdedStars', {
     modded_hp: { type: Sequelize.FLOAT, allowNull: true, },
     speed_note_count: { type: Sequelize.INTEGER, allowNull: true, }
 }, {
-    tableName: 'modded_sr',
+    tableName: `modded_sr_${version}`,
     timestamps: false
 });
 module.exports.InspectorModdedStarsModel = InspectorModdedStarsModel;

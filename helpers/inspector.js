@@ -576,10 +576,18 @@ module.exports.GetBeatmapsModdedSr = async function (beatmap_id_mod_map, version
         result_beatmap_ids.push(beatmap.beatmap_id);
         result_data.push(beatmap.data);
     });
-    
+
     //generate a single json string with all the data (each data is a json string)
-    let data_string = `[${result_data.join(',')}]`;
-    let data = JSON.parse(data_string);
+    //every 1000 result_data entries
+    let data = [];
+    const chunkSize = 1000;
+    for (let i = 0; i < result_data.length; i += chunkSize) {
+        const chunk = result_data.slice(i, i + chunkSize);
+        const data_string = `[${chunk.join(',')}]`;
+        const _data = JSON.parse(data_string);
+        
+        data = [...data, ..._data];
+      }
 
     //we create a map of beatmap_id -> data
     let data_map = {};

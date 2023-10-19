@@ -334,6 +334,7 @@ async function GetBestScores(period, stat, limit, loved = false) {
                     WHERE beatmap_id = ${score.beatmap_id} 
                     AND mods_enum = ${CorrectedSqlScoreModsCustom(score.enabled_mods)}`);
                 score.beatmap.modded_sr = modded_sr_rows[0]?.[0];
+                score.beatmap.modded_sr['live'] = JSON.parse(JSON.stringify(modded_sr_rows[0]?.[0]));
             }
 
             // add the user data

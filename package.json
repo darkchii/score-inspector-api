@@ -22,6 +22,7 @@
     "dotenv": "^16.0.3",
     "express": "*",
     "express-rate-limit": "^6.7.0",
+    "fast-json-parse": "^1.0.3",
     "http-errors": "*",
     "jade": "^1.11.0",
     "mariadb": "^3.2.0",

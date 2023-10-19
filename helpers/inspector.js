@@ -2,8 +2,8 @@ const { Client } = require("pg");
 const { GetDailyUser, GetOsuUser, GetOsuUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET } = require("./osu");
 const mysql = require('mysql-await');
 const { default: axios } = require("axios");
-const { range } = require("./misc");
-const { InspectorBeatmap, Databases, AltBeatmap, InspectorUser, InspectorRole, InspectorOsuUser, InspectorUserAccessToken, InspectorUserFriend } = require("./db");
+const { range, renameKey } = require("./misc");
+const { InspectorBeatmap, Databases, AltBeatmap, InspectorUser, InspectorRole, InspectorOsuUser, InspectorUserAccessToken, InspectorUserFriend, InspectorModdedStars } = require("./db");
 const { Op, Sequelize } = require("sequelize");
 const { GetAltUsers } = require("./osualt");
 require('dotenv').config();
@@ -354,7 +354,7 @@ async function VerifyToken(session_token, user_id, refresh = false) {
         //try to refresh token
         const refresh_token = result.refresh_token;
         let refresh_result = null;
-        try{
+        try {
             refresh_result = await axios.post('https://osu.ppy.sh/oauth/token', {
                 client_id: OSU_CLIENT_ID,
                 client_secret: OSU_CLIENT_SECRET,
@@ -362,7 +362,7 @@ async function VerifyToken(session_token, user_id, refresh = false) {
                 refresh_token: refresh_token,
                 scope: 'identify public friends.read',
             });
-        }catch(err){
+        } catch (err) {
             throw new Error('Unable to refresh token, please relogin');
         }
         if (refresh_result?.data?.access_token !== null) {
@@ -458,7 +458,7 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
     //split ids in array of integers
     let ids = user_ids;
 
-    if(typeof user_ids === 'string') {
+    if (typeof user_ids === 'string') {
         ids = user_ids.split(',').map(id => parseInt(id));
     }
 
@@ -552,4 +552,60 @@ module.exports.validateApiKey = async function (api_key) {
     });
 
     return result !== null;
+}
+
+module.exports.GetBeatmapsModdedSr = async function (beatmap_id_mod_map, version) {
+    console.time(`[DEBUG] GetBeatmapsModdedSr for version ${version}`);
+    let beatmap_ids = Object.keys(beatmap_id_mod_map);
+    let _modded_stars = await InspectorModdedStars[version].findAll({
+        where: {
+            beatmap_id: {
+                [Op.in]: beatmap_ids
+            }
+        },
+        raw: true,
+        nest: true
+    });
+
+    
+    //split beatmap_id and data in seperate, so we keep the index
+    let result_beatmap_ids = [];
+    let result_data = [];
+    
+    _modded_stars.forEach(beatmap => {
+        result_beatmap_ids.push(beatmap.beatmap_id);
+        result_data.push(beatmap.data);
+    });
+    
+    //generate a single json string with all the data (each data is a json string)
+    let data_string = `[${result_data.join(',')}]`;
+    let data = JSON.parse(data_string);
+
+    //we create a map of beatmap_id -> data
+    let data_map = {};
+
+    for (let i = 0; i < result_beatmap_ids.length; i++) {
+        data_map[result_beatmap_ids[i]] = data[i];
+    }
+
+    //we create a map of beatmap_id -> modded_sr
+    let modded_sr_map = {};
+
+    for (const beatmap_id in beatmap_id_mod_map) {
+        let mods = beatmap_id_mod_map[beatmap_id];
+        let data = data_map[beatmap_id];
+
+        let _base_stars = data?.find(stars => stars.mods === 0);
+        let _stars = data?.find(stars => stars.mods === mods);
+
+        if (_base_stars && _stars) {
+            modded_sr_map[beatmap_id] = {
+                ..._stars,
+                base: _base_stars,
+            };
+        }
+    }
+    console.timeEnd(`[DEBUG] GetBeatmapsModdedSr for version ${version}`);
+
+    return modded_sr_map;
 }

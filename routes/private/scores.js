@@ -4,12 +4,13 @@ var router = express.Router();
 const { Client } = require('pg');
 const { GetBestScores, score_columns, score_columns_full, beatmap_columns, GetBeatmapScores } = require('../../helpers/osualt');
 const rateLimit = require('express-rate-limit');
-const { getBeatmaps, getCompletionData, DefaultInspectorUser } = require('../../helpers/inspector');
+const { getBeatmaps, getCompletionData, DefaultInspectorUser, GetBeatmapsModdedSr } = require('../../helpers/inspector');
 const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat, AltBeatmapEyup, Databases, AltBeatmapSSRatio, AltTopScore, InspectorHistoricalScoreRank, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser } = require('../../helpers/db');
 const { Op, Sequelize } = require('sequelize');
 const { CorrectedSqlScoreMods, CorrectMod, ModsToString, db_now } = require('../../helpers/misc');
 const request = require("supertest");
 const { GetOsuUsers } = require('../../helpers/osu');
+const fastJson = require('fast-json-parse');
 require('dotenv').config();
 
 const limiter = rateLimit({
@@ -38,9 +39,9 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
                 attributes: beatmap_attributes,
                 model: AltBeatmap,
                 as: 'beatmap',
-                where: {
-                    approved: { [Op.in]: [1, 2, req.query.include_loved === 'true' ? 4 : 1] }
-                },
+                // where: {
+                //     approved: { [Op.in]: [1, 2, req.query.include_loved === 'true' ? 4 : 1] }
+                // },
                 required: true,
                 include: [
                     ...(include_modded ? [
@@ -82,6 +83,9 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
 
     scores = JSON.parse(JSON.stringify(scores));
 
+    //filter to have only approved in (1,2 and possibly 4)
+    scores = scores.filter(score => score.beatmap.approved === 1 || score.beatmap.approved === 2 || (req.query.include_loved === 'true' && score.beatmap.approved === 4));
+
     let beatmap_set_ids = scores.map(score => score.beatmap.set_id);
     let beatmap_ids = scores.map(score => score.beatmap.beatmap_id);
     //remove duplicates and nulls
@@ -113,7 +117,7 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
 
     if (include_modded) {
         //first move contents of score.beatmap.modded_sr to score.beatmap.modded_sr['live']
-
+        console.time('apply live sr');
         for (const score of scores) {
             if (score.beatmap.modded_sr) {
                 let temp = score.beatmap.modded_sr;
@@ -121,6 +125,7 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
                 score.beatmap.modded_sr['live'] = temp;
             }
         }
+        console.timeEnd('apply live sr');
 
         const MODDED_SRS = [
             '2014may',
@@ -129,10 +134,10 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
             '2019',
         ]
 
-
         const query_prepare = [];
         const beatmap_id_mod_map = {};
 
+        console.time('mod correct');
         for (const score of scores) {
             const int_mods = parseInt(score.enabled_mods);
             const correct_mods = CorrectMod(int_mods);
@@ -144,41 +149,10 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
 
             beatmap_id_mod_map[score.beatmap_id] = correct_mods;
         }
+        console.timeEnd('mod correct');
 
         for await (const version of MODDED_SRS) {
-            let _modded_stars = await InspectorModdedStars[version].findAll({
-                where: {
-                    beatmap_id: {
-                        [Op.in]: query_prepare
-                    }
-                },
-                raw: true,
-                nest: true
-            });
-            let modded_stars = {};
-            let modded_stars_base = {};
-            _modded_stars.forEach(_stars => {
-                if (_stars.mods === 0) {
-                    modded_stars_base[_stars.beatmap_id] = structuredClone(_stars);
-                }
-                if (beatmap_id_mod_map[_stars.beatmap_id] !== _stars.mods) {
-                    return;
-                }
-
-                if (!modded_stars[_stars.beatmap_id]) {
-                    modded_stars[_stars.beatmap_id] = [];
-                }
-
-                modded_stars[_stars.beatmap_id] = _stars;
-            });
-            
-            Object.keys(modded_stars_base).forEach(beatmap_id => {
-                if (!modded_stars[beatmap_id]) {
-                    modded_stars[beatmap_id] = {};
-                }
-
-                modded_stars[beatmap_id].base = modded_stars_base[beatmap_id];
-            });
+            const modded_stars = await GetBeatmapsModdedSr(beatmap_id_mod_map, version);
 
             for (const score of scores) {
                 const modded_sr = modded_stars[score.beatmap_id] ?? [];

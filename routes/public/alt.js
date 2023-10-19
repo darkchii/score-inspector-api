@@ -144,7 +144,7 @@ function generateAndStatements(req) {
     return andAdditions;
 }
 
-router.get('/user/:id', limiter, cache('10 minutes'), async function (req, res, next) {
+router.get('/user/:id', limiter, cache('3 minutes'), async function (req, res, next) {
     const id = req.params.id;
     let osu_id = null;
     if (id === 'me') {

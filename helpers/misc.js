@@ -83,3 +83,12 @@ module.exports.CorrectedSqlScoreModsCustom = (enabled_mods) => `${enabled_mods}&
 module.exports.sleep = function (ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+module.exports.renameKey = function (obj, curKey, newKey) {
+    if(curKey !== newKey){
+        obj[newKey] = obj[curKey];
+        delete obj[curKey];
+    }
+
+    return obj;
+}

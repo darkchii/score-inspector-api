@@ -4,7 +4,7 @@ var router = express.Router();
 const { Client } = require('pg');
 const { GetBestScores, score_columns, score_columns_full, beatmap_columns, GetBeatmapScores } = require('../../helpers/osualt');
 const rateLimit = require('express-rate-limit');
-const { getBeatmaps, getCompletionData, DefaultInspectorUser, GetBeatmapsModdedSr } = require('../../helpers/inspector');
+const { getBeatmaps, getCompletionData, DefaultInspectorUser } = require('../../helpers/inspector');
 const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat, AltBeatmapEyup, Databases, AltBeatmapSSRatio, AltTopScore, InspectorHistoricalScoreRank, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser } = require('../../helpers/db');
 const { Op, Sequelize } = require('sequelize');
 const { CorrectedSqlScoreMods, CorrectMod, ModsToString, db_now } = require('../../helpers/misc');
@@ -116,51 +116,11 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
     }
 
     if (include_modded) {
-        //first move contents of score.beatmap.modded_sr to score.beatmap.modded_sr['live']
-        console.time('apply live sr');
         for (const score of scores) {
             if (score.beatmap.modded_sr) {
                 let temp = score.beatmap.modded_sr;
                 score.beatmap.modded_sr = {};
                 score.beatmap.modded_sr['live'] = temp;
-            }
-        }
-        console.timeEnd('apply live sr');
-
-        const MODDED_SRS = [
-            '2014may',
-            '2014july',
-            '2018',
-            '2019',
-        ]
-
-        const query_prepare = [];
-        const beatmap_id_mod_map = {};
-
-        console.time('mod correct');
-        for (const score of scores) {
-            const int_mods = parseInt(score.enabled_mods);
-            const correct_mods = CorrectMod(int_mods);
-            query_prepare.push(score.beatmap_id);
-
-            if (!beatmap_id_mod_map[score.beatmap_id]) {
-                beatmap_id_mod_map[score.beatmap_id] = [];
-            }
-
-            beatmap_id_mod_map[score.beatmap_id] = correct_mods;
-        }
-        console.timeEnd('mod correct');
-
-        for await (const version of MODDED_SRS) {
-            const modded_stars = await GetBeatmapsModdedSr(beatmap_id_mod_map, version);
-
-            for (const score of scores) {
-                const modded_sr = modded_stars[score.beatmap_id] ?? [];
-                if (score.beatmap.modded_sr === undefined) {
-                    score.beatmap.modded_sr = {};
-                }
-
-                score.beatmap.modded_sr[version] = modded_sr;
             }
         }
     }

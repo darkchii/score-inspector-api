@@ -26,6 +26,7 @@ const { OsuUserModel } = require('./models/OsuUser');
 const { InspectorUserMilestoneModel } = require('./models/InspectorMilestone');
 const { InspectorUserAccessTokenModel } = require('./models/InspectorUserAccessToken');
 const { InspectorUserFriendModel } = require('./models/InspectorUserFriend');
+const { InspectorPerformanceRecordModel } = require('./models/InspectorPerformanceRecord.js');
 require('dotenv').config();
 
 let databases = {
@@ -50,6 +51,7 @@ const InspectorMedal = InspectorMedalModel(databases.inspector);
 const InspectorUserRole = InspectorUserRoleModel(databases.inspector);
 const InspectorHistoricalScoreRank = InspectorHistoricalScoreRankModel(databases.inspector);
 const InspectorUserMilestone = InspectorUserMilestoneModel(databases.inspector);
+const InspectorPerformanceRecord = InspectorPerformanceRecordModel(databases.inspector);
 
 const InspectorOsuUser = OsuUserModel(databases.inspector);
 
@@ -61,6 +63,9 @@ InspectorVisitor.belongsTo(InspectorUser, { as: 'visitor_user', foreignKey: 'vis
 InspectorVisitor.belongsTo(InspectorUser, { as: 'target_user', foreignKey: 'target_id', targetKey: 'osu_id' });
 InspectorUserMilestone.belongsTo(InspectorOsuUser, { as: 'user', foreignKey: 'user_id', targetKey: 'user_id' });
 InspectorUserMilestone.belongsTo(InspectorUser, { as: 'inspector_user', foreignKey: 'user_id', targetKey: 'osu_id' });
+
+InspectorPerformanceRecord.belongsTo(InspectorOsuUser, { as: 'user', foreignKey: 'user_id', targetKey: 'user_id' });
+InspectorPerformanceRecord.belongsTo(InspectorBeatmap, { as: 'beatmap', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
 
 const AltUser = AltUserModel(databases.osuAlt);
 const AltPriorityUser = AltPriorityUserModel(databases.osuAlt);
@@ -128,6 +133,7 @@ module.exports.InspectorMedal = InspectorMedal;
 module.exports.InspectorHistoricalScoreRank = InspectorHistoricalScoreRank;
 module.exports.InspectorOsuUser = InspectorOsuUser;
 module.exports.InspectorUserMilestone = InspectorUserMilestone;
+module.exports.InspectorPerformanceRecord = InspectorPerformanceRecord;
 
 module.exports.AltUser = AltUser;
 module.exports.AltPriorityUser = AltPriorityUser;

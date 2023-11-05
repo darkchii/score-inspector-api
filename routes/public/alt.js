@@ -30,6 +30,18 @@ let usableOptions = [
             return value;
         }
     }, {
+        queryParam: 'enabled_mods',
+        modelProperty: 'scores.enabled_mods',
+        type: 'array',
+        validator: (value) => {
+            return value.split(',').map(Number).every(Number.isInteger);
+        },
+        default: '8,64',
+        comparator: 'in',
+        get: (value) => {
+            return value.split(',').map(m => `'${m}'`).join(',');
+        }
+    }, {
         queryParam: 'approved_start',
         modelProperty: 'beatmaps.approved_date',
         type: 'date',
@@ -101,7 +113,8 @@ let usableOptions = [
         get: (value) => {
             return `'${value}'`;
         }
-    }, {
+    }, 
+    {
         queryParam: 'ar_min',
         modelProperty: 'beatmaps.ar',
         type: 'number',
@@ -113,7 +126,8 @@ let usableOptions = [
         get: (value) => {
             return `'${value}'`;
         }
-    }, {
+    }, 
+    {
         queryParam: 'ar_max',
         modelProperty: 'beatmaps.ar',
         type: 'number',
@@ -125,7 +139,215 @@ let usableOptions = [
         get: (value) => {
             return `'${value}'`;
         }
-    }
+    }, 
+    {
+        queryParam: 'cs_min',
+        modelProperty: 'beatmaps.cs',
+        type: 'number',
+        validator: (value) => {
+            return !isNaN(value);
+        },
+        default: undefined,
+        comparator: '>=',
+        get: (value) => {
+            return `'${value}'`;
+        }
+    }, 
+    {
+        queryParam: 'cs_max',
+        modelProperty: 'beatmaps.cs',
+        type: 'number',
+        validator: (value) => {
+            return !isNaN(value);
+        },
+        default: undefined,
+        comparator: '<',
+        get: (value) => {
+            return `'${value}'`;
+        }
+    }, 
+    {
+        queryParam: 'od_min',
+        modelProperty: 'beatmaps.od',
+        type: 'number',
+        validator: (value) => {
+            return !isNaN(value);
+        },
+        default: undefined,
+        comparator: '>=',
+        get: (value) => {
+            return `'${value}'`;
+        }
+    }, 
+    {
+        queryParam: 'od_max',
+        modelProperty: 'beatmaps.od',
+        type: 'number',
+        validator: (value) => {
+            return !isNaN(value);
+        },
+        default: undefined,
+        comparator: '<',
+        get: (value) => {
+            return `'${value}'`;
+        }
+    }, 
+    {
+        queryParam: 'hp_min',
+        modelProperty: 'beatmaps.hp',
+        type: 'number',
+        validator: (value) => {
+            return !isNaN(value);
+        },
+        default: undefined,
+        comparator: '>=',
+        get: (value) => {
+            return `'${value}'`;
+        }
+    }, 
+    {
+        queryParam: 'hp_max',
+        modelProperty: 'beatmaps.hp',
+        type: 'number',
+        validator: (value) => {
+            return !isNaN(value);
+        },
+        default: undefined,
+        comparator: '<',
+        get: (value) => {
+            return `'${value}'`;
+        }
+    }, 
+    {
+        queryParam: 'pp_min',
+        modelProperty: 'scores.pp',
+        type: 'number',
+        validator: (value) => {
+            return !isNaN(value);
+        },
+        default: undefined,
+        comparator: '>=',
+        get: (value) => {
+            return `'${value}'`;
+        }
+    }, 
+    {
+        queryParam: 'pp_max',
+        modelProperty: 'scores.pp',
+        type: 'number',
+        validator: (value) => {
+            return !isNaN(value);
+        },
+        default: undefined,
+        comparator: '<',
+        get: (value) => {
+            return `'${value}'`;
+        }
+    }, 
+    {
+        queryParam: 'accuracy_min',
+        modelProperty: 'scores.accuracy',
+        type: 'number',
+        validator: (value) => {
+            return !isNaN(value);
+        },
+        default: undefined,
+        comparator: '>=',
+        get: (value) => {
+            return `'${value}'`;
+        }
+    }, 
+    {
+        queryParam: 'accuracy_max',
+        modelProperty: 'scores.accuracy',
+        type: 'number',
+        validator: (value) => {
+            return !isNaN(value);
+        },
+        default: undefined,
+        comparator: '<',
+        get: (value) => {
+            return `'${value}'`;
+        }
+    }, 
+    {
+        queryParam: 'combo_min',
+        modelProperty: 'scores.combo',
+        type: 'number',
+        validator: (value) => {
+            return !isNaN(value);
+        },
+        default: undefined,
+        comparator: '>=',
+        get: (value) => {
+            return `'${value}'`;
+        }
+    }, 
+    {
+        queryParam: 'combo_max',
+        modelProperty: 'scores.combo',
+        type: 'number',
+        validator: (value) => {
+            return !isNaN(value);
+        },
+        default: undefined,
+        comparator: '<',
+        get: (value) => {
+            return `'${value}'`;
+        }
+    }, 
+    {
+        queryParam: 'maxcombo_min',
+        modelProperty: 'beatmaps.maxcombo',
+        type: 'number',
+        validator: (value) => {
+            return !isNaN(value);
+        },
+        default: undefined,
+        comparator: '>=',
+        get: (value) => {
+            return `'${value}'`;
+        }
+    }, 
+    {
+        queryParam: 'maxcombo_max',
+        modelProperty: 'beatmaps.maxcombo',
+        type: 'number',
+        validator: (value) => {
+            return !isNaN(value);
+        },
+        default: undefined,
+        comparator: '<',
+        get: (value) => {
+            return `'${value}'`;
+        }
+    },
+    {
+        queryParam: 'stars_min',
+        modelProperty: 'beatmaps.stars',
+        type: 'number',
+        validator: (value) => {
+            return !isNaN(value);
+        },
+        default: undefined,
+        comparator: '>=',
+        get: (value) => {
+            return `'${value}'`;
+        }
+    }, 
+    {
+        queryParam: 'stars_max',
+        modelProperty: 'beatmaps.stars',
+        type: 'number',
+        validator: (value) => {
+            return !isNaN(value);
+        },
+        default: undefined,
+        comparator: '<',
+        get: (value) => {
+            return `'${value}'`;
+        }
+    }, 
 ];
 
 function generateAndStatements(req) {
@@ -270,7 +492,7 @@ router.get('/user/:id/scores', limiter, cache('10 minutes'), async function (req
             options: andAdditions,
         });
     } catch (err) {
-        res.status(500).json({ error: 'Unable to get scores', message: err.message });
+        res.status(500).json({ error: 'Unable to get scores', message: err });
     }
 });
 

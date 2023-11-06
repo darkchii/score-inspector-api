@@ -146,6 +146,7 @@ async function getBeatmaps(req) {
         if (!_res[2].includes('title')) _res[2].push('title');
         if (!_res[2].includes('version')) _res[2].push('version');
         if (!_res[2].includes('approved')) _res[2].push('approved');
+        if (!_res[2].includes('max_combo')) _res[2].push('max_combo');
         querySelector = _res[2].join(',');
     } else if (req.customAttributeSet) {
         querySelector = req.customAttributeSet.join(',');
@@ -320,6 +321,20 @@ function getCompletionData(scores, beatmaps) {
         let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.total_length >= min && beatmap.total_length < max);
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
         completion.length.push({
+            range: (max < 99999 ? range : (range.split('-')[0] + '+')), min, max, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length
+        });
+    }
+
+    spread = ["0-100", "100-200", "200-300","300-400","400-500","500-600","600-700","700-800","800-900", "900-1000", "1000-99999"];
+    completion.max_combo = [];
+    for (const range of spread) {
+        let perc = 100;
+        let min = parseInt(range.split('-')[0]);
+        let max = parseInt(range.split('-')[1]);
+        let filtered_scores = scores.filter(score => score.beatmap.maxcombo >= min && score.beatmap.maxcombo < max);
+        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.max_combo >= min && beatmap.max_combo < max);
+        perc = filtered_scores.length / filtered_beatmaps.length * 100;
+        completion.max_combo.push({
             range: (max < 99999 ? range : (range.split('-')[0] + '+')), min, max, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length
         });
     }

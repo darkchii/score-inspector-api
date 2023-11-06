@@ -25,18 +25,16 @@ let cache = apicache.middleware;
 async function GetUserScores(req, score_attributes = undefined, beatmap_attributes = undefined) {
     const include_modded = req.query.ignore_modded_stars !== 'true';
     let scores = await AltScore.findAll({
-        attributes: score_attributes,
         where: {
             user_id: req.params.id,
             ...(req.query.beatmap_id ? { beatmap_id: req.query.beatmap_id } : {}) //for development purposes
         },
         order: [
-            [req.query.order ?? 'pp', req.query.dir ?? 'DESC']
+            ...req.query.order ? [['pp', req.query.dir ?? 'DESC']] : []
         ],
         limit: req.query.limit ?? undefined,
         include: [
             {
-                attributes: beatmap_attributes,
                 model: AltBeatmap,
                 as: 'beatmap',
                 // where: {
@@ -56,17 +54,7 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
                                     [Op.eq]: Sequelize.literal('beatmap.beatmap_id')
                                 }
                             }
-                        }] : []),
-                    {
-                        model: AltBeatmapEyup,
-                        as: 'eyup_sr',
-                        required: false
-                    },
-                    {
-                        model: AltBeatmapSSRatio,
-                        as: 'ss_ratio',
-                        required: false
-                    },
+                        }] : [])
                 ],
             },
             {
@@ -92,7 +80,6 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
     beatmap_set_ids = [...new Set(beatmap_set_ids)].filter(id => id);
     beatmap_ids = [...new Set(beatmap_ids)].filter(id => id);
 
-
     const beatmap_packs = await AltBeatmapPack.findAll({
         where: {
             beatmap_id: {
@@ -102,6 +89,7 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
         raw: true,
         nest: true
     });
+
     let _beatmap_packs = {};
     beatmap_packs.forEach(pack => {
         if (!_beatmap_packs[pack.beatmap_id]) {
@@ -113,46 +101,6 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
 
     for (const score of scores) {
         score.beatmap.packs = _beatmap_packs[score.beatmap_id] ?? [];
-    }
-
-    if (include_modded) {
-        for (const score of scores) {
-            if (score.beatmap.modded_sr) {
-                let temp = score.beatmap.modded_sr;
-                score.beatmap.modded_sr = {};
-                score.beatmap.modded_sr['live'] = temp;
-            }
-        }
-    }
-
-    if (scores && scores.length > 0) {
-        if (beatmap_set_ids.length > 0 && beatmap_ids.length > 0) {
-            const _max_pc = await Databases.osuAlt.query(`
-                SELECT set_id, mode, MAX(playcount) AS max_playcount FROM beatmaps
-                WHERE set_id IN (${beatmap_set_ids.join(',')})
-                GROUP BY set_id, mode
-            `);
-
-            let max_pc = _max_pc?.[0];
-
-            for (const score of scores) {
-                const max_pc_beatmap_index = max_pc?.findIndex(b => b.set_id === score.beatmap.set_id && b.mode === score.beatmap.mode);
-                const max_pc_beatmap = max_pc?.[max_pc_beatmap_index];
-
-                //remove the index if found
-                if (max_pc_beatmap_index !== -1) {
-                    max_pc.splice(max_pc_beatmap_index, 1);
-                }
-
-                if (max_pc_beatmap && score.beatmap?.eyup_sr) {
-                    score.beatmap.eyup_sr.max_playcount = max_pc_beatmap.max_playcount;
-                }
-
-                // if (pack_ids_beatmap && pack_ids_beatmap.length > 0) {
-                //     score.beatmap.packs = pack_ids_beatmap;
-                // }
-            }
-        }
     }
 
     return scores;
@@ -176,7 +124,7 @@ router.get('/beatmap/:id', limiter, cache('1 hour'), async function (req, res, n
 router.get('/completion/:id', limiter, cache('1 hour'), async function (req, res, next) {
     req.query.ignore_modded_stars = 'true';
     console.time('GetUserScores');
-    const scores = await GetUserScores(req, ['beatmap_id'], ['beatmap_id', 'approved_date', 'length', 'stars', 'cs', 'ar', 'od', 'hp', 'approved']);
+    const scores = await GetUserScores(req, ['beatmap_id'], ['beatmap_id', 'approved_date', 'length', 'stars', 'cs', 'ar', 'od', 'hp', 'approved', 'max_combo']);
     console.timeEnd('GetUserScores');
 
     const beatmaps = await getBeatmaps({
@@ -188,7 +136,8 @@ router.get('/completion/:id', limiter, cache('1 hour'), async function (req, res
             'hp',
             'approved_date',
             'star_rating',
-            'total_length'
+            'total_length',
+            'max_combo',
         ]
     });
 

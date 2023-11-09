@@ -36,7 +36,7 @@ let usableOptions = [
         validator: (value) => {
             return value.split(',').map(Number).every(Number.isInteger);
         },
-        default: '8,64',
+        default: '',
         comparator: 'in',
         get: (value) => {
             return value.split(',').map(m => `'${m}'`).join(',');

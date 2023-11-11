@@ -1,111 +1,26 @@
 var express = require('express');
 var router = express.Router();
-const os = require("os");
-const si = require('systeminformation');
-const mysql = require('mysql-await');
 const { IsReachable } = require('../../helpers/inspector');
 var apicache = require('apicache');
 const { GetSystemInfo } = require('../../helpers/osualt');
-const { uptime } = require('process');
 require('dotenv').config();
 let cache = apicache.middleware;
-var persistentCache = require('persistent-cache');
 const { InspectorUser, InspectorVisitor } = require('../../helpers/db');
-var expressStats = persistentCache();
-
-const connConfig = {
-    host: process.env.MYSQL_HOST,
-    user: process.env.MYSQL_USER,
-    database: process.env.MYSQL_DB,
-    password: process.env.MYSQL_PASS,
-};
-
-let cached_system_data = {
-    osuAlt: {
-        last_updated: 0,
-        data: null
-    },
-    system: {
-        last_updated: 0,
-        data: null
-    }
-};
 
 router.get('/', async (req, res, next) => {
-    // let user_count = (await connection.awaitQuery(`SELECT count(*) as c FROM inspector_users`))?.[0]?.c ?? 0;
-    const now = Date.now();
     let data = {};
 
-    await Promise.all([
-        InspectorUser.count(),
-        InspectorVisitor.sum('count'),
-        expressStats.get('requests'),
-        expressStats.get('size')
-    ]).then((values) => {
-        data.user_count = values[0];
-        data.total_visits = values[1];
-        data.expressRequests = values[2];
-        data.expressBytesSent = values[3];
-    });
-
-    let promises = [];
-    if(cached_system_data.osuAlt.last_updated < now - 1000 * 60 * 5 || !cached_system_data.osuAlt.data) {
-        promises.push(GetSystemInfo().then((data) => {
-            cached_system_data.osuAlt.data = data;
-            cached_system_data.osuAlt.last_updated = now;
-        }));
-    }
-    let osu_alt_data = cached_system_data.osuAlt.data;
-
-    if(cached_system_data.system.last_updated < now - 1000 * 60 * 5 || !cached_system_data.system.data) {
-        cached_system_data.system.data = {};
-        promises.push(new Promise((resolve, reject) => {
-            cached_system_data.system.data.time = si.time();
-            cached_system_data.system.last_updated = now;
-            resolve();
-        }));
-        promises.push(si.cpu().then((data) => {
-            cached_system_data.system.data.cpu = data;
-            cached_system_data.system.last_updated = now;
-        }));
-        promises.push(si.osInfo().then((data) => {
-            cached_system_data.system.data.os = data;
-            cached_system_data.system.last_updated = now;
-        }));
-
-    }
-
-    if(promises.length > 0) {
-        await Promise.all(promises);
-    }
+    data.user_count = await InspectorUser.count();
+    data.total_visits = await InspectorVisitor.sum('count');
+    data.osuAlt = await GetSystemInfo();
 
     res.json({
         database: {
             inspector: {
                 user_count: data.user_count,
                 total_visits: data.total_visits,
-                api: {
-                    requests: data.expressRequests,
-                    bytes_sent: data.expressBytesSent
-                }
             },
-            alt: osu_alt_data
-        },
-        system: {
-            uptime: uptime(),
-            system_time: cached_system_data.system.data.time,
-            cpu: {
-                manufacturer: cached_system_data.system.data.cpu.manufacturer,
-                brand: cached_system_data.system.data.cpu.brand,
-                cores: cached_system_data.system.data.cpu.cores
-            },
-            os: {
-                platform: cached_system_data.system.data.os.platform,
-                distro: cached_system_data.system.data.os.distro,
-                release: cached_system_data.system.data.os.release,
-                codename: cached_system_data.system.data.os.codename,
-                arch: cached_system_data.system.data.os.arch,
-            }
+            alt: data.osuAlt
         }
     });
 });

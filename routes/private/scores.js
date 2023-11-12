@@ -346,6 +346,59 @@ router.get('/activity', limiter, cache('20 minutes'), async function (req, res, 
     res.json(rows);
 });
 
+const today_categories = [
+    {
+        name: 'Clears',
+        query: `COUNT(*)`
+    },
+    {
+        name: 'PP',
+        query: `SUM(pp)`
+    },
+    {
+        name: 'SS',
+        query: `COUNT(*) FILTER (WHERE rank = 'XH' OR rank = 'X')`
+    }
+]
+router.get('/today', limiter, cache('1 hour'), async function (req, res, next) {
+    const users_limit = req.query.users_limit || 10;
+
+    let query = '';
+
+    today_categories.forEach((category, index) => {
+        query += `
+            (SELECT user_id, ${category.query} AS value, '${category.name}' AS category
+            FROM scores
+            WHERE date_played >= current_date
+            GROUP BY user_id
+            ORDER BY value DESC
+            LIMIT ${users_limit})
+            ${index !== today_categories.length - 1 ? 'UNION' : ''}`;
+    });
+    
+    const result = await Databases.osuAlt.query(query);
+
+    const data = result?.[0];
+
+    const user_ids = data.map(row => row.user_id);
+    const client = request(req.app);
+    const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipDailyData=true`).set('Origin', req.headers.origin || req.headers.host);
+
+    data.forEach(row => {
+        row.user = users.body.find(user => user.osu.id === row.user_id);
+    });
+
+    //reformat each category into their own array
+    const categories = {};
+
+    today_categories.forEach((category, index) => {
+        const category_data = data?.filter(row => row.category === category.name);
+        categories[category.name] = category_data;
+    });
+
+    res.json(categories);
+});
+
 router.get('/ranking', limiter, cache('1 hour'), async function (req, res, next) {
     let user_id, date, rank = undefined;
     let limit = 100;

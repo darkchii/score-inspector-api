@@ -361,6 +361,10 @@ const today_categories = [
         query: `SUM(pp)`,
         round: true
     },
+    {
+        name: 'Total score',
+        query: `SUM(score)`
+    },
 ]
 router.get('/today', limiter, cache('1 hour'), async function (req, res, next) {
     const users_limit = req.query.users_limit || 10;

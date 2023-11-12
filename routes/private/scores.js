@@ -11,6 +11,7 @@ const { CorrectedSqlScoreMods, CorrectMod, ModsToString, db_now } = require('../
 const request = require("supertest");
 const { GetOsuUsers } = require('../../helpers/osu');
 const fastJson = require('fast-json-parse');
+var _ = require('lodash');
 require('dotenv').config();
 
 const limiter = rateLimit({
@@ -352,13 +353,14 @@ const today_categories = [
         query: `COUNT(*)`
     },
     {
-        name: 'PP',
-        query: `SUM(pp)`
+        name: 'Total SS',
+        query: `COUNT(*) FILTER (WHERE rank = 'XH' OR rank = 'X')`
     },
     {
-        name: 'SS',
-        query: `COUNT(*) FILTER (WHERE rank = 'XH' OR rank = 'X')`
-    }
+        name: 'Total PP',
+        query: `SUM(pp)`,
+        round: true
+    },
 ]
 router.get('/today', limiter, cache('1 hour'), async function (req, res, next) {
     const users_limit = req.query.users_limit || 10;
@@ -367,12 +369,17 @@ router.get('/today', limiter, cache('1 hour'), async function (req, res, next) {
 
     today_categories.forEach((category, index) => {
         query += `
-            (SELECT user_id, ${category.query} AS value, '${category.name}' AS category
-            FROM scores
-            WHERE date_played >= current_date
-            GROUP BY user_id
-            ORDER BY value DESC
-            LIMIT ${users_limit})
+            (
+                SELECT 
+                    user_id, 
+                    ${category.round ? `ROUND(${category.query})` : category.query} AS value, 
+                    '${category.name}' AS category
+                FROM scores
+                WHERE date_played >= current_date
+                GROUP BY user_id
+                ORDER BY value DESC
+                LIMIT ${users_limit}
+            )
             ${index !== today_categories.length - 1 ? 'UNION' : ''}`;
     });
     
@@ -382,10 +389,11 @@ router.get('/today', limiter, cache('1 hour'), async function (req, res, next) {
 
     const user_ids = data.map(row => row.user_id);
     const client = request(req.app);
-    const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipDailyData=true`).set('Origin', req.headers.origin || req.headers.host);
+    const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipDailyData=true&skipAltData=true`).set('Origin', req.headers.origin || req.headers.host);
 
     data.forEach(row => {
-        row.user = users.body.find(user => user.osu.id === row.user_id);
+        row.user = _.cloneDeep(users.body.find(user => user.osu.id === row.user_id));
+        row.user.osu = undefined;
     });
 
     //reformat each category into their own array
@@ -393,6 +401,8 @@ router.get('/today', limiter, cache('1 hour'), async function (req, res, next) {
 
     today_categories.forEach((category, index) => {
         const category_data = data?.filter(row => row.category === category.name);
+        //sort
+        category_data.sort((a, b) => b.value - a.value);
         categories[category.name] = category_data;
     });
 

@@ -359,7 +359,8 @@ const today_categories = [
     {
         name: 'Total PP',
         query: `SUM(pp)`,
-        round: true
+        round: true,
+        formatter: `{value}pp`
     },
     {
         name: 'Total score',
@@ -377,6 +378,7 @@ router.get('/today', limiter, cache('1 hour'), async function (req, res, next) {
                 SELECT 
                     user_id, 
                     ${category.round ? `ROUND(${category.query})` : category.query} AS value, 
+                    ${category.formatter ? `'${category.formatter}'` : `'{value}'`} AS value_formatter,
                     '${category.name}' AS category
                 FROM scores
                 WHERE date_played >= current_date
@@ -600,18 +602,19 @@ router.get('/milestones', limiter, cache('1 hour'), async function (req, res, ne
                 model: InspectorOsuUser,
                 as: 'user',
                 required: true
-            }, {
-                model: InspectorUser,
-                as: 'inspector_user'
             }
         ]
     });
 
-    // milestones.forEach(milestone => {
-    //     milestone.inspector_user = DefaultInspectorUser(milestone.inspector_user, milestone.user.username, milestone.user.user_id);
-    // });
-    for (const milestone of milestones) {
-        milestone.inspector_user = DefaultInspectorUser(milestone.inspector_user, milestone.user.username, milestone.user.user_id);
+    if(limit && limit <= 100){
+        const user_ids = milestones.map(milestone => milestone.user_id);
+        const client = request(req.app);
+        const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipDailyData=true&skipAltData=true`).set('Origin', req.headers.origin || req.headers.host);
+    
+        for (const milestone of milestones) {
+            const _user = _.cloneDeep(users.body.find(user => user.osu.id === milestone.user_id) ?? {});
+            milestone.inspector_user = _user.inspector_user;
+        }
     }
 
     res.json(milestones);

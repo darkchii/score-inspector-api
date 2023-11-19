@@ -12,6 +12,7 @@ const request = require("supertest");
 const { GetOsuUsers } = require('../../helpers/osu');
 const fastJson = require('fast-json-parse');
 var _ = require('lodash');
+const { parse } = require('dotenv');
 require('dotenv').config();
 
 const limiter = rateLimit({
@@ -353,7 +354,7 @@ const today_categories = [
         query: `COUNT(*)`
     },
     {
-        name: 'Total SS',
+        name: 'SS',
         query: `COUNT(*) FILTER (WHERE rank = 'XH' OR rank = 'X')`
     },
     {
@@ -363,44 +364,75 @@ const today_categories = [
         formatter: `{value}pp`
     },
     {
-        name: 'Total score',
+        name: 'Score',
         query: `SUM(score)`
     },
 ]
-router.get('/today', limiter, cache('1 hour'), async function (req, res, next) {
+router.get('/today', limiter, cache('10 minutes'), async function (req, res, next) {
     const users_limit = req.query.users_limit || 10;
+    const specific_user_id = req.query.user_id || undefined;
 
     let query = '';
 
     today_categories.forEach((category, index) => {
+        const base_query = `
+            SELECT
+            user_id, 
+            ${category.round ? `ROUND(${category.query})` : category.query} AS value, 
+            ${category.formatter ? `'${category.formatter}'` : `'{value}'`} AS value_formatter,
+            '${category.name}' AS category,
+            RANK() OVER (ORDER BY ${category.query} DESC) AS rank
+            FROM scores
+        `;
+
+        const top_query = `
+            ${base_query}
+            WHERE date_played >= current_date
+            AND (user_id IN (SELECT user_id FROM users2))
+            GROUP BY user_id
+            ORDER BY value DESC
+        `;
+
+        const user_specific_query = `
+            WITH t AS (
+                ${top_query}
+            )
+            SELECT * FROM t
+            WHERE user_id = ${specific_user_id}
+            AND rank > ${users_limit}
+        `;
+
         query += `
             (
-                SELECT 
-                    user_id, 
-                    ${category.round ? `ROUND(${category.query})` : category.query} AS value, 
-                    ${category.formatter ? `'${category.formatter}'` : `'{value}'`} AS value_formatter,
-                    '${category.name}' AS category
-                FROM scores
-                WHERE date_played >= current_date
-                GROUP BY user_id
-                ORDER BY value DESC
-                LIMIT ${users_limit}
+                (
+                    ${top_query}
+                    LIMIT ${users_limit}
+                )
+
+                ${specific_user_id && !isNaN(specific_user_id) ? `
+                    UNION
+                    (
+                        ${user_specific_query}
+                    )
+                ` : ''}
             )
             ${index !== today_categories.length - 1 ? 'UNION' : ''}`;
     });
-    
+
     const result = await Databases.osuAlt.query(query);
 
     const data = result?.[0];
 
     const user_ids = data.map(row => row.user_id);
     const client = request(req.app);
-    const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipDailyData=true&skipAltData=true`).set('Origin', req.headers.origin || req.headers.host);
+    const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipDailyData=true&skipOsuData=true`).set('Origin', req.headers.origin || req.headers.host);
 
-    data.forEach(row => {
-        row.user = _.cloneDeep(users.body.find(user => user.osu.id === row.user_id));
-        row.user.osu = undefined;
-    });
+    for (let index = 0; index < data.length; index++) {
+        const row = data[index];
+        row.rank = parseInt(row.rank);
+        row.user = _.cloneDeep(users.body.find(user => user.alt.user_id === row.user_id));
+        row.user.alt = undefined;
+    }
 
     //reformat each category into their own array
     const categories = {};
@@ -409,6 +441,14 @@ router.get('/today', limiter, cache('1 hour'), async function (req, res, next) {
         const category_data = data?.filter(row => row.category === category.name);
         //sort
         category_data.sort((a, b) => b.value - a.value);
+
+        //fix dense rankings
+        category_data.forEach((row, index) => {
+            if(index > 0 && row.rank === category_data[index - 1].rank) {
+                row.rank++;
+            }
+        });
+
         categories[category.name] = category_data;
     });
 
@@ -606,11 +646,11 @@ router.get('/milestones', limiter, cache('1 hour'), async function (req, res, ne
         ]
     });
 
-    if(limit && limit <= 100){
+    if (limit && limit <= 100) {
         const user_ids = milestones.map(milestone => milestone.user_id);
         const client = request(req.app);
         const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipDailyData=true&skipAltData=true`).set('Origin', req.headers.origin || req.headers.host);
-    
+
         for (const milestone of milestones) {
             const _user = _.cloneDeep(users.body.find(user => user.osu.id === milestone.user_id) ?? {});
             milestone.inspector_user = _user.inspector_user;

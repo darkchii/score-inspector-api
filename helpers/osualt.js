@@ -476,13 +476,13 @@ async function GetSystemInfo() {
             AltScore.count(),
             AltUser.count(),
             AltPriorityUser.count(),
-            Databases.osuAlt.query(`SELECT pg_database_size('osu') as c`)
+            // Databases.osuAlt.query(`SELECT pg_database_size('osu') as c`)
         ]).then((values) => {
             data = {
                 total_scores: values[0],
                 total_users: values[1],
                 tracked_users: values[2],
-                size: values[3][0].c
+                // size: values[3][0].c
             };
         });
     } catch (err) {

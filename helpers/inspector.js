@@ -469,7 +469,7 @@ async function InspectorRefreshFriends(access_token, osu_id) {
     }
 }
 
-module.exports.getFullUsers = async function (user_ids, skippedData = { daily: false, alt: false, score: false }) {
+module.exports.getFullUsers = async function (user_ids, skippedData = { daily: false, alt: false, score: false, osu: false }) {
     //split ids in array of integers
     let ids = user_ids;
 
@@ -502,7 +502,7 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
             inspector_users = users;
         }),
         //osu users
-        ids.length === 1 ? GetOsuUser(ids[0], 'osu', 'id').then(user => {
+        skippedData.osu ? null : ids.length === 1 ? GetOsuUser(ids[0], 'osu', 'id').then(user => {
             osu_users = [user];
         }) : GetOsuUsers(ids).then(users => {
             osu_users = users;
@@ -516,7 +516,7 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
             alt_users = JSON.parse(JSON.stringify(users));
         }),
         //score ranks
-        skippedData.score ? null : axios.get(`https://score.respektive.pw/u/${ids.join(',')}`, {
+        skippedData.score || skippedData.osu ? null : axios.get(`https://score.respektive.pw/u/${ids.join(',')}`, {
             headers: { "Accept-Encoding": "gzip,deflate,compress" }
         }).then(res => {
             score_ranks = res.data;
@@ -527,13 +527,17 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
     ids.forEach(id => {
         let user = {};
 
-        let osu_user = osu_users.find(user => user.id == id);
-        if (!osu_user) return;
-        let score_rank = score_ranks.find(user => user.user_id == id);
-        user.osu = { ...osu_user, score_rank };
-
         let inspector_user = inspector_users.find(user => user.osu_id == id);
-        user.inspector_user = DefaultInspectorUser(inspector_user, osu_user.username, osu_user.id);
+        let alt_user = alt_users.find(user => user.user_id == id);
+        let osu_user = osu_users.find(user => user.id == id);
+        let score_rank = score_ranks.find(user => user.user_id == id);
+
+        const username = skippedData.osu ? alt_user.username : osu_user.username;
+
+        if(!skippedData.alt){ user.alt = alt_user; }
+        if(!skippedData.osu){ user.osu = { ...osu_user, score_rank }; }
+
+        user.inspector_user = DefaultInspectorUser(inspector_user, username, parseInt(id));
 
         if (!skippedData.daily) {
             try {
@@ -543,12 +547,6 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
 
             }
         }
-
-        if (!skippedData.alt) {
-            let alt_user = alt_users.find(user => user.user_id == id);
-            user.alt = alt_user;
-        }
-
         data.push(user);
     });
 

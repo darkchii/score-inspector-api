@@ -147,6 +147,7 @@ router.get('/full/:ids', limiter, cache('10 minutes'), async (req, res, next) =>
     daily: req.query.skipDailyData === 'true' ? true : false,
     alt: req.query.skipAltData === 'true' ? true : false,
     score: req.query.skipScoreRank === 'true' ? true : false,
+    osu: req.query.skipOsuData === 'true' ? true : false,
   }
 
   let ids = req.params.ids;

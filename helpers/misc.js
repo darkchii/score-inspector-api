@@ -51,6 +51,61 @@ const all_mods = {
     Mirror: 1073741824,
 }
 
+const all_mods_short = {
+    NM: 0,
+    NF: 1,
+    EZ: 2,
+    TD: 4,
+    HD: 8,
+    HR: 16,
+    SD: 32,
+    DT: 64,
+    RX: 128,
+    HT: 256,
+    NC: 512, // Only set along with DoubleTime. i.e: NC only gives 576
+    FL: 1024,
+    AP: 2048,
+    SO: 4096,
+    RX2: 8192,    // Autopilot
+    PF: 16384, // Only set along with SuddenDeath. i.e: PF only gives 16416  
+    SV2: 536870912,
+}
+
+module.exports.mod_multipliers = {
+    [all_mods.None]: 1,
+    [all_mods.Easy]: 0.5,
+    [all_mods.NoFail]: 0.5,
+    [all_mods.HalfTime]: 0.3,
+    [all_mods.HardRock]: 1.06,
+    [all_mods.DoubleTime]: 1.12,
+    [all_mods.Hidden]: 1.06,
+    [all_mods.Flashlight]: 1.12,
+    [all_mods.SpunOut]: 0.9,
+}
+
+module.exports.GetModMultiplier = (enabled_mods) => {
+    let multiplier = 1;
+    for (let mod in module.exports.mod_multipliers) {
+        if (enabled_mods & mod) {
+            multiplier *= module.exports.mod_multipliers[mod];
+        }
+    }
+    return multiplier;
+}
+
+const included_mods_score = [
+    all_mods.None,
+    all_mods.Easy,
+    all_mods.NoFail,
+    all_mods.HalfTime,
+    all_mods.HardRock,
+    all_mods.DoubleTime,
+    all_mods.Hidden,
+    all_mods.Flashlight,
+    all_mods.SpunOut,
+];
+module.exports.included_mods_score = included_mods_score;
+
 const excluded_mods = [
     1, //NF
     8, //HD
@@ -63,14 +118,21 @@ const excluded_mods = [
 ];
 module.exports.excluded_mods = excluded_mods;
 
+
 module.exports.CorrectMod = (enabled_mods) => {
     return enabled_mods & ~excluded_mods.reduce((ps, a) => ps + a, 0);
 }
 
+module.exports.CorrectModScore = (enabled_mods) => {
+    // return enabled_mods & ~excluded_mods_score.reduce((ps, a) => ps + a, 0);
+    // only return mods that are in included_mods_score
+    return enabled_mods & included_mods_score.reduce((ps, a) => ps + a, 0);
+}
+
 module.exports.ModsToString = (enabled_mods) => {
     let mods = [];
-    for (let mod in all_mods) {
-        if (enabled_mods & all_mods[mod]) {
+    for (let mod in all_mods_short) {
+        if (enabled_mods & all_mods_short[mod]) {
             mods.push(mod);
         }
     }

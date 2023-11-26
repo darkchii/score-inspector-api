@@ -9,6 +9,8 @@ const { db_now, sleep } = require("./helpers/misc");
 const { default: axios } = require("axios");
 const { default: axiosRetry } = require("axios-retry");
 const schedule = require('node-schedule');
+const { getCheatedScores } = require("./cacher/cheated.js");
+const { ProcessBeatmapMaxScores } = require("./cacher/beatmap_maxscores.js");
 require('dotenv').config();
 
 function StartCacher() {
@@ -584,3 +586,5 @@ async function UpdatePerformanceRecords(){
 // UpdateUsers();
 // UpdatePerformanceDistribution();
 // UpdatePerformanceRecords();
+// getCheatedScores();
+// ProcessBeatmapMaxScores();

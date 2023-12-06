@@ -327,18 +327,58 @@ router.get('/most_played', limiter, cache('1 hour'), async function (req, res, n
 });
 
 router.get('/activity', limiter, cache('20 minutes'), async function (req, res, next) {
-    const hours = req.query.hours || 24;
-    const query = `WITH hour_entries AS (
-        SELECT generate_series(date_trunc('hour', ${db_now} - INTERVAL '${hours} hours'), date_trunc('hour', ${db_now}), INTERVAL '1 hour') AS hour
-      )
-      SELECT ARRAY(
-        SELECT json_build_object('timestamp', h.hour, 'entry_count', COALESCE(COUNT(s.date_played), 0)) AS entry
-        FROM hour_entries h
-        LEFT JOIN scores s ON date_trunc('hour', s.date_played) = h.hour
-                           AND s.date_played >= ${db_now} - INTERVAL '${hours} hours'
-        GROUP BY h.hour
-        ORDER BY h.hour
-      ) AS hour_entries;`;
+    const interval = req.query.period_amount || 24;
+    const period = req.query.period || 'h';
+    let period_long = 'hour';
+    switch (period) {
+        case 'h':
+            period_long = 'hour';
+            break;
+        case 'd':
+            period_long = 'day';
+            break;
+    }
+
+    // const query = `WITH hour_entries AS (
+    //     SELECT generate_series(date_trunc('hour', ${db_now} - INTERVAL '${hours} hours'), date_trunc('hour', ${db_now}), INTERVAL '1 hour') AS hour
+    //   )
+    //   SELECT ARRAY(
+    //     SELECT json_build_object('timestamp', h.hour, 'entry_count', COALESCE(COUNT(s.date_played), 0)) AS entry
+    //     FROM hour_entries h
+    //     LEFT JOIN scores s ON date_trunc('hour', s.date_played) = h.hour
+    //                        AND s.date_played >= ${db_now} - INTERVAL '${hours} hours'
+    //     GROUP BY h.hour
+    //     ORDER BY h.hour
+    //   ) AS hour_entries;`;
+    const query = `
+        WITH time_entries AS (
+            SELECT 
+                generate_series(
+                    date_trunc('${period_long}', ${db_now} - INTERVAL '${interval} ${period_long}s'),
+                    date_trunc('${period_long}', ${db_now}),
+                    INTERVAL '1 ${period_long}s'
+                ) AS time_interval
+        )
+        SELECT ARRAY(
+            SELECT 
+                json_build_object(
+                    'timestamp', t.time_interval,
+                    'entry_count', COALESCE(COUNT(s.date_played), 0),
+                    'entry_count_SS', COALESCE(COUNT(CASE WHEN s.rank = 'XH' OR s.rank = 'X' THEN s.date_played END), 0),
+                    'entry_count_S', COALESCE(COUNT(CASE WHEN s.rank = 'SH' OR s.rank = 'S' THEN s.date_played END), 0),
+                    'entry_count_A', COALESCE(COUNT(CASE WHEN s.rank = 'A' THEN s.date_played END), 0),
+                    'entry_count_B', COALESCE(COUNT(CASE WHEN s.rank = 'B' THEN s.date_played END), 0),
+                    'entry_count_C', COALESCE(COUNT(CASE WHEN s.rank = 'C' THEN s.date_played END), 0),
+                    'entry_count_D', COALESCE(COUNT(CASE WHEN s.rank = 'D' THEN s.date_played END), 0),
+                    'entry_count_score', COALESCE(SUM(score), 0)
+                ) AS entry
+            FROM time_entries t
+            LEFT JOIN scores s ON date_trunc('${period_long}', s.date_played) = t.time_interval
+                            AND s.date_played >= ${db_now} - INTERVAL '${interval} ${period_long}s'
+            GROUP BY t.time_interval
+            ORDER BY t.time_interval
+        ) AS time_entries;
+    `;
 
     const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
     await client.connect();
@@ -444,7 +484,7 @@ router.get('/today', limiter, cache('10 minutes'), async function (req, res, nex
 
         //fix dense rankings
         category_data.forEach((row, index) => {
-            if(index > 0 && row.rank === category_data[index - 1].rank) {
+            if (index > 0 && row.rank === category_data[index - 1].rank) {
                 row.rank++;
             }
         });

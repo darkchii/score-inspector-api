@@ -8,7 +8,7 @@ function parse(str) {
     return str.replace(/%s/g, () => args[i++]);
 }
 
-const db_now = "timezone('UTC'::text, now())";
+const db_now = "timezone('utc', now())";
 module.exports.db_now = db_now;
 
 module.exports.range = range;

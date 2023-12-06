@@ -128,6 +128,66 @@ router.get('/all', limiter, cache('1 hour'), async (req, res) => {
     res.json(result);
 });
 
+router.get('/count_periodic', limiter, cache('1 hour'), async (req, res) => {
+    const connection = mysql.createConnection(connConfig);
+    const mode = req.query.mode !== undefined ? req.query.mode : 0;
+    const periods = ['y', 'm', 'd'];
+
+    connection.on('error', (err) => {
+        res.json({
+            message: 'Unable to connect to database',
+            error: err,
+        });
+    });
+
+    let result = {};
+
+    for await(const period of periods){
+        let formatting = '%Y-%m';
+        if (period === 'y') {
+            formatting = '%Y';
+        }else if(period === 'd'){
+            formatting = '%Y-%m-%d';
+        }else if(period === 'm'){
+            formatting = '%Y-%m';
+        }
+    
+        const query = `
+        SELECT 
+        DATE_FORMAT(approved_date, '${formatting}') as date,
+        SUM(total_length) as length, 
+        SUM(max_score) as score, 
+        COUNT(*) as amount
+        FROM beatmap 
+        WHERE mode=? AND (approved=1 OR approved=2 ${(req.query.loved === 'true' ? 'OR approved=4' : '')}) 
+        GROUP BY DATE_FORMAT(approved_date, '${formatting}')`;
+        const data = await connection.awaitQuery(query, [mode]);
+
+        const _data = JSON.parse(JSON.stringify(data));
+
+        for(let i = 0; i < _data.length; i++){
+            let current = _data[i];
+            let previous = _data[i - 1];
+
+            if(previous === undefined){
+                current.length_total = current.length;
+                current.score_total = current.score;
+                current.amount_total = current.amount;
+            }else{
+                current.length_total = current.length + previous.length_total;
+                current.score_total = current.score + previous.score_total;
+                current.amount_total = current.amount + previous.amount_total;
+            }
+        }
+
+        result[period] = _data;
+    };
+    
+    
+    res.json(result);
+    await connection.end();
+});
+
 router.get('/allsets', limiter, cache('1 hour'), async (req, res) => {
     const connection = mysql.createConnection(connConfig);
 

@@ -19,6 +19,10 @@ const limiter = rateLimit({
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
+const standardized_formula = '(((((50 * scores.count50 + 100 * scores.count100 + 300 * scores.count300) / (300 * scores.count50 + 300 * scores.count100 + 300 * scores.count300 + 300 * scores.countmiss)::float) * 300000) + ((scores.combo/beatmaps.maxcombo::float)*700000)) * mods.multiplier)';
+const object_count = '(beatmaps.circles+beatmaps.sliders+beatmaps.spinners)';
+const classic_max_score = '1000000';
+
 async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult = false, country = false, scoreFilter = null, userFilter = null, beatmapQuery = null, groupSets = false, statRequiresGroup = false) {
     const base = `
     (
@@ -72,7 +76,8 @@ const STAT_DATA = {
     'followers': { query: 'follower_count', table: 'user' },
     'replays_watched': { query: 'replays_watched', table: 'user' },
     'ranked_score': { query: 'ranked_score', table: 'user' },
-    'lazer_standard': { query: 'sum((((((50 * scores.count50 + 100 * scores.count100 + 300 * scores.count300) / (300 * scores.count50 + 300 * scores.count100 + 300 * scores.count300 + 300 * scores.countmiss)::float) * 300000) + ((scores.combo/beatmaps.maxcombo::float)*700000)) * mods.multiplier))', table: 'scores' },
+    'lazer_standard': { query: `sum(${standardized_formula})`, table: 'scores' },
+    'lazer_classic': { query: `sum((round((${object_count}*${object_count})*32.57+100000)*${standardized_formula}/${classic_max_score}))`, table: 'scores' },
     'total_score': { query: 'total_score', table: 'user' },
     'ss_score': { query: 'sum(scores.score)', table: 'scores', scoreFilter: `rank LIKE '%X%'` },
     'fc_score': { query: `sum(scores.score)`, table: 'scores', scoreFilter: FC_FILTER },
@@ -207,6 +212,8 @@ async function getQuery(stat, limit, offset, country) {
         country = undefined;
     }
 
+    console.log(selectedStat);
+
     if (!selectedStat.isBeatmaps) {
         return await getQueryUserData(selectedStat, limit, offset, country);
     } else {
@@ -223,7 +230,7 @@ router.get('/:stat/:user_id', limiter, cache('1 hour'), async function (req, res
         if (limit > 100) limit = 100;
         if (offset < 0) offset = 0;
         offset = offset * limit;
-        const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
+        const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT, timeout: 30000 });
         await client.connect();
         const queryInfo = getQuery(stat, limit, offset, null, user_id);
         let { rows } = await client.query(queryInfo[0], queryInfo[1]);

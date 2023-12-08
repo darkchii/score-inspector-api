@@ -30,6 +30,7 @@ async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult =
             ${tableType === 'array_table' ? (beatmapQuery !== null ? beatmapQuery : 'count(*)') : stat} as stat
         ${!isBeatmapResult && tableType === 'scores' ? `
             FROM scores 
+            INNER JOIN mods ON scores.enabled_mods = mods.enum 
             INNER JOIN beatmaps ON scores.beatmap_id = beatmaps.beatmap_id 
             INNER JOIN users2 ON scores.user_id = users2.user_id` : ``}
         ${!isBeatmapResult && tableType === 'user' ? `
@@ -71,6 +72,7 @@ const STAT_DATA = {
     'followers': { query: 'follower_count', table: 'user' },
     'replays_watched': { query: 'replays_watched', table: 'user' },
     'ranked_score': { query: 'ranked_score', table: 'user' },
+    'lazer_standard': { query: 'sum((((((50 * scores.count50 + 100 * scores.count100 + 300 * scores.count300) / (300 * scores.count50 + 300 * scores.count100 + 300 * scores.count300 + 300 * scores.countmiss)::float) * 300000) + ((scores.combo/beatmaps.maxcombo::float)*700000)) * mods.multiplier))', table: 'scores' },
     'total_score': { query: 'total_score', table: 'user' },
     'ss_score': { query: 'sum(scores.score)', table: 'scores', scoreFilter: `rank LIKE '%X%'` },
     'fc_score': { query: `sum(scores.score)`, table: 'scores', scoreFilter: FC_FILTER },
@@ -97,7 +99,7 @@ const STAT_DATA = {
     'most_played_loved': { query: 'beatmaps', table: 'array_table', fullFilter: 'mode = 0 AND approved in (4)', isArray: false, isBeatmaps: true },
     'most_ssed': { query: 'beatmaps', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', scoreFilter: 'accuracy=100', isArray: false, isBeatmaps: true, direction: 'asc' },
     'most_fm_ssed': { query: 'beatmaps', table: 'array_table', scoreFilter: '(is_hd = true and is_hr = true and is_dt = true and is_fl = true and accuracy=100)', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
-    'longest_approval': { query: 'beatmaps', groupSets: true, beatmapQuery: 'age(approved_date,submit_date)', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2)', isArray: false, isBeatmaps: true },
+    'longest_approval': { query: 'beatmaps', groupSets: true, beatmapQuery: 'EXTRACT(EPOCH FROM age(approved_date,submit_date))', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2)', isArray: false, isBeatmaps: true },
     'longest_maps': { query: 'beatmaps', beatmapQuery: 'length', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
     'set_with_most_maps': { query: 'beatmaps', groupSets: true, beatmapQuery: 'count(*)', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
 }
@@ -133,7 +135,17 @@ async function getQueryUserData(stat, limit, offset, country) {
             rank, username, user_id${country !== undefined ? ', country_code' : ''}, stat
           from 
             (
-              select user_id, username${country !== undefined ? ', country_code' : ''}, stat, ROW_NUMBER() over(order by stat desc) as rank 
+              select 
+                ${/* user id */ ''}
+                user_id, 
+                ${/* username */ ''}
+                username
+                ${/* country code */''}
+                ${country !== undefined ? ', country_code' : ''},
+                ${/* stat */ ''}
+                stat, 
+                ${/* rank */ ''}
+                ROW_NUMBER() over(order by stat desc) as rank 
               from ${base} ${_where}
             ) r 
           order by 
@@ -236,7 +248,7 @@ router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
         const client = new Client({ query_timeout: 30000, user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
         await client.connect();
 
-        queryInfo = await getQuery(stat, limit, offset, country);
+        queryInfo = await getQuery(stat, limit + (offset > 0 ? 1 : 0), Math.max(offset - 1, 0), country, removeFirst = offset > 0);
         if (!queryInfo) {
             res.status(400).send('Invalid stat');
             return;
@@ -249,6 +261,21 @@ router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
         rows.forEach(row => {
             row.total_users = undefined;
         });
+
+        for(let i = 0; i < rows.length; i++) {
+            const previous_stat = Number(rows[i - 1]?.stat ?? null);
+            const stat = Number(rows[i].stat);
+            if(previous_stat){
+                rows[i].diff = stat - previous_stat;
+            }else{
+                rows[i].diff = null;
+            }
+        }
+
+        if(offset>0){
+            //remove first row
+            rows.shift();
+        }
 
         if (queryInfo[2] === 'users') {
             try {

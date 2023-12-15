@@ -374,7 +374,7 @@ router.get('/activity', limiter, cache('20 minutes'), async function (req, res, 
                 ) AS entry
             FROM time_entries t
             LEFT JOIN scores s ON date_trunc('${period_long}', s.date_played) = t.time_interval
-                            AND s.date_played >= ${db_now} - INTERVAL '${interval} ${period_long}s'
+                            AND s.date_played >= date_trunc('${period_long}', ${db_now} - INTERVAL '${interval} ${period_long}s')
             GROUP BY t.time_interval
             ORDER BY t.time_interval
         ) AS time_entries;

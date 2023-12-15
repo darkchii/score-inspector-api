@@ -55,21 +55,35 @@ router.post('/validate', async (req, res, next) => {
 });
 
 router.post('/get_users', async (req, res, next) => {
-    if (await (!HasAdminAccess(req.body.user_id, req.body.session_token))) {
+    let has_permission = false;
+    try {
+        has_permission = await HasAdminAccess(req.body.user_id, req.body.session_token);
+    } catch (err) {
+        res.json({ error: err.message });
+        return;
+    }
+
+    if (!has_permission) {
         res.json({ error: 'No permission' });
         return;
     }
 
-    const users = await InspectorUser.findAll({
-        include: [
-            {
-                model: InspectorRole,
-                attributes: ['id', 'title', 'description', 'color', 'icon', 'is_visible', 'is_admin', 'is_listed'],
-                through: { attributes: [] },
-                as: 'roles'
-            }
-        ]
-    });
+    let users = null;
+    try{
+        users = await InspectorUser.findAll({
+            include: [
+                {
+                    model: InspectorRole,
+                    attributes: ['id', 'title', 'description', 'color', 'icon', 'is_visible', 'is_admin', 'is_listed'],
+                    through: { attributes: [] },
+                    as: 'roles'
+                }
+            ]
+        });
+    }catch(err){
+        res.json({ error: err.message });
+        return;
+    }
 
     res.json(users);
 });

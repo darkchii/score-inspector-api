@@ -12,6 +12,10 @@ router.get('/', async (req, res, next) => {
 
     data.user_count = await InspectorUser.count();
     data.total_visits = await InspectorVisitor.sum('count');
+    data.unique_visits = await InspectorVisitor.count({
+        distinct: true,
+        col: 'target_id'
+    });
     data.osuAlt = await GetSystemInfo();
 
     res.json({
@@ -19,6 +23,7 @@ router.get('/', async (req, res, next) => {
             inspector: {
                 user_count: data.user_count,
                 total_visits: data.total_visits,
+                unique_visits: data.unique_visits
             },
             alt: data.osuAlt
         }

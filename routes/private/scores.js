@@ -427,7 +427,7 @@ router.get('/today', limiter, cache('10 minutes'), async function (req, res, nex
 
         const top_query = `
             ${base_query}
-            WHERE date_played >= current_date
+            WHERE date_played >= date_trunc('day',${db_now})
             AND (user_id IN (SELECT user_id FROM users2))
             GROUP BY user_id
             ORDER BY value DESC

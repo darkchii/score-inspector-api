@@ -19,7 +19,27 @@ const limiter = rateLimit({
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
-const standardized_formula = '(((((50 * scores.count50 + 100 * scores.count100 + 300 * scores.count300) / (300 * scores.count50 + 300 * scores.count100 + 300 * scores.count300 + 300 * scores.countmiss)::float) * 300000) + ((scores.combo/beatmaps.maxcombo::float)*700000)) * mods.multiplier)';
+const standardized_formula = `
+(
+    (
+        (
+            pow(
+                (
+                    50 * scores.count50 + 100 * scores.count100 + 300 * scores.count300
+                ) / (
+                    300 * scores.count50 + 300 * scores.count100 + 300 * scores.count300 + 300 * scores.countmiss
+                ) :: float,
+                5
+            ) * 500000
+        ) + (
+            pow(
+                scores.combo / beatmaps.maxcombo :: float,
+                0.75
+            ) * 500000
+        )
+    ) * mods.multiplier * 0.96
+)
+`;
 const object_count = '(beatmaps.circles+beatmaps.sliders+beatmaps.spinners)';
 const classic_max_score = '1000000';
 
@@ -77,6 +97,7 @@ const STAT_DATA = {
     'replays_watched': { query: 'replays_watched', table: 'user' },
     'ranked_score': { query: 'ranked_score', table: 'user' },
     'lazer_standard': { query: `sum(${standardized_formula})`, table: 'scores' },
+    // 'lazer_classic': { query: `sum((round((${object_count}*${object_count})*32.57+100000)*${standardized_formula}/${classic_max_score}))`, table: 'scores' },
     'lazer_classic': { query: `sum((round((${object_count}*${object_count})*32.57+100000)*${standardized_formula}/${classic_max_score}))`, table: 'scores' },
     'total_score': { query: 'total_score', table: 'user' },
     'ss_score': { query: 'sum(scores.score)', table: 'scores', scoreFilter: `rank LIKE '%X%'` },

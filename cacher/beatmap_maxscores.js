@@ -33,9 +33,16 @@ async function ProcessBeatmapMaxScores() {
 
 async function ProcessBeatmap(beatmap) {
     //get .osu file from different api
-    const { data } = await axios.get(`http://192.168.178.115:16791/dlb/${beatmap.beatmap_id}`);
+    let _data = null;
+    try{
+        const { data } = await axios.get(`http://192.168.178.115:16791/dlb/${beatmap.beatmap_id}`);
+        _data = data;
+    }catch(err){
+        console.log(`error while fetching beatmap ${beatmap.beatmap_id}`);
+        return;
+    }
     // console.log(data.length);
-    const parsed = new bparser.BeatmapParser(data, 0, true);
+    const parsed = new bparser.BeatmapParser(_data, 0, true);
     const max_scores = [];
     for (const mod of mods) {
         const max_score = parsed.getMaxScore(mod);

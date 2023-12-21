@@ -337,28 +337,72 @@ router.get('/activity', limiter, cache('20 minutes'), async function (req, res, 
         case 'd':
             period_long = 'day';
             break;
+        case 'm':
+            period_long = 'month';
+            break;
+        case 'y':
+            period_long = 'year';
+            break;
+    }
+    const all_time = interval == -1;
+    let oldest_possible_date = undefined;
+    if (all_time) {
+        //get oldest possible date from scores
+        const oldest_score = await AltScore.findOne({
+            order: [
+                ['date_played', 'ASC']
+            ],
+            raw: true,
+            nest: true
+        });
+
+        if (oldest_score) {
+            oldest_possible_date = oldest_score.date_played;
+            //round to nearest interval
+            switch (period) {
+                case 'h':
+                    oldest_possible_date.setMinutes(0);
+                    oldest_possible_date.setSeconds(0);
+                    oldest_possible_date.setMilliseconds(0);
+                    break;
+                case 'd':
+                    oldest_possible_date.setHours(0);
+                    oldest_possible_date.setMinutes(0);
+                    oldest_possible_date.setSeconds(0);
+                    oldest_possible_date.setMilliseconds(0);
+                    break;
+                case 'm':
+                    oldest_possible_date.setDate(1);
+                    oldest_possible_date.setHours(0);
+                    oldest_possible_date.setMinutes(0);
+                    oldest_possible_date.setSeconds(0);
+                    oldest_possible_date.setMilliseconds(0);
+                    break;
+                case 'y':
+                    oldest_possible_date.setMonth(0);
+                    oldest_possible_date.setDate(1);
+                    oldest_possible_date.setHours(0);
+                    oldest_possible_date.setMinutes(0);
+                    oldest_possible_date.setSeconds(0);
+                    oldest_possible_date.setMilliseconds(0);
+                    break;
+            }
+
+            //to string
+            oldest_possible_date = oldest_possible_date.toISOString();
+        }
     }
 
-    // const query = `WITH hour_entries AS (
-    //     SELECT generate_series(date_trunc('hour', ${db_now} - INTERVAL '${hours} hours'), date_trunc('hour', ${db_now}), INTERVAL '1 hour') AS hour
-    //   )
-    //   SELECT ARRAY(
-    //     SELECT json_build_object('timestamp', h.hour, 'entry_count', COALESCE(COUNT(s.date_played), 0)) AS entry
-    //     FROM hour_entries h
-    //     LEFT JOIN scores s ON date_trunc('hour', s.date_played) = h.hour
-    //                        AND s.date_played >= ${db_now} - INTERVAL '${hours} hours'
-    //     GROUP BY h.hour
-    //     ORDER BY h.hour
-    //   ) AS hour_entries;`;
     const query = `
         WITH time_entries AS (
             SELECT 
                 generate_series(
-                    date_trunc('${period_long}', ${db_now} - INTERVAL '${interval} ${period_long}s'),
+                    date_trunc('${period_long}', ${all_time ? `CAST('${oldest_possible_date}' as timestamp)` : `${db_now} - INTERVAL '${interval} ${period_long}s'`}),
                     date_trunc('${period_long}', ${db_now}),
                     INTERVAL '1 ${period_long}s'
                 ) AS time_interval
         )
+        
         SELECT ARRAY(
             SELECT 
                 json_build_object(
@@ -373,12 +417,15 @@ router.get('/activity', limiter, cache('20 minutes'), async function (req, res, 
                     'entry_count_score', COALESCE(SUM(score), 0)
                 ) AS entry
             FROM time_entries t
-            LEFT JOIN scores s ON date_trunc('${period_long}', s.date_played) = t.time_interval
-                            AND s.date_played >= date_trunc('${period_long}', ${db_now} - INTERVAL '${interval} ${period_long}s')
+            LEFT JOIN scores s 
+                ON date_trunc('${period_long}', s.date_played) = t.time_interval
+                ${all_time ? '' : `AND s.date_played >= date_trunc('${period_long}', ${db_now} - INTERVAL '${interval} ${period_long}s')`}
             GROUP BY t.time_interval
             ORDER BY t.time_interval
         ) AS time_entries;
     `;
+
+    console.log(query);
 
     const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
     await client.connect();

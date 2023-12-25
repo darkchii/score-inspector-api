@@ -63,7 +63,7 @@ router.get('/count', limiter, cache('1 hour'), async (req, res) => {
         });
     });
 
-    const _res = buildQuery(req);
+    const _res = buildQuery(req.query);
     const q = _res[0];
     const qVar = _res[1];
 

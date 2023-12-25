@@ -5,7 +5,7 @@ const { Client } = require('pg');
 const { GetBestScores, score_columns, score_columns_full, beatmap_columns, GetBeatmapScores } = require('../../helpers/osualt');
 const rateLimit = require('express-rate-limit');
 const { getBeatmaps, getCompletionData, DefaultInspectorUser } = require('../../helpers/inspector');
-const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat, AltBeatmapEyup, Databases, AltBeatmapSSRatio, AltTopScore, InspectorHistoricalScoreRank, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, InspectorPerformanceRecord, InspectorBeatmap } = require('../../helpers/db');
+const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat, AltBeatmapEyup, Databases, AltBeatmapSSRatio, AltTopScore, InspectorHistoricalScoreRank, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, InspectorPerformanceRecord, InspectorBeatmap, AltBeatmapMaxScoreNomod } = require('../../helpers/db');
 const { Op, Sequelize } = require('sequelize');
 const { CorrectedSqlScoreMods, CorrectMod, ModsToString, db_now } = require('../../helpers/misc');
 const request = require("supertest");
@@ -26,10 +26,10 @@ let cache = apicache.middleware;
 
 async function GetUserScores(req, score_attributes = undefined, beatmap_attributes = undefined) {
     const include_modded = req.query.ignore_modded_stars !== 'true';
+    console.log(req.query.beatmap_id);
     let scores = await AltScore.findAll({
         where: {
-            user_id: req.params.id,
-            ...(req.query.beatmap_id ? { beatmap_id: req.query.beatmap_id } : {}) //for development purposes
+            user_id: req.params.id
         },
         order: [
             ...req.query.order ? [['pp', req.query.dir ?? 'DESC']] : []
@@ -39,9 +39,10 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
             {
                 model: AltBeatmap,
                 as: 'beatmap',
-                // where: {
-                //     approved: { [Op.in]: [1, 2, req.query.include_loved === 'true' ? 4 : 1] }
-                // },
+                where: {
+                    approved: { [Op.in]: [1, 2, req.query.include_loved === 'true' ? 4 : 1] },
+                    ...(req.query.beatmap_id ? { beatmap_id: req.query.beatmap_id } : {}) //for development purposes
+                },
                 required: true,
                 include: [
                     ...(include_modded ? [

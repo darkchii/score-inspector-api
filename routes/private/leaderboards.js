@@ -43,14 +43,14 @@ const standardized_formula = `
 const object_count = '(beatmaps.circles+beatmaps.sliders+beatmaps.spinners)';
 const classic_max_score = '1000000';
 
-async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult = false, country = false, scoreFilter = null, userFilter = null, beatmapQuery = null, groupSets = false, statRequiresGroup = false) {
+async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult = false, country = false, scoreFilter = null, userFilter = null, beatmapQuery = null, groupSets = false, statRequiresGroup = false, noScores = false, noModeCheck = false) {
     const base = `
     (
         select 
         ${isBeatmapResult ?
-            `${groupSets ? 'beatmaps.set_id' : 'beatmaps.beatmap_id'}, beatmaps.mode, beatmaps.approved` :
+            `${groupSets ? 'beatmaps.set_id' : 'beatmaps.beatmap_id'}, ${noModeCheck?'':'beatmaps.mode,'} beatmaps.approved` :
             `users2.user_id, users2.username`}
-            ${country && !groupSets ? ', country_code' : ''}, 
+            ${country && !groupSets && !noScores ? ', country_code' : ''}, 
             ${tableType === 'array_table' ? (beatmapQuery !== null ? beatmapQuery : 'count(*)') : stat} as stat
         ${!isBeatmapResult && tableType === 'scores' ? `
             FROM scores 
@@ -63,16 +63,16 @@ async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult =
         ${tableType === 'array_table' ? `
             FROM ${stat} 
             ${groupSets ? '' :
-                `${scoreFilter || isBeatmapResult ? `INNER JOIN scores ON (scores.beatmap_id = ${stat}.beatmap_id ${scoreFilter !== null ? `AND ${scoreFilter}` : ''})` : ''}
-                INNER JOIN users2 ON (${scoreFilter || isBeatmapResult ? 'scores' : stat}.user_id = users2.user_id ${userFilter !== null ? `AND ${userFilter}` : ''})`
+                `${((scoreFilter || isBeatmapResult) && !noScores) ? `INNER JOIN scores ON (scores.beatmap_id = ${stat}.beatmap_id ${scoreFilter !== null ? `AND ${scoreFilter}` : ''})` : ''}
+                ${!noScores ? `INNER JOIN users2 ON (${scoreFilter || isBeatmapResult ? 'scores' : stat}.user_id = users2.user_id ${userFilter !== null ? `AND ${userFilter}` : ''})` : ''}`
             }`
             : ``}
         ${fullFilter !== null ? `WHERE ${fullFilter}` : ''}
       GROUP BY 
           ${isBeatmapResult ?
-            `${(groupSets ? 'beatmaps.set_id' : 'beatmaps.beatmap_id')}, beatmaps.mode, beatmaps.approved, beatmaps.approved_date, beatmaps.submit_date` :
+            `${(groupSets ? 'beatmaps.set_id' : 'beatmaps.beatmap_id')}, ${noModeCheck?'':'beatmaps.mode,'} beatmaps.approved, beatmaps.approved_date, beatmaps.submit_date` :
             `users2.user_id${statRequiresGroup ? `, ${stat}` : ''}`}
-          ${country && !groupSets ? ', country_code' : ''}
+          ${country && !groupSets && !noScores ? ', country_code' : ''}
       ) base
     `;
     return base;
@@ -121,13 +121,14 @@ const STAT_DATA = {
     'unique_fc': { query: 'unique_fc', table: 'array_table', isArray: true },
     'unique_dt_fc': { query: 'unique_dt_fc', table: 'array_table', isArray: true },
     'unique_hd_ss': { query: 'unique_ss', table: 'array_table', fullFilter: 'is_hd = true', isArray: true },
-    'most_played': { query: 'beatmaps', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
-    'most_played_loved': { query: 'beatmaps', table: 'array_table', fullFilter: 'mode = 0 AND approved in (4)', isArray: false, isBeatmaps: true },
+    'most_cleared': { query: 'beatmaps', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
+    'most_played': { query: 'beatmaps', beatmapQuery: 'beatmaps.playcount', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true, noScores: true },
+    'most_played_sets': { query: 'beatmaps', groupSets: true, beatmapQuery: 'sum(beatmaps.playcount)', table: 'array_table', fullFilter: 'approved in (1,2,4)', isArray: false, isBeatmaps: true, noScores: true, noModeCheck: true },
     'most_ssed': { query: 'beatmaps', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', scoreFilter: 'accuracy=100', isArray: false, isBeatmaps: true, direction: 'asc' },
     'most_fm_ssed': { query: 'beatmaps', table: 'array_table', scoreFilter: '(is_hd = true and is_hr = true and is_dt = true and is_fl = true and accuracy=100)', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
-    'longest_approval': { query: 'beatmaps', groupSets: true, beatmapQuery: 'EXTRACT(EPOCH FROM age(approved_date,submit_date))', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2)', isArray: false, isBeatmaps: true },
-    'longest_maps': { query: 'beatmaps', beatmapQuery: 'length', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
-    'set_with_most_maps': { query: 'beatmaps', groupSets: true, beatmapQuery: 'count(*)', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
+    'longest_approval': { query: 'beatmaps', groupSets: true, beatmapQuery: 'EXTRACT(EPOCH FROM age(approved_date,submit_date))', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2)', isArray: false, isBeatmaps: true, noScores: true  },
+    'longest_maps': { query: 'beatmaps', beatmapQuery: 'length', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true, noScores: true  },
+    'set_with_most_maps': { query: 'beatmaps', groupSets: true, beatmapQuery: 'count(*)', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true, noScores: true  },
 }
 
 async function getQueryUserData(stat, limit, offset, country) {
@@ -184,30 +185,26 @@ async function getQueryUserData(stat, limit, offset, country) {
     return [query, queryData, 'users'];
 }
 
-async function getQueryBeatmapData(stat, limit, offset, country) {
+async function getQueryBeatmapData(stat, limit, offset) {
     let query = '';
     let queryData = [];
     let _where = '';
 
     queryData = [limit, offset];
-    if (country !== undefined && country !== null) {
-        _where = `where country_code ILIKE $3`;
-        queryData.push(country);
-    }
 
     if (stat.fullFilter) {
         _where += `${_where.length === 0 ? 'where ' : ' and '}${stat.fullFilter}`;
     }
 
     const _stat = parse(stat.query);
-    let base = await checkTables(_stat, stat.table, stat.fullFilter ?? null, true, country !== undefined, stat.scoreFilter ?? null, stat.userFilter ?? null, stat.beatmapQuery ?? null, stat.groupSets);
+    let base = await checkTables(_stat, stat.table, stat.fullFilter ?? null, true, false, stat.scoreFilter ?? null, stat.userFilter ?? null, stat.beatmapQuery ?? null, stat.groupSets, stat.requiresGroup, stat.noScores, stat.noModeCheck);
 
     query = `
           select 
             rank, ${stat.groupSets ? 'set_' : 'beatmap_'}id, stat, count(*) OVER() as total_users
           from 
             (
-              select ${stat.groupSets ? 'set_' : 'beatmap_'}id, stat, ROW_NUMBER() over(order by stat desc) as rank${country !== undefined ? ', country_code' : ''}
+              select ${stat.groupSets ? 'set_' : 'beatmap_'}id, stat, ROW_NUMBER() over(order by stat desc) as rank
               from ${base} ${_where}
             ) r 
           order by 
@@ -215,6 +212,7 @@ async function getQueryBeatmapData(stat, limit, offset, country) {
           LIMIT 
             $1 OFFSET $2
     `;
+    console.log(query);
 
     return [query, queryData, stat.groupSets ? 'beatmapsets' : 'beatmaps'];
 }
@@ -238,7 +236,7 @@ async function getQuery(stat, limit, offset, country) {
     if (!selectedStat.isBeatmaps) {
         return await getQueryUserData(selectedStat, limit, offset, country);
     } else {
-        return await getQueryBeatmapData(selectedStat, limit, offset, country);
+        return await getQueryBeatmapData(selectedStat, limit, offset);
     }
 }
 
@@ -290,17 +288,17 @@ router.get('/:stat', limiter, cache('1 hour'), async function (req, res, next) {
             row.total_users = undefined;
         });
 
-        for(let i = 0; i < rows.length; i++) {
+        for (let i = 0; i < rows.length; i++) {
             const previous_stat = Number(rows[i - 1]?.stat ?? null);
             const stat = Number(rows[i].stat);
-            if(previous_stat){
+            if (previous_stat) {
                 rows[i].diff = stat - previous_stat;
-            }else{
+            } else {
                 rows[i].diff = null;
             }
         }
 
-        if(offset>0){
+        if (offset > 0) {
             //remove first row
             rows.shift();
         }

@@ -111,44 +111,59 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
 
 /* Get the entire list of scores of a user */
 router.get('/user/:id', limiter, cache('1 minute'), async function (req, res, next) {
-    const rows = await GetUserScores(req);
-    res.json(rows);
+    try {
+        const rows = await GetUserScores(req);
+        res.json(rows);
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e });
+    }
 });
 
 /* Get the entire list of scores of a beatmap */
 router.get('/beatmap/:id', limiter, cache('1 hour'), async function (req, res, next) {
-    const beatmap_id = req.params.id;
-    const limit = req.query.limit ?? undefined;
-    const offset = req.query.offset ?? undefined;
-    const rows = await GetBeatmapScores(beatmap_id, limit, offset);
-    res.json(rows);
+    try {
+        const beatmap_id = req.params.id;
+        const limit = req.query.limit ?? undefined;
+        const offset = req.query.offset ?? undefined;
+        const rows = await GetBeatmapScores(beatmap_id, limit, offset);
+        res.json(rows);
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e });
+    }
 });
 
 router.get('/completion/:id', limiter, cache('1 hour'), async function (req, res, next) {
-    req.query.ignore_modded_stars = 'true';
-    console.time('GetUserScores');
-    const scores = await GetUserScores(req, ['beatmap_id'], ['beatmap_id', 'approved_date', 'length', 'stars', 'cs', 'ar', 'od', 'hp', 'approved', 'max_combo']);
-    console.timeEnd('GetUserScores');
+    try {
+        req.query.ignore_modded_stars = 'true';
+        console.time('GetUserScores');
+        const scores = await GetUserScores(req, ['beatmap_id'], ['beatmap_id', 'approved_date', 'length', 'stars', 'cs', 'ar', 'od', 'hp', 'approved', 'max_combo']);
+        console.timeEnd('GetUserScores');
 
-    const beatmaps = await getBeatmaps({
-        ...req.query, customAttributeSet: [
-            'beatmap_id',
-            'cs',
-            'ar',
-            'od',
-            'hp',
-            'approved_date',
-            'star_rating',
-            'total_length',
-            'max_combo',
-        ]
-    });
+        const beatmaps = await getBeatmaps({
+            ...req.query, customAttributeSet: [
+                'beatmap_id',
+                'cs',
+                'ar',
+                'od',
+                'hp',
+                'approved_date',
+                'star_rating',
+                'total_length',
+                'max_combo',
+            ]
+        });
 
-    console.time('getCompletionData');
-    const data = getCompletionData(scores, beatmaps);
-    console.timeEnd('getCompletionData');
+        console.time('getCompletionData');
+        const data = getCompletionData(scores, beatmaps);
+        console.timeEnd('getCompletionData');
 
-    res.json(data);
+        res.json(data);
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e });
+    }
 });
 
 const valid_periods = ['all', 'year', 'month', 'week', 'day'];
@@ -189,128 +204,133 @@ const STAT_PERIODS = [
 router.get('/stats', limiter, async function (req, res, next) {
     //stats from today
     let data = {};
-    for await (const period of STAT_PERIODS) {
-        const rows = await InspectorScoreStat.findAll({
+    try {
+        for await (const period of STAT_PERIODS) {
+            const rows = await InspectorScoreStat.findAll({
+                where: {
+                    period: period
+                },
+                raw: true,
+                nest: true
+            });
+
+            data[period] = {};
+            rows.forEach(row => {
+                try {
+                    data[period][row.key] = JSON.parse(row.value);
+                } catch (e) {
+                    data[period][row.key] = row.value;
+                }
+            });
+        }
+
+        const pp_distribution = JSON.parse((await InspectorScoreStat.findOne({
             where: {
-                period: period
+                key: 'pp_distribution',
+                period: 'misc'
             },
+            raw: true,
+            nest: true
+        }))?.value);
+
+        if (pp_distribution) {
+            const user_ids = pp_distribution.map(row => row.most_common_user_id);
+            //new set of unique user ids excluding nulls
+            // let unique_user_ids = [...new Set(user_ids)];
+            const unique_user_ids = user_ids.filter(id => id);
+
+            const client = request(req.app);
+            const users = await client.get(`/users/full/${unique_user_ids.join(',')}?force_array=false&skipDailyData=true`).set('Origin', req.headers.origin || req.headers.host);
+
+            pp_distribution.forEach(row => {
+                const user = users.body.find(user => user.osu.id === row.most_common_user_id);
+                row.most_common_user = user;
+            });
+        }
+
+        data.pp_distribution = pp_distribution ?? [];
+
+        const pp_records = await InspectorPerformanceRecord.findAll({
+            order: [
+                ['pp', 'DESC']
+            ],
             raw: true,
             nest: true
         });
 
-        data[period] = {};
-        rows.forEach(row => {
-            try {
-                data[period][row.key] = JSON.parse(row.value);
-            } catch (e) {
-                data[period][row.key] = row.value;
-            }
-        });
-    }
+        if (pp_records) {
+            //unique user ids
+            const user_ids = pp_records.map(record => record.user_id);
+            const beatmap_ids = pp_records.map(record => record.beatmap_id);
 
-    const pp_distribution = JSON.parse((await InspectorScoreStat.findOne({
-        where: {
-            key: 'pp_distribution',
-            period: 'misc'
-        },
-        raw: true,
-        nest: true
-    }))?.value);
+            const client = request(req.app);
+            const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipDailyData=true`).set('Origin', req.headers.origin || req.headers.host);
 
-    if (pp_distribution) {
-        const user_ids = pp_distribution.map(row => row.most_common_user_id);
-        //new set of unique user ids excluding nulls
-        // let unique_user_ids = [...new Set(user_ids)];
-        const unique_user_ids = user_ids.filter(id => id);
+            //find scores for each pp_record
+            const beatmap_user_pairs = pp_records.map(record => {
+                return {
+                    beatmap_id: record.beatmap_id,
+                    user_id: record.user_id
+                }
+            });
 
-        const client = request(req.app);
-        const users = await client.get(`/users/full/${unique_user_ids.join(',')}?force_array=false&skipDailyData=true`).set('Origin', req.headers.origin || req.headers.host);
-
-        pp_distribution.forEach(row => {
-            const user = users.body.find(user => user.osu.id === row.most_common_user_id);
-            row.most_common_user = user;
-        });
-    }
-
-    data.pp_distribution = pp_distribution ?? [];
-
-    const pp_records = await InspectorPerformanceRecord.findAll({
-        order: [
-            ['pp', 'DESC']
-        ],
-        raw: true,
-        nest: true
-    });
-
-    if (pp_records) {
-        //unique user ids
-        const user_ids = pp_records.map(record => record.user_id);
-        const beatmap_ids = pp_records.map(record => record.beatmap_id);
-
-        const client = request(req.app);
-        const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipDailyData=true`).set('Origin', req.headers.origin || req.headers.host);
-
-        //find scores for each pp_record
-        const beatmap_user_pairs = pp_records.map(record => {
-            return {
-                beatmap_id: record.beatmap_id,
-                user_id: record.user_id
-            }
-        });
-
-        const scores = await AltScore.findAll({
-            where: {
-                [Op.or]: beatmap_user_pairs
-            },
-            raw: true,
-            nest: true,
-            include: [
-                {
-                    model: AltBeatmap,
-                    as: 'beatmap',
-                    required: true,
-                    include: [
-                        {
-                            model: AltModdedStars,
-                            as: 'modded_sr',
-                            where: {
-                                mods_enum: {
-                                    [Op.eq]: Sequelize.literal(CorrectedSqlScoreMods)
-                                },
-                                beatmap_id: {
-                                    [Op.eq]: Sequelize.literal('beatmap.beatmap_id')
+            const scores = await AltScore.findAll({
+                where: {
+                    [Op.or]: beatmap_user_pairs
+                },
+                raw: true,
+                nest: true,
+                include: [
+                    {
+                        model: AltBeatmap,
+                        as: 'beatmap',
+                        required: true,
+                        include: [
+                            {
+                                model: AltModdedStars,
+                                as: 'modded_sr',
+                                where: {
+                                    mods_enum: {
+                                        [Op.eq]: Sequelize.literal(CorrectedSqlScoreMods)
+                                    },
+                                    beatmap_id: {
+                                        [Op.eq]: Sequelize.literal('beatmap.beatmap_id')
+                                    }
                                 }
                             }
-                        }
-                    ]
-                }
-            ]
-        });
+                        ]
+                    }
+                ]
+            });
 
-        pp_records.forEach(record => {
-            record.score = scores.find(score => score.beatmap_id === record.beatmap_id && score.user_id === record.user_id);
-            record.user = users.body.find(user => user.osu.id === record.user_id);
-        });
+            pp_records.forEach(record => {
+                record.score = scores.find(score => score.beatmap_id === record.beatmap_id && score.user_id === record.user_id);
+                record.user = users.body.find(user => user.osu.id === record.user_id);
+            });
 
-        //remove entries if the score is not found
-        let pp_records_filtered = pp_records.filter(record => record.score);
+            //remove entries if the score is not found
+            let pp_records_filtered = pp_records.filter(record => record.score);
 
-        pp_records_filtered.sort((a, b) => b.pp - a.pp).reverse();
+            pp_records_filtered.sort((a, b) => b.pp - a.pp).reverse();
 
-        data.pp_records = pp_records_filtered ?? [];
+            data.pp_records = pp_records_filtered ?? [];
+        }
+    } catch (e) {
+        console.error(e);
     }
 
     res.json(data);
 });
 
 router.get('/most_played', limiter, cache('1 hour'), async function (req, res, next) {
-    const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
-    await client.connect();
+    try {
+        const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
+        await client.connect();
 
-    const limit = req.params.limit || 10;
-    const offset = req.params.offset || 0;
+        const limit = req.params.limit || 10;
+        const offset = req.params.offset || 0;
 
-    const query = `
+        const query = `
         SELECT t.* FROM 
         (
             SELECT count(*), beatmaps.* 
@@ -322,79 +342,84 @@ router.get('/most_played', limiter, cache('1 hour'), async function (req, res, n
         LIMIT ${limit} 
         OFFSET ${offset}`;
 
-    const { rows } = await client.query(query);
-    await client.end();
-    res.json(rows);
+        const { rows } = await client.query(query);
+        await client.end();
+        res.json(rows);
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e });
+    }
 });
 
 router.get('/activity', limiter, cache('20 minutes'), async function (req, res, next) {
-    const interval = req.query.period_amount || 24;
-    const period = req.query.period || 'h';
-    let period_long = 'hour';
-    switch (period) {
-        case 'h':
-            period_long = 'hour';
-            break;
-        case 'd':
-            period_long = 'day';
-            break;
-        case 'm':
-            period_long = 'month';
-            break;
-        case 'y':
-            period_long = 'year';
-            break;
-    }
-    const all_time = interval == -1;
-    let oldest_possible_date = undefined;
-    if (all_time) {
-        //get oldest possible date from scores
-        const oldest_score = await AltScore.findOne({
-            order: [
-                ['date_played', 'ASC']
-            ],
-            raw: true,
-            nest: true
-        });
-
-        if (oldest_score) {
-            oldest_possible_date = oldest_score.date_played;
-            //round to nearest interval
-            switch (period) {
-                case 'h':
-                    oldest_possible_date.setMinutes(0);
-                    oldest_possible_date.setSeconds(0);
-                    oldest_possible_date.setMilliseconds(0);
-                    break;
-                case 'd':
-                    oldest_possible_date.setHours(0);
-                    oldest_possible_date.setMinutes(0);
-                    oldest_possible_date.setSeconds(0);
-                    oldest_possible_date.setMilliseconds(0);
-                    break;
-                case 'm':
-                    oldest_possible_date.setDate(1);
-                    oldest_possible_date.setHours(0);
-                    oldest_possible_date.setMinutes(0);
-                    oldest_possible_date.setSeconds(0);
-                    oldest_possible_date.setMilliseconds(0);
-                    break;
-                case 'y':
-                    oldest_possible_date.setMonth(0);
-                    oldest_possible_date.setDate(1);
-                    oldest_possible_date.setHours(0);
-                    oldest_possible_date.setMinutes(0);
-                    oldest_possible_date.setSeconds(0);
-                    oldest_possible_date.setMilliseconds(0);
-                    break;
-            }
-
-            //to string
-            oldest_possible_date = oldest_possible_date.toISOString();
+    try {
+        const interval = req.query.period_amount || 24;
+        const period = req.query.period || 'h';
+        let period_long = 'hour';
+        switch (period) {
+            case 'h':
+                period_long = 'hour';
+                break;
+            case 'd':
+                period_long = 'day';
+                break;
+            case 'm':
+                period_long = 'month';
+                break;
+            case 'y':
+                period_long = 'year';
+                break;
         }
-    }
+        const all_time = interval == -1;
+        let oldest_possible_date = undefined;
+        if (all_time) {
+            //get oldest possible date from scores
+            const oldest_score = await AltScore.findOne({
+                order: [
+                    ['date_played', 'ASC']
+                ],
+                raw: true,
+                nest: true
+            });
 
-    const query = `
+            if (oldest_score) {
+                oldest_possible_date = oldest_score.date_played;
+                //round to nearest interval
+                switch (period) {
+                    case 'h':
+                        oldest_possible_date.setMinutes(0);
+                        oldest_possible_date.setSeconds(0);
+                        oldest_possible_date.setMilliseconds(0);
+                        break;
+                    case 'd':
+                        oldest_possible_date.setHours(0);
+                        oldest_possible_date.setMinutes(0);
+                        oldest_possible_date.setSeconds(0);
+                        oldest_possible_date.setMilliseconds(0);
+                        break;
+                    case 'm':
+                        oldest_possible_date.setDate(1);
+                        oldest_possible_date.setHours(0);
+                        oldest_possible_date.setMinutes(0);
+                        oldest_possible_date.setSeconds(0);
+                        oldest_possible_date.setMilliseconds(0);
+                        break;
+                    case 'y':
+                        oldest_possible_date.setMonth(0);
+                        oldest_possible_date.setDate(1);
+                        oldest_possible_date.setHours(0);
+                        oldest_possible_date.setMinutes(0);
+                        oldest_possible_date.setSeconds(0);
+                        oldest_possible_date.setMilliseconds(0);
+                        break;
+                }
+
+                //to string
+                oldest_possible_date = oldest_possible_date.toISOString();
+            }
+        }
+
+        const query = `
         WITH time_entries AS (
             SELECT 
                 generate_series(
@@ -426,14 +451,18 @@ router.get('/activity', limiter, cache('20 minutes'), async function (req, res, 
         ) AS time_entries;
     `;
 
-    console.log(query);
+        console.log(query);
 
-    const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
-    await client.connect();
+        const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
+        await client.connect();
 
-    const { rows } = await client.query(query);
-    await client.end();
-    res.json(rows);
+        const { rows } = await client.query(query);
+        await client.end();
+        res.json(rows);
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e });
+    }
 });
 
 const today_categories = [
@@ -457,13 +486,14 @@ const today_categories = [
     },
 ]
 router.get('/today', limiter, cache('10 minutes'), async function (req, res, next) {
-    const users_limit = req.query.users_limit || 10;
-    const specific_user_id = req.query.user_id || undefined;
+    try {
+        const users_limit = req.query.users_limit || 10;
+        const specific_user_id = req.query.user_id || undefined;
 
-    let query = '';
+        let query = '';
 
-    today_categories.forEach((category, index) => {
-        const base_query = `
+        today_categories.forEach((category, index) => {
+            const base_query = `
             SELECT
             user_id, 
             ${category.round ? `ROUND(${category.query})` : category.query} AS value, 
@@ -473,7 +503,7 @@ router.get('/today', limiter, cache('10 minutes'), async function (req, res, nex
             FROM scores
         `;
 
-        const top_query = `
+            const top_query = `
             ${base_query}
             WHERE date_played >= date_trunc('day',${db_now})
             AND (user_id IN (SELECT user_id FROM users2))
@@ -481,7 +511,7 @@ router.get('/today', limiter, cache('10 minutes'), async function (req, res, nex
             ORDER BY value DESC
         `;
 
-        const user_specific_query = `
+            const user_specific_query = `
             WITH t AS (
                 ${top_query}
             )
@@ -490,7 +520,7 @@ router.get('/today', limiter, cache('10 minutes'), async function (req, res, nex
             AND rank > ${users_limit}
         `;
 
-        query += `
+            query += `
             (
                 (
                     ${top_query}
@@ -505,42 +535,46 @@ router.get('/today', limiter, cache('10 minutes'), async function (req, res, nex
                 ` : ''}
             )
             ${index !== today_categories.length - 1 ? 'UNION' : ''}`;
-    });
-
-    const result = await Databases.osuAlt.query(query);
-
-    const data = result?.[0];
-
-    const user_ids = data.map(row => row.user_id);
-    const client = request(req.app);
-    const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipDailyData=true&skipOsuData=true`).set('Origin', req.headers.origin || req.headers.host);
-
-    for (let index = 0; index < data.length; index++) {
-        const row = data[index];
-        row.rank = parseInt(row.rank);
-        row.user = _.cloneDeep(users.body.find(user => user.alt.user_id === row.user_id));
-        row.user.alt = undefined;
-    }
-
-    //reformat each category into their own array
-    const categories = {};
-
-    today_categories.forEach((category, index) => {
-        const category_data = data?.filter(row => row.category === category.name);
-        //sort
-        category_data.sort((a, b) => b.value - a.value);
-
-        //fix dense rankings
-        category_data.forEach((row, index) => {
-            if (index > 0 && row.rank === category_data[index - 1].rank) {
-                row.rank++;
-            }
         });
 
-        categories[category.name] = category_data;
-    });
+        const result = await Databases.osuAlt.query(query);
 
-    res.json(categories);
+        const data = result?.[0];
+
+        const user_ids = data.map(row => row.user_id);
+        const client = request(req.app);
+        const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipDailyData=true&skipOsuData=true`).set('Origin', req.headers.origin || req.headers.host);
+
+        for (let index = 0; index < data.length; index++) {
+            const row = data[index];
+            row.rank = parseInt(row.rank);
+            row.user = _.cloneDeep(users.body.find(user => user.alt.user_id === row.user_id));
+            row.user.alt = undefined;
+        }
+
+        //reformat each category into their own array
+        const categories = {};
+
+        today_categories.forEach((category, index) => {
+            const category_data = data?.filter(row => row.category === category.name);
+            //sort
+            category_data.sort((a, b) => b.value - a.value);
+
+            //fix dense rankings
+            category_data.forEach((row, index) => {
+                if (index > 0 && row.rank === category_data[index - 1].rank) {
+                    row.rank++;
+                }
+            });
+
+            categories[category.name] = category_data;
+        });
+
+        res.json(categories);
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e });
+    }
 });
 
 router.get('/ranking', limiter, cache('1 hour'), async function (req, res, next) {

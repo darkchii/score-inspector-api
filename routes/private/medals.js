@@ -19,8 +19,13 @@ const limiter = rateLimit({
 });
 
 router.get('/get/', limiter, cache('1 hour'), async (req, res) => {
-    let data = await InspectorMedal.findAll();
-    res.json(data ?? []);
+    try{
+        let data = await InspectorMedal.findAll();
+        res.json(data ?? []);
+    }catch(e){
+        console.log(e);
+        res.status(500).json({ error: e });
+    }
 });
 
 module.exports = router;

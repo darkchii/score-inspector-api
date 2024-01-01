@@ -64,17 +64,17 @@ if (process.env.NODE_ENV !== 'production') {
 module.exports.ApplyRoutes = ApplyRoutes;
 function ApplyRoutes(app) {
     privateRoutes.forEach(route => {
-        // if (route.path !== '/') {
-        //     app.use(route.path, cors({
-        //         origin: (origin, callback) => {
-        //             if (cors_whitelist.indexOf(origin) !== -1) {
-        //                 callback(null, true)
-        //             } else {
-        //                 callback(new Error('Not allowed by CORS'))
-        //             }
-        //         }
-        //     }));
-        // }
+        if (route.path !== '/') {
+            app.use(route.path, cors({
+                origin: (origin, callback) => {
+                    if (cors_whitelist.indexOf(origin) !== -1) {
+                        callback(null, true)
+                    } else {
+                        callback(new Error('Not allowed by CORS'))
+                    }
+                }
+            }));
+        }
         app.use(route.path, route.route);
     });
 

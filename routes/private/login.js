@@ -3,19 +3,10 @@ const express = require('express');
 const router = express.Router();
 const crypto = require("crypto");
 require('dotenv').config();
-const rateLimit = require('express-rate-limit');
 const { InspectorUser, InspectorComment, InspectorToken, Raw, InspectorVisitor, AltUser, Databases, InspectorRole, InspectorUserAccessToken, InspectorUserFriend } = require('../../helpers/db');
 const { Sequelize, Op } = require('sequelize');
 const { VerifyToken, GetInspectorUser, InspectorRefreshFriends, getFullUsers, GetToken } = require('../../helpers/inspector');
 const { GetUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET, GetOsuUsers } = require('../../helpers/osu');
-
-const update_Limiter = rateLimit({
-    windowMs: 60 * 1000, // 15 minutes
-    max: 60, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
-    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-    validate: { xForwardedForHeader: false }
-});
 
 // const SESSION_LENGTH = 60 * 60 * 24 * 3;
 const SESSION_DAYS = 3;
@@ -364,7 +355,7 @@ router.post('/friends/refresh', async (req, res, next) => {
     res.json({});
 });
 
-router.post('/update_visitor', update_Limiter, async (req, res, next) => {
+router.post('/update_visitor', async (req, res, next) => {
     let visitor_id = req.body.visitor;
     let target_id = req.body.target;
 
@@ -420,7 +411,7 @@ router.post('/update_visitor', update_Limiter, async (req, res, next) => {
     res.json({});
 });
 
-router.post('/update_profile', update_Limiter, async (req, res, next) => {
+router.post('/update_profile', async (req, res, next) => {
     const user_id = req.body.user_id;
     const token = req.body.token;
     const data = req.body.data;

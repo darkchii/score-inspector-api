@@ -4,17 +4,8 @@ var express = require('express');
 const request = require('request');
 const { RankTest, GetCountryLeaderboard } = require('../../helpers/osu');
 var router = express.Router();
-const rateLimit = require('express-rate-limit');
 const { InspectorRole, InspectorUserRole, InspectorUser } = require('../../helpers/db');
 require('dotenv').config();
-
-const limiter = rateLimit({
-  windowMs: 60 * 1000, // 15 minutes
-  max: 60, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  validate: { xForwardedForHeader: false }
-});
 
 let cache = apicache.middleware;
 
@@ -27,7 +18,7 @@ router.get('/proxy/:url', async (req, res) => {
   }
 });
 
-router.get('/country_list', limiter, cache('1 hour'), async (req, res) => {
+router.get('/country_list', cache('1 hour'), async (req, res) => {
   var data = null;
   try {
     data = await GetCountryLeaderboard();
@@ -40,7 +31,7 @@ router.get('/country_list', limiter, cache('1 hour'), async (req, res) => {
   // res.json(user);
 });
 
-router.get('/roles', limiter, cache('1 hour'), async (req, res) => {
+router.get('/roles', cache('1 hour'), async (req, res) => {
   var data = null;
   try {
     data = await InspectorRole.findAll({
@@ -54,7 +45,7 @@ router.get('/roles', limiter, cache('1 hour'), async (req, res) => {
   }
 });
 
-router.get('/roles/:id', limiter, cache('1 hour'), async (req, res) => {
+router.get('/roles/:id', cache('1 hour'), async (req, res) => {
   var data = null;
   try {
     // const role = await InspectorRole.findOne({

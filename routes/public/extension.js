@@ -1,19 +1,11 @@
 var apicache = require('apicache');
 var express = require('express');
 const { AltUser, Databases } = require('../../helpers/db.js');
-const { default: rateLimit } = require('express-rate-limit');
 var router = express.Router();
-
-const limiter = rateLimit({
-    windowMs: 5 * 1000, // 15 minutes
-    max: 120, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
-    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-});
 
 let cache = apicache.middleware;
 
-router.get('/user/:id', limiter, cache('3 minutes'), async function (req, res, next) {
+router.get('/user/:id', cache('3 minutes'), async function (req, res, next) {
     const id = req.params.id;
     try {
         const user = await AltUser.findOne({

@@ -2,7 +2,6 @@ const express = require('express');
 const moment = require('moment');
 const mysql = require('mysql-await');
 var apicache = require('apicache');
-const rateLimit = require('express-rate-limit');
 const { buildQuery } = require('../../helpers/inspector');
 const { AltModdedStars, AltBeatmap, AltBeatmapPack, Databases, InspectorModdedStars } = require('../../helpers/db');
 const { default: axios } = require('axios');
@@ -13,14 +12,6 @@ const { CorrectedSqlScoreMods, CorrectedSqlScoreModsCustom, CorrectMod } = requi
 const router = express.Router();
 let cache = apicache.middleware;
 
-const limiter = rateLimit({
-    windowMs: 60 * 1000, // 15 minutes
-    max: 60, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
-    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-    validate: { xForwardedForHeader: false }
-});
-
 const connConfig = {
     host: process.env.MYSQL_HOST,
     user: process.env.MYSQL_USER,
@@ -28,7 +19,7 @@ const connConfig = {
     password: process.env.MYSQL_PASS,
 };
 
-router.get('/packs', limiter, cache('1 hour'), async (req, res) => {
+router.get('/packs', cache('1 hour'), async (req, res) => {
     try {
         let result = await Databases.osuAlt.query(`
             SELECT pack_id, count(*) as count from beatmap_packs 
@@ -43,7 +34,7 @@ router.get('/packs', limiter, cache('1 hour'), async (req, res) => {
     }
 });
 
-router.get('/pack_details', limiter, cache('24 hours'), async (req, res) => {
+router.get('/pack_details', cache('24 hours'), async (req, res) => {
     try {
         let result = await axios.get(`https://osu.ppy.sh/api/get_packs?k=${process.env.OSU_APIV1}`, {
             headers: { "Accept-Encoding": "gzip,deflate,compress" }
@@ -56,7 +47,7 @@ router.get('/pack_details', limiter, cache('24 hours'), async (req, res) => {
     }
 });
 
-router.get('/max_playcount', limiter, cache('1 hour'), async (req, res) => {
+router.get('/max_playcount', cache('1 hour'), async (req, res) => {
     try {
         let result = await Databases.osuAlt.query(`
             SELECT set_id, mode, MAX(playcount) AS max_playcount FROM beatmaps GROUP BY set_id, mode
@@ -69,7 +60,7 @@ router.get('/max_playcount', limiter, cache('1 hour'), async (req, res) => {
     }
 });
 
-router.get('/count', limiter, cache('1 hour'), async (req, res) => {
+router.get('/count', cache('1 hour'), async (req, res) => {
     try {
         const connection = mysql.createConnection(connConfig);
 
@@ -95,7 +86,7 @@ router.get('/count', limiter, cache('1 hour'), async (req, res) => {
     }
 });
 
-router.get('/stats', limiter, cache('1 hour'), async (req, res) => {
+router.get('/stats', cache('1 hour'), async (req, res) => {
     try {
         const connection = mysql.createConnection(connConfig);
 
@@ -149,7 +140,7 @@ router.get('/stats', limiter, cache('1 hour'), async (req, res) => {
     }
 });
 
-router.get('/all', limiter, cache('1 hour'), async (req, res) => {
+router.get('/all', cache('1 hour'), async (req, res) => {
     try {
         const result = await GetBeatmaps(req.query);
         res.json(result);
@@ -159,7 +150,7 @@ router.get('/all', limiter, cache('1 hour'), async (req, res) => {
     }
 });
 
-router.get('/count_periodic', limiter, cache('1 hour'), async (req, res) => {
+router.get('/count_periodic', cache('1 hour'), async (req, res) => {
     try {
         const connection = mysql.createConnection(connConfig);
         const mode = req.query.mode !== undefined ? req.query.mode : 0;
@@ -224,7 +215,7 @@ router.get('/count_periodic', limiter, cache('1 hour'), async (req, res) => {
     }
 });
 
-router.get('/allsets', limiter, cache('1 hour'), async (req, res) => {
+router.get('/allsets', cache('1 hour'), async (req, res) => {
     try {
         const connection = mysql.createConnection(connConfig);
 
@@ -250,7 +241,7 @@ router.get('/allsets', limiter, cache('1 hour'), async (req, res) => {
     }
 });
 
-router.get('/monthly', limiter, cache('1 hour'), async (req, res) => {
+router.get('/monthly', cache('1 hour'), async (req, res) => {
     try {
         const connection = mysql.createConnection(connConfig);
         const mode = req.query.mode !== undefined ? req.query.mode : 0;
@@ -282,7 +273,7 @@ router.get('/monthly', limiter, cache('1 hour'), async (req, res) => {
     }
 });
 
-router.get('/yearly', limiter, cache('1 hour'), async (req, res) => {
+router.get('/yearly', cache('1 hour'), async (req, res) => {
     try {
         const connection = mysql.createConnection(connConfig);
         const mode = req.query.mode !== undefined ? req.query.mode : 0;
@@ -314,7 +305,7 @@ router.get('/yearly', limiter, cache('1 hour'), async (req, res) => {
     }
 });
 
-router.get('/:id', limiter, cache('1 hour'), async (req, res) => {
+router.get('/:id', cache('1 hour'), async (req, res) => {
     const mode = req.query.mode !== undefined ? req.query.mode : 0;
     const mods = req.query.mods_enum !== undefined ? req.query.mods_enum : null;
     try {
@@ -370,7 +361,7 @@ router.get('/:id', limiter, cache('1 hour'), async (req, res) => {
     }
 });
 
-router.get('/:id/maxscore', limiter, cache('1 hour'), async (req, res) => {
+router.get('/:id/maxscore', cache('1 hour'), async (req, res) => {
     try {
         const connection = mysql.createConnection(connConfig);
         const mode = req.query.mode !== undefined ? req.query.mode : 0;
@@ -392,7 +383,7 @@ router.get('/:id/maxscore', limiter, cache('1 hour'), async (req, res) => {
     }
 });
 
-router.get('/ranges/:format', limiter, cache('1 hour'), async (req, res) => {
+router.get('/ranges/:format', cache('1 hour'), async (req, res) => {
     try {
         const connection = mysql.createConnection(connConfig);
 

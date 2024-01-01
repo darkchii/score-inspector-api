@@ -2,21 +2,12 @@ const express = require('express');
 var apicache = require('apicache');
 const { GetUser: GetOsuUser, GetDailyUser, GetUsers, GetUserBeatmaps } = require('../../helpers/osu');
 const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser, GetPopulation } = require('../../helpers/osualt');
-const rateLimit = require('express-rate-limit');
 const { getFullUsers } = require('../../helpers/inspector');
 
 let cache = apicache.middleware;
 const router = express.Router();
 
-const limiter = rateLimit({
-  windowMs: 60 * 1000, // 15 minutes
-  max: 200, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers,
-  validate: {xForwardedForHeader: false}
-});
-
-router.get('/osu/id/:id', limiter, cache('1 hour'), async (req, res) => {
+router.get('/osu/id/:id', cache('1 hour'), async (req, res) => {
   const mode = req.query.mode !== undefined ? req.query.mode : 0;
   let user = null;
   try {
@@ -34,7 +25,7 @@ router.get('/osu/id/:id', limiter, cache('1 hour'), async (req, res) => {
   // res.json(user);
 });
 
-router.get('/osu/beatmaps/:id/:type', limiter, cache('1 hour'), async (req, res) => {
+router.get('/osu/beatmaps/:id/:type', cache('1 hour'), async (req, res) => {
   const mode = req.query.mode !== undefined ? req.query.mode : 0;
   const _type = req.params.type !== undefined ? req.params.type : 'ranked';
   const limit = req.query.limit !== undefined ? req.query.limit : 100;
@@ -51,7 +42,7 @@ router.get('/osu/beatmaps/:id/:type', limiter, cache('1 hour'), async (req, res)
   // res.json(user);
 });
 
-router.get('/osu/ids', limiter, cache('1 hour'), async (req, res) => {
+router.get('/osu/ids', cache('1 hour'), async (req, res) => {
   const ids = req.query.id;
   const mode = req.query.mode !== undefined ? req.query.mode : 0;
   let data;
@@ -78,7 +69,7 @@ router.get('/osu/ids', limiter, cache('1 hour'), async (req, res) => {
   res.json(end_data)
 });
 
-router.get('/daily/:id', limiter, cache('30 minutes'), async (req, res) => {
+router.get('/daily/:id', cache('30 minutes'), async (req, res) => {
   const mode = req.query.mode !== undefined ? req.query.mode : 0;
   let user = null;
   try {
@@ -92,7 +83,7 @@ router.get('/daily/:id', limiter, cache('30 minutes'), async (req, res) => {
   // res.json(user);
 });
 
-router.get('/alt/registered/:id', limiter, cache('10 minutes'), async function (req, res, next) {
+router.get('/alt/registered/:id', cache('10 minutes'), async function (req, res, next) {
   try {
     const registered = await IsRegistered(req.params.id);
     res.json(registered);
@@ -101,7 +92,7 @@ router.get('/alt/registered/:id', limiter, cache('10 minutes'), async function (
   }
 });
 
-router.get('/alt/registered', limiter, cache('10 minutes'), async function (req, res, next) {
+router.get('/alt/registered', cache('10 minutes'), async function (req, res, next) {
   try {
     const users = await GetAllUsers();
     res.json(users);
@@ -110,7 +101,7 @@ router.get('/alt/registered', limiter, cache('10 minutes'), async function (req,
   }
 });
 
-router.get('/alt/get/:id', limiter, cache('10 minutes'), async function (req, res, next) {
+router.get('/alt/get/:id', cache('10 minutes'), async function (req, res, next) {
   try {
     const user = await GetAltUser(req.params.id);
     res.json(user);
@@ -119,7 +110,7 @@ router.get('/alt/get/:id', limiter, cache('10 minutes'), async function (req, re
   }
 });
 
-router.get('/alt/find/:query', limiter, cache('10 minutes'), async function (req, res, next) {
+router.get('/alt/find/:query', cache('10 minutes'), async function (req, res, next) {
   try {
     const users = await FindUser(req.params.query, req.query.single, false);
     res.json(users);
@@ -129,7 +120,7 @@ router.get('/alt/find/:query', limiter, cache('10 minutes'), async function (req
   }
 });
 
-router.get('/population', limiter, cache('1 hour'), async (req, res) => {
+router.get('/population', cache('1 hour'), async (req, res) => {
   let data = null;
   try {
     data = await GetPopulation();
@@ -143,7 +134,7 @@ router.get('/population', limiter, cache('1 hour'), async (req, res) => {
   }
 });
 
-router.get('/full/:ids', limiter, cache('10 minutes'), async (req, res, next) => {
+router.get('/full/:ids', cache('10 minutes'), async (req, res, next) => {
   const skippedData = {
     daily: req.query.skipDailyData === 'true' ? true : false,
     alt: req.query.skipAltData === 'true' ? true : false,

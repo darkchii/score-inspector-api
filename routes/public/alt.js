@@ -1,18 +1,10 @@
 var apicache = require('apicache');
 var express = require('express');
 const moment = require("moment/moment");
-const { default: rateLimit } = require('express-rate-limit');
 const { InspectorUser, Databases, AltUser, AltScore, AltBeatmap } = require('../../helpers/db');
 const { getFullUsers } = require('../../helpers/inspector');
 const { Op } = require('sequelize');
 var router = express.Router();
-
-const limiter = rateLimit({
-    windowMs: 5 * 1000, // 15 minutes
-    max: 120, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
-    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-});
 
 let cache = apicache.middleware;
 
@@ -366,7 +358,7 @@ function generateAndStatements(req) {
     return andAdditions;
 }
 
-router.get('/user/:id', limiter, cache('3 minutes'), async function (req, res, next) {
+router.get('/user/:id', cache('3 minutes'), async function (req, res, next) {
     const id = req.params.id;
     let osu_id = null;
     if (id === 'me') {
@@ -430,7 +422,7 @@ router.get('/user/:id', limiter, cache('3 minutes'), async function (req, res, n
 });
 
 const SCORES_PER_PAGE = 1000;
-router.get('/user/:id/scores', limiter, cache('10 minutes'), async function (req, res, next) {
+router.get('/user/:id/scores', cache('10 minutes'), async function (req, res, next) {
     const id = req.params.id;
     let osu_id = null;
     if (id === 'me') {

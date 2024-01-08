@@ -68,11 +68,10 @@ router.post('/', async (req, res, next) => {
     //if user doesn't exist, add them
     if (user === null) {
         //add user to db
-        const [registeredUser, created] = await InspectorUser.create({ osu_id: user_id, known_username: username });
+        const registeredUser = await InspectorUser.create({ osu_id: user_id, known_username: username });
 
-        if (!created) {
+        if (registeredUser instanceof InspectorUser) {
             res.status(500).json({ error: 'Unable to register user' });
-            await connection.end();
             return;
         }
 

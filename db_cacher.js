@@ -56,6 +56,15 @@ async function Loop() {
             console.error(e);
         }
     });
+
+    const UpdateMonthlyScoreFarmers_job = schedule.scheduleJob('0 * * * *', function () {
+        console.log("Updating monthly score farmers");
+        try {
+            UpdateMonthlyScoreFarmers();
+        } catch (e) {
+            console.error(e);
+        }
+    });
 }
 
 const user_rows = [
@@ -582,3 +591,113 @@ async function UpdatePerformanceRecords(){
         console.log(`[PERFORMANCE RECORDS] No data found, is scores table empty? ...`);
     }
 }
+
+const PERIODS_TO_UPDATE = [
+    {
+        name: 'month',
+        slice: 7,
+        user_count: 1
+    }, {
+        name: 'year',
+        slice: 4,
+        user_count: 1
+    }
+];
+async function UpdateMonthlyScoreFarmers(){
+    //get top 10 users by sum(score) on beatmaps ranked in each month
+
+    for await(const period of PERIODS_TO_UPDATE){
+        const data = await Databases.osuAlt.query(`
+        WITH MonthlyScores AS (
+            SELECT
+                s.user_id,
+                username,
+                DATE_TRUNC('${period.name}', b.approved_date AT TIME ZONE 'UTC') AS ${period.name},
+                s.score
+            FROM
+                beatmaps b
+            JOIN scores s ON b.beatmap_id = s.beatmap_id
+            JOIN users2 u ON s.user_id = u.user_id
+            WHERE b.approved IN (1, 2, 4) AND mode = 0
+        )
+        , RankedMonthlyScores AS (
+            SELECT
+                user_id,
+                username,
+                ${period.name},
+                SUM(score) AS total_score,
+                ROW_NUMBER() OVER (PARTITION BY ${period.name} ORDER BY SUM(score) DESC) AS rnk
+            FROM
+                MonthlyScores
+            GROUP BY
+                user_id, username, ${period.name}
+        )
+        SELECT
+            rnk AS rank,
+            user_id,
+            username,
+            ${period.name} as period,
+            total_score
+        FROM
+            RankedMonthlyScores
+        WHERE
+            rnk <= ${period.user_count}
+        `);
+    
+        console.log(`[MONTHLY SCORE FARMERS] Got ${data[0].length} rows.`);
+    
+        //reformat data
+        const _data = [];
+    
+        for await(const row of data[0]){
+            _data.push({
+                user_id: row.user_id,
+                username: row.username,
+                rank: row.rank,
+                //convert to UTC and YYYY-MM
+                period: new Date(row.period).toISOString().split('T')[0].slice(0, period.slice),
+                total_score: row.total_score
+            });
+        }
+    
+        // console.table(_data);
+        for await(const row of _data){
+            //check if row already exists
+            const exists = await InspectorScoreStat.findOne({
+                where: {
+                    key: 'monthly_score_farmers',
+                    period: row.period
+                }
+            });
+    
+            if(exists){
+                //update but remember both for logging reasons
+                await InspectorScoreStat.update({
+                    value: JSON.stringify(row)
+                }, {
+                    where: {
+                        key: 'monthly_score_farmers',
+                        period: row.period,
+                    }
+                });
+            }else{
+                //create
+                await InspectorScoreStat.create({
+                    key: 'monthly_score_farmers',
+                    period: row.period,
+                    value: JSON.stringify(row)
+                });
+            
+            }
+    
+    
+            // await InspectorScoreStat.create({
+            //     key: 'monthly_score_farmers',
+            //     period: row.month,
+            //     value: JSON.stringify(row)
+            // });
+        }
+    }
+
+}
+// UpdateMonthlyScoreFarmers();

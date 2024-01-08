@@ -801,5 +801,37 @@ router.get('/milestones/stats', cache('1 hour'), async function (req, res, next)
         users: users ?? 0
     });
 });
+router.get('/monthly_score_farmers', cache('1 hour'), async function (req, res, next) {
+    let data = [];
+    try{
+        const result = await InspectorScoreStat.findAll({
+            where: {
+                key: 'monthly_score_farmers'
+            },
+            raw: true,
+            nest: true
+        });
+
+        // data = result?.[0]?.value ?? [];
+        data = result?.map(row => {
+            return JSON.parse(row.value);
+        });
+
+        let user_ids = data.map(row => row.user_id);
+        //unique user ids only
+        user_ids = [...new Set(user_ids)];
+        const client = request(req.app);
+        const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipDailyData=true&skipOsuData=true`).set('Origin', req.headers.origin || req.headers.host);
+
+        for (let index = 0; index < data.length; index++) {
+            const row = data[index];
+            row.user = _.cloneDeep(users.body.find(user => user.alt.user_id === row.user_id));
+            row.user.alt = undefined;
+        }
+    }catch(e){
+        console.error(e);
+    }
+    res.json(data);
+});
 
 module.exports = router;

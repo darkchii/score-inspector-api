@@ -582,9 +582,3 @@ async function UpdatePerformanceRecords(){
         console.log(`[PERFORMANCE RECORDS] No data found, is scores table empty? ...`);
     }
 }
-// UpdateScoreRanks();
-// UpdateUsers();
-// UpdatePerformanceDistribution();
-// UpdatePerformanceRecords();
-// getCheatedScores();
-// ProcessBeatmapMaxScores();

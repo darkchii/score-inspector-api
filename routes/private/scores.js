@@ -702,7 +702,7 @@ router.get('/ranking/stats', cache('1 hour'), async function (req, res, next) {
     });
 });
 
-router.get('/milestones/user/:id', cache('1 hour'), async function (req, res, next) {
+router.get('/milestones/user/:id', cache('5 minutes'), async function (req, res, next) {
     const user_id = req.params.id;
     const limit = req.query.limit || 10;
     const offset = req.query.offset || 0;
@@ -732,7 +732,7 @@ router.get('/milestones/user/:id', cache('1 hour'), async function (req, res, ne
     res.json(milestones);
 });
 
-router.get('/milestones', cache('1 hour'), async function (req, res, next) {
+router.get('/milestones', cache('5 minutes'), async function (req, res, next) {
     let limit = 100;
     let page = 0;
     try {
@@ -774,12 +774,12 @@ router.get('/milestones', cache('1 hour'), async function (req, res, next) {
     res.json(milestones);
 });
 
-router.get('/milestones/count', cache('1 hour'), async function (req, res, next) {
+router.get('/milestones/count', cache('5 minutes'), async function (req, res, next) {
     const count = await InspectorUserMilestone.count();
     res.json(count);
 });
 
-router.get('/milestones/stats', cache('1 hour'), async function (req, res, next) {
+router.get('/milestones/stats', cache('5 minutes'), async function (req, res, next) {
     let recorded_milestones, recorded_milestones_today, users;
     try {
         recorded_milestones = await InspectorUserMilestone.count();

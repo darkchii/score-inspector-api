@@ -48,10 +48,19 @@ async function Loop() {
         }
     });
 
-    const milestone_job = schedule.scheduleJob('0 */1 * * *', function () { //every hour
+    const milestone_job = schedule.scheduleJob('0 * * * *', function () { //every hour
         console.log("Updating users");
         try {
             UpdateUsers();
+        } catch (e) {
+            console.error(e);
+        }
+    });
+
+    const UpdatePerformanceRecords_job = schedule.scheduleJob('0 * * * *', function () {
+        console.log("Updating pp records");
+        try {
+            UpdatePerformanceRecords();
         } catch (e) {
             console.error(e);
         }
@@ -107,7 +116,7 @@ async function UpdatePerformanceDistribution() {
             most_common_user_id_count: user_count?.[0]?.[0]?.count ?? null
         });
 
-        console.log(`[PP DISTRIBUTION] ${pp} - ${pp+100} done.`);
+        console.log(`[PP DISTRIBUTION] ${pp} - ${pp + 100} done.`);
     }
 
     console.log(`[PP DISTRIBUTION] Got ${pp_distribution.length} rows.`);
@@ -125,7 +134,7 @@ async function UpdatePerformanceDistribution() {
         await InspectorScoreStat.create({ key: 'pp_distribution', period: 'misc', value: pp_distribution_json });
 
         console.log(`[PP DISTRIBUTION] Updated database.`);
-    }else{
+    } else {
         console.log(`[PP DISTRIBUTION] No rows found, is scores table empty? ...`);
     }
 }
@@ -549,7 +558,7 @@ async function UpdateUsers() {
     });
 }
 
-async function UpdatePerformanceRecords(){
+async function UpdatePerformanceRecords() {
     console.log(`[PERFORMANCE RECORDS] Updating ...`);
     const data = await Databases.osuAlt.query(`
     SELECT s.*
@@ -566,7 +575,7 @@ async function UpdatePerformanceRecords(){
     WHERE s.pp = s.max_pp
     ORDER BY s.date_played;
     `);
-    
+
     console.log(`[PERFORMANCE RECORDS] Got ${data[0].length} rows.`);
 
     const _data = data[0].map(x => {
@@ -578,7 +587,7 @@ async function UpdatePerformanceRecords(){
         }
     });
 
-    if(_data && _data.length > 0){
+    if (_data && _data.length > 0) {
         //empty table
         await InspectorPerformanceRecord.destroy({
             where: {}
@@ -587,7 +596,7 @@ async function UpdatePerformanceRecords(){
         //insert new data
         await InspectorPerformanceRecord.bulkCreate(_data);
         console.log(`[PERFORMANCE RECORDS] Updated database.`);
-    }else{
+    } else {
         console.log(`[PERFORMANCE RECORDS] No data found, is scores table empty? ...`);
     }
 }
@@ -597,16 +606,35 @@ const PERIODS_TO_UPDATE = [
         name: 'month',
         slice: 7,
         user_count: 1
-    }, {
+    },
+    {
         name: 'year',
         slice: 4,
         user_count: 1
     }
 ];
-async function UpdateMonthlyScoreFarmers(){
+async function UpdateMonthlyScoreFarmers() {
     //get top 10 users by sum(score) on beatmaps ranked in each month
 
-    for await(const period of PERIODS_TO_UPDATE){
+    let overtake_log = [];
+
+    const _data = await InspectorScoreStat.findOne({
+        where: {
+            key: 'monthly_score_farmers_log',
+        }
+    });
+
+    if (!_data) {
+        await InspectorScoreStat.create({
+            key: 'monthly_score_farmers_log',
+            period: 'misc',
+            value: JSON.stringify([])
+        });
+    } else {
+        overtake_log = JSON.parse(_data.dataValues.value);
+    }
+
+    for await (const period of PERIODS_TO_UPDATE) {
         const data = await Databases.osuAlt.query(`
         WITH MonthlyScores AS (
             SELECT
@@ -643,13 +671,13 @@ async function UpdateMonthlyScoreFarmers(){
         WHERE
             rnk <= ${period.user_count}
         `);
-    
+
         console.log(`[MONTHLY SCORE FARMERS] Got ${data[0].length} rows.`);
-    
+
         //reformat data
         const _data = [];
-    
-        for await(const row of data[0]){
+
+        for await (const row of data[0]) {
             _data.push({
                 user_id: row.user_id,
                 username: row.username,
@@ -659,9 +687,9 @@ async function UpdateMonthlyScoreFarmers(){
                 total_score: row.total_score
             });
         }
-    
+
         // console.table(_data);
-        for await(const row of _data){
+        for await (const row of _data) {
             //check if row already exists
             const exists = await InspectorScoreStat.findOne({
                 where: {
@@ -669,8 +697,26 @@ async function UpdateMonthlyScoreFarmers(){
                     period: row.period
                 }
             });
-    
-            if(exists){
+
+            if (exists) {
+                const previous_value = JSON.parse(exists.dataValues.value);
+                const current_value = row;
+                if (current_value.total_score > previous_value.total_score) {
+                    if (previous_value.user_id !== current_value.user_id) {
+                        //user overtook someone else
+                        overtake_log.push({
+                            period: current_value.period,
+                            old_user_id: previous_value.user_id,
+                            old_username: previous_value.username,
+                            new_user_id: current_value.user_id,
+                            new_username: current_value.username,
+                            old_total_score: previous_value.total_score,
+                            new_total_score: current_value.total_score,
+                            //utc time
+                            time: new Date().toISOString()
+                        });
+                    }
+                }
                 //update but remember both for logging reasons
                 await InspectorScoreStat.update({
                     value: JSON.stringify(row)
@@ -680,24 +726,33 @@ async function UpdateMonthlyScoreFarmers(){
                         period: row.period,
                     }
                 });
-            }else{
+            } else {
                 //create
                 await InspectorScoreStat.create({
                     key: 'monthly_score_farmers',
                     period: row.period,
                     value: JSON.stringify(row)
                 });
-            
+
             }
-    
-    
-            // await InspectorScoreStat.create({
-            //     key: 'monthly_score_farmers',
-            //     period: row.month,
-            //     value: JSON.stringify(row)
-            // });
+
+
+            await InspectorScoreStat.create({
+                key: 'monthly_score_farmers',
+                period: row.month,
+                value: JSON.stringify(row)
+            });
         }
     }
 
+    //update log
+    await InspectorScoreStat.update({
+        value: JSON.stringify(overtake_log)
+    }, {
+        where: {
+            key: 'monthly_score_farmers_log',
+        }
+    });
+    console.log(`[MONTHLY SCORE FARMERS] Updated database.`)
 }
 // UpdateMonthlyScoreFarmers();

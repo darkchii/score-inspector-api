@@ -140,9 +140,6 @@ async function UpdatePerformanceDistribution() {
 }
 
 async function UpdateScoreStatistics(STAT_PERIODS) {
-    const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
-    await client.connect();
-
     const approved_query = `(beatmaps.approved = 1 OR beatmaps.approved = 2 OR beatmaps.approved = 4)`;
     const join_query = `
     LEFT JOIN beatmaps ON scores.beatmap_id = beatmaps.beatmap_id 
@@ -192,7 +189,8 @@ async function UpdateScoreStatistics(STAT_PERIODS) {
             time_query = `AND (date_played BETWEEN ${db_now} - INTERVAL \'30 MIN\' AND ${db_now})`;
         }
 
-        const { rows } = await client.query(`${full_query} ${time_query}`);
+        const [rows] = await Databases.osuAlt.query(`${full_query} ${time_query}`);
+        rows[0].average_map_age = new Date(`${rows[0].average_map_age} UTC`);
 
         // insert/update all rows into database
         for await (const key of Object.keys(rows[0])) {
@@ -228,7 +226,8 @@ async function UpdateScoreStatistics(STAT_PERIODS) {
 
 
         const most_played_map_columns = beatmap_columns;
-        const { rows: most_played_maps } = await client.query(`SELECT count(*), ${most_played_map_columns} FROM scores ${join_query} WHERE ${approved_query} ${time_query} GROUP BY ${most_played_map_columns} ORDER BY count(*) DESC LIMIT 5`);
+        // const { rows: most_played_maps } = await client.query(`SELECT count(*), ${most_played_map_columns} FROM scores ${join_query} WHERE ${approved_query} ${time_query} GROUP BY ${most_played_map_columns} ORDER BY count(*) DESC LIMIT 5`);
+        const [most_played_maps] = await Databases.osuAlt.query(`SELECT count(*), ${most_played_map_columns} FROM scores ${join_query} WHERE ${approved_query} ${time_query} GROUP BY ${most_played_map_columns} ORDER BY count(*) DESC LIMIT 5`);
 
         //store most played maps in a single row
         let most_played_maps_json = JSON.stringify(most_played_maps);
@@ -250,7 +249,8 @@ async function UpdateScoreStatistics(STAT_PERIODS) {
         }
 
         for await (const user_row of user_rows) {
-            const { rows: _data } = await client.query(`SELECT ${user_row.select} as c, ${user_columns} FROM scores ${join_query} WHERE ${approved_query} ${time_query} GROUP BY ${user_columns} ORDER BY ${user_row.select} DESC LIMIT 1`);
+            // const { rows: _data } = await client.query(`SELECT ${user_row.select} as c, ${user_columns} FROM scores ${join_query} WHERE ${approved_query} ${time_query} GROUP BY ${user_columns} ORDER BY ${user_row.select} DESC LIMIT 1`);
+            const [_data] = await Databases.osuAlt.query(`SELECT ${user_row.select} as c, ${user_columns} FROM scores ${join_query} WHERE ${approved_query} ${time_query} GROUP BY ${user_columns} ORDER BY ${user_row.select} DESC LIMIT 1`);
 
             const data_json = JSON.stringify(_data[0]);
             let data_row = await InspectorScoreStat.findOne({ where: { key: user_row.key, period: period } });
@@ -271,10 +271,6 @@ async function UpdateScoreStatistics(STAT_PERIODS) {
 
         console.log(`[STATS] ${period} stats updated.`);
     }
-
-    await client.end();
-
-    // console.log(_res);
 }
 
 const SCORE_RANK_PAGES = 200;

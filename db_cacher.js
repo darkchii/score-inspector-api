@@ -735,13 +735,6 @@ async function UpdateMonthlyScoreFarmers() {
                 });
 
             }
-
-
-            await InspectorScoreStat.create({
-                key: 'monthly_score_farmers',
-                period: row.month,
-                value: JSON.stringify(row)
-            });
         }
     }
 

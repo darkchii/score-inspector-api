@@ -1,12 +1,11 @@
 var express = require('express');
 var apicache = require('apicache');
 var router = express.Router();
-const { Client } = require('pg');
 const { HasScores, GetBeatmaps } = require('../../helpers/osualt');
 const { GetBeatmapCount } = require('../../helpers/inspector');
 const e = require('express');
 const { parse } = require('../../helpers/misc');
-const { InspectorUser } = require('../../helpers/db');
+const { InspectorUser, Raw, Databases } = require('../../helpers/db');
 const { GetOsuUsers } = require('../../helpers/osu');
 require('dotenv').config();
 let cache = apicache.middleware;
@@ -125,14 +124,15 @@ const STAT_DATA = {
 
 async function getQueryUserData(stat, limit, offset, country) {
     let query = '';
-    let queryData = [];
+    let queryData = {};
     let _where = '';
     let beatmapCount = (await GetBeatmapCount()) ?? 0;
 
-    queryData = [limit, offset];
+    queryData.limit = limit;
+    queryData.offset = offset;
     if (country !== undefined && country !== null) {
-        _where = `where country_code ILIKE $3`;
-        queryData.push(country);
+        _where = `where country_code ILIKE :country_code`;
+        queryData.country_code = country;
     }
 
     const _stat = parse(stat.query, beatmapCount);
@@ -170,7 +170,7 @@ async function getQueryUserData(stat, limit, offset, country) {
           order by 
             rank 
           LIMIT 
-            $1 OFFSET $2
+            :limit OFFSET :offset
         ) data
         `;
 
@@ -179,10 +179,12 @@ async function getQueryUserData(stat, limit, offset, country) {
 
 async function getQueryBeatmapData(stat, limit, offset) {
     let query = '';
-    let queryData = [];
+    let queryData = {};
     let _where = '';
 
-    queryData = [limit, offset];
+    // queryData = [limit, offset];
+    queryData.limit = limit;
+    queryData.offset = offset;
 
     if (stat.fullFilter) {
         _where += `${_where.length === 0 ? 'where ' : ' and '}${stat.fullFilter}`;
@@ -202,7 +204,7 @@ async function getQueryBeatmapData(stat, limit, offset) {
           order by 
             rank ${stat.direction ?? 'asc'}
           LIMIT 
-            $1 OFFSET $2
+            :limit OFFSET :offset
     `;
     console.log(query);
 
@@ -241,13 +243,15 @@ router.get('/:stat/:user_id', cache('1 hour'), async function (req, res, next) {
         if (limit > 100) limit = 100;
         if (offset < 0) offset = 0;
         offset = offset * limit;
-        const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT, timeout: 30000 });
-        await client.connect();
+        // const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT, timeout: 30000 });
+        // await client.connect();
         const queryInfo = getQuery(stat, limit, offset, null, user_id);
-        let { rows } = await client.query(queryInfo[0], queryInfo[1]);
-        await client.end();
+        // let { rows } = await client.query(queryInfo[0], queryInfo[1]);
+        // await client.end();
+        const [rows] = await Databases.osuAlt.query(queryInfo[0], { replacements: queryInfo[1] });
 
         res.json(rows);
+        // res.json(queryInfo);
     } catch (e) {
         res.json({ error: e.message });
     }
@@ -263,17 +267,18 @@ router.get('/:stat', cache('1 hour'), async function (req, res, next) {
         if (limit > 100) limit = 100;
         if (offset < 0) offset = 0;
         offset = offset * limit;
-        const client = new Client({ query_timeout: 30000, user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
-        await client.connect();
-
+        
         queryInfo = await getQuery(stat, limit + (offset > 0 ? 1 : 0), Math.max(offset - 1, 0), country, removeFirst = offset > 0);
         if (!queryInfo) {
             res.status(400).send('Invalid stat');
             return;
         }
-
-        const { rows } = await client.query(queryInfo[0], queryInfo[1]);
-        await client.end();
+        
+        // const client = new Client({ query_timeout: 30000, user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
+        // await client.connect();
+        // const { rows } = await client.query(queryInfo[0], queryInfo[1]);
+        // await client.end();
+        const [rows] = await Databases.osuAlt.query(queryInfo[0], { replacements: queryInfo[1] });
 
         const total_users = rows[0]?.total_users ?? 0;
         rows.forEach(row => {

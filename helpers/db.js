@@ -29,6 +29,7 @@ const { InspectorUserMilestoneModel } = require('./models/InspectorMilestone');
 const { InspectorUserAccessTokenModel } = require('./models/InspectorUserAccessToken');
 const { InspectorUserFriendModel } = require('./models/InspectorUserFriend');
 const { InspectorPerformanceRecordModel } = require('./models/InspectorPerformanceRecord.js');
+const { InspectorCountryStatModel } = require('./models/InspectorCountryStat.js');
 require('dotenv').config();
 
 let databases = {
@@ -56,6 +57,7 @@ const InspectorUserRole = InspectorUserRoleModel(databases.inspector);
 const InspectorHistoricalScoreRank = InspectorHistoricalScoreRankModel(databases.inspector);
 const InspectorUserMilestone = InspectorUserMilestoneModel(databases.inspector);
 const InspectorPerformanceRecord = InspectorPerformanceRecordModel(databases.inspector);
+const InspectorCountryStat = InspectorCountryStatModel(databases.inspector);
 
 const InspectorOsuUser = OsuUserModel(databases.inspector);
 
@@ -146,6 +148,7 @@ module.exports.InspectorHistoricalScoreRank = InspectorHistoricalScoreRank;
 module.exports.InspectorOsuUser = InspectorOsuUser;
 module.exports.InspectorUserMilestone = InspectorUserMilestone;
 module.exports.InspectorPerformanceRecord = InspectorPerformanceRecord;
+module.exports.InspectorCountryStat = InspectorCountryStat;
 
 module.exports.AltUser = AltUser;
 module.exports.AltPriorityUser = AltPriorityUser;

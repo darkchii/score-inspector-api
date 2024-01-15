@@ -1,7 +1,6 @@
 var express = require('express');
 var apicache = require('apicache');
 var router = express.Router();
-const { Client } = require('pg');
 const { GetBestScores, score_columns, score_columns_full, beatmap_columns, GetBeatmapScores } = require('../../helpers/osualt');
 const { getBeatmaps, getCompletionData, DefaultInspectorUser } = require('../../helpers/inspector');
 const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat, AltBeatmapEyup, Databases, AltBeatmapSSRatio, AltTopScore, InspectorHistoricalScoreRank, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, InspectorPerformanceRecord, InspectorBeatmap, AltBeatmapMaxScoreNomod } = require('../../helpers/db');
@@ -316,9 +315,6 @@ router.get('/stats', async function (req, res, next) {
 
 router.get('/most_played', cache('1 hour'), async function (req, res, next) {
     try {
-        const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
-        await client.connect();
-
         const limit = req.params.limit || 10;
         const offset = req.params.offset || 0;
 
@@ -334,8 +330,9 @@ router.get('/most_played', cache('1 hour'), async function (req, res, next) {
         LIMIT ${limit} 
         OFFSET ${offset}`;
 
-        const { rows } = await client.query(query);
-        await client.end();
+        // const { rows } = await client.query(query);
+        const [rows] = await Databases.osuAlt.query(query);
+        // await client.end();
         res.json(rows);
     } catch (e) {
         console.error(e);
@@ -443,13 +440,7 @@ router.get('/activity', cache('20 minutes'), async function (req, res, next) {
         ) AS time_entries;
     `;
 
-        console.log(query);
-
-        const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
-        await client.connect();
-
-        const { rows } = await client.query(query);
-        await client.end();
+        const [rows] = await Databases.osuAlt.query(query);
         res.json(rows);
     } catch (e) {
         console.error(e);

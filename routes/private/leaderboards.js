@@ -243,11 +243,7 @@ router.get('/:stat/:user_id', cache('1 hour'), async function (req, res, next) {
         if (limit > 100) limit = 100;
         if (offset < 0) offset = 0;
         offset = offset * limit;
-        // const client = new Client({ user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT, timeout: 30000 });
-        // await client.connect();
         const queryInfo = getQuery(stat, limit, offset, null, user_id);
-        // let { rows } = await client.query(queryInfo[0], queryInfo[1]);
-        // await client.end();
         const [rows] = await Databases.osuAlt.query(queryInfo[0], { replacements: queryInfo[1] });
 
         res.json(rows);
@@ -274,10 +270,6 @@ router.get('/:stat', cache('1 hour'), async function (req, res, next) {
             return;
         }
         
-        // const client = new Client({ query_timeout: 30000, user: process.env.ALT_DB_USER, host: process.env.ALT_DB_HOST, database: process.env.ALT_DB_DATABASE, password: process.env.ALT_DB_PASSWORD, port: process.env.ALT_DB_PORT });
-        // await client.connect();
-        // const { rows } = await client.query(queryInfo[0], queryInfo[1]);
-        // await client.end();
         const [rows] = await Databases.osuAlt.query(queryInfo[0], { replacements: queryInfo[1] });
 
         const total_users = rows[0]?.total_users ?? 0;

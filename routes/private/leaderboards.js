@@ -34,14 +34,18 @@ const standardized_formula = `
 const object_count = '(beatmaps.circles+beatmaps.sliders+beatmaps.spinners)';
 const classic_max_score = '1000000';
 
-async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult = false, country = false, scoreFilter = null, userFilter = null, beatmapQuery = null, groupSets = false, statRequiresGroup = false, noScores = false, noModeCheck = false) {
+async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult = false, country = false, scoreFilter = null, userFilter = null, beatmapQuery = null, groupSets = false, statRequiresGroup = false, noScores = false, noModeCheck = false, data = null) {
     const base = `
     (
         select 
         ${isBeatmapResult ?
-            `${groupSets ? 'beatmaps.set_id' : 'beatmaps.beatmap_id'}, ${noModeCheck?'':'beatmaps.mode,'} beatmaps.approved` :
+            `${groupSets ? 'beatmaps.set_id' : 'beatmaps.beatmap_id'}, ${noModeCheck ? '' : 'beatmaps.mode,'} beatmaps.approved` :
             `users2.user_id, users2.username`}
             ${country && !groupSets && !noScores ? ', country_code' : ''}, 
+            ${data.extra_output ? 
+                //extra_data is seperated by comma, but we want to get a single column (json array)
+                `json_agg(${data.extra_output})` 
+                : 'NULL'} as extra_data,
             ${tableType === 'array_table' ? (beatmapQuery !== null ? beatmapQuery : 'count(*)') : stat} as stat
         ${!isBeatmapResult && tableType === 'scores' ? `
             FROM scores 
@@ -51,6 +55,10 @@ async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult =
         ${!isBeatmapResult && tableType === 'user' ? `
             FROM users2
             INNER JOIN users_ppv1 ON users2.user_id = users_ppv1.user_id` : ``}
+        ${data?.joins ? data.joins.map(join => `
+                INNER JOIN ${join.table} ON ${join.on} 
+            `).join('') : ''
+        }
         ${tableType === 'array_table' ? `
             FROM ${stat} 
             ${groupSets ? '' :
@@ -61,9 +69,14 @@ async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult =
         ${fullFilter !== null ? `WHERE ${fullFilter}` : ''}
       GROUP BY 
           ${isBeatmapResult ?
-            `${(groupSets ? 'beatmaps.set_id' : 'beatmaps.beatmap_id')}, ${noModeCheck?'':'beatmaps.mode,'} beatmaps.approved, beatmaps.approved_date, beatmaps.submit_date` :
+            `${(groupSets ? 'beatmaps.set_id' : 'beatmaps.beatmap_id')}, ${noModeCheck ? '' : 'beatmaps.mode,'} beatmaps.approved, beatmaps.approved_date, beatmaps.submit_date` :
             `users2.user_id${statRequiresGroup ? `, ${stat}` : ''}`}
           ${country && !groupSets && !noScores ? ', country_code' : ''}
+          ${
+            data?.joins ? data.joins.map(join => join.groupby ? `
+                , ${join.groupby}
+            ` : '').join('') : ''
+          }
       ) base
     `;
     return base;
@@ -86,6 +99,16 @@ const STAT_DATA = {
     'playtime': { query: 'playtime', table: 'user' },
     'followers': { query: 'follower_count', table: 'user' },
     'replays_watched': { query: 'replays_watched', table: 'user' },
+    'monthly_replays_watched': {
+        query: 'user_replay_counts.count', table: 'user', joins: [
+            {
+                table: 'user_replay_counts',
+                on: 'user_replay_counts.user_id = users2.user_id',
+                groupby: 'user_replay_counts.count'
+            }
+        ],
+        extra_output: 'user_replay_counts.start_date'
+    },
     'ranked_score': { query: 'ranked_score', table: 'user' },
     'lazer_standard': { query: `sum(${standardized_formula})`, table: 'scores' },
     // 'lazer_classic': { query: `sum((round((${object_count}*${object_count})*32.57+100000)*${standardized_formula}/${classic_max_score}))`, table: 'scores' },
@@ -117,9 +140,9 @@ const STAT_DATA = {
     'most_played_sets': { query: 'beatmaps', groupSets: true, beatmapQuery: 'sum(beatmaps.playcount)', table: 'array_table', fullFilter: 'approved in (1,2,4)', isArray: false, isBeatmaps: true, noScores: true, noModeCheck: true },
     'most_ssed': { query: 'beatmaps', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', scoreFilter: 'accuracy=100', isArray: false, isBeatmaps: true, direction: 'asc' },
     'most_fm_ssed': { query: 'beatmaps', table: 'array_table', scoreFilter: '(is_hd = true and is_hr = true and is_dt = true and is_fl = true and accuracy=100)', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
-    'longest_approval': { query: 'beatmaps', groupSets: true, beatmapQuery: 'EXTRACT(EPOCH FROM age(approved_date,submit_date))', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2)', isArray: false, isBeatmaps: true, noScores: true  },
-    'longest_maps': { query: 'beatmaps', beatmapQuery: 'length', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true, noScores: true  },
-    'set_with_most_maps': { query: 'beatmaps', groupSets: true, beatmapQuery: 'count(*)', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true, noScores: true  },
+    'longest_approval': { query: 'beatmaps', groupSets: true, beatmapQuery: 'EXTRACT(EPOCH FROM age(approved_date,submit_date))', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2)', isArray: false, isBeatmaps: true, noScores: true },
+    'longest_maps': { query: 'beatmaps', beatmapQuery: 'length', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true, noScores: true },
+    'set_with_most_maps': { query: 'beatmaps', groupSets: true, beatmapQuery: 'count(*)', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true, noScores: true },
 }
 
 async function getQueryUserData(stat, limit, offset, country) {
@@ -136,7 +159,7 @@ async function getQueryUserData(stat, limit, offset, country) {
     }
 
     const _stat = parse(stat.query, beatmapCount);
-    let base = await checkTables(_stat, stat.table, stat.scoreFilter ?? null, false, country !== undefined, null, null, null, null, stat.requiresGroup);
+    let base = await checkTables(_stat, stat.table, stat.scoreFilter ?? null, false, country !== undefined, null, null, null, null, stat.requiresGroup, null, null, stat);
 
     query = `
         select 
@@ -151,7 +174,7 @@ async function getQueryUserData(stat, limit, offset, country) {
       from 
         (
           select 
-            rank, username, user_id${country !== undefined ? ', country_code' : ''}, stat
+            rank, username, user_id${country !== undefined ? ', country_code' : ''}, extra_data, stat
           from 
             (
               select 
@@ -161,6 +184,8 @@ async function getQueryUserData(stat, limit, offset, country) {
                 username
                 ${/* country code */''}
                 ${country !== undefined ? ', country_code' : ''},
+                ${/* extra data */''}
+                extra_data,
                 ${/* stat */ ''}
                 stat, 
                 ${/* rank */ ''}
@@ -191,14 +216,14 @@ async function getQueryBeatmapData(stat, limit, offset) {
     }
 
     const _stat = parse(stat.query);
-    let base = await checkTables(_stat, stat.table, stat.fullFilter ?? null, true, false, stat.scoreFilter ?? null, stat.userFilter ?? null, stat.beatmapQuery ?? null, stat.groupSets, stat.requiresGroup, stat.noScores, stat.noModeCheck);
+    let base = await checkTables(_stat, stat.table, stat.fullFilter ?? null, true, false, stat.scoreFilter ?? null, stat.userFilter ?? null, stat.beatmapQuery ?? null, stat.groupSets, stat.requiresGroup, stat.noScores, stat.noModeCheck, stat);
 
     query = `
           select 
-            rank, ${stat.groupSets ? 'set_' : 'beatmap_'}id, stat, count(*) OVER() as total_users
+            rank, ${stat.groupSets ? 'set_' : 'beatmap_'}id, extra_data, stat, count(*) OVER() as total_users
           from 
             (
-              select ${stat.groupSets ? 'set_' : 'beatmap_'}id, stat, ROW_NUMBER() over(order by stat desc) as rank
+              select ${stat.groupSets ? 'set_' : 'beatmap_'}id, extra_data, stat, ROW_NUMBER() over(order by stat desc) as rank
               from ${base} ${_where}
             ) r 
           order by 
@@ -263,13 +288,13 @@ router.get('/:stat', cache('1 hour'), async function (req, res, next) {
         if (limit > 100) limit = 100;
         if (offset < 0) offset = 0;
         offset = offset * limit;
-        
+
         queryInfo = await getQuery(stat, limit + (offset > 0 ? 1 : 0), Math.max(offset - 1, 0), country, removeFirst = offset > 0);
         if (!queryInfo) {
             res.status(400).send('Invalid stat');
             return;
         }
-        
+
         const [rows] = await Databases.osuAlt.query(queryInfo[0], { replacements: queryInfo[1] });
 
         const total_users = rows[0]?.total_users ?? 0;
@@ -295,10 +320,22 @@ router.get('/:stat', cache('1 hour'), async function (req, res, next) {
         if (queryInfo[2] === 'users') {
             try {
                 const users = await GetOsuUsers(rows.map(row => row.user_id));
+                console.log(users);
                 if (users) {
-                    users.forEach(osu_user => {
-                        const row = rows.find(row => row.user_id === osu_user.id);
-                        row.osu_user = osu_user;
+                    // users.forEach(osu_user => {
+                    //     const row = rows.find(row => row.user_id === osu_user.id);
+                    //     // row.osu_user = osu_user;
+                    //     //deep clone osu_user
+                    //     row.osu_user = JSON.parse(JSON.stringify(osu_user));
+                    //     if(!row){
+                    //         console.log('row not found', osu_user.id);
+                    //     }
+                    // });
+                    rows.forEach(row => {
+                        const osu_user = users.find(user => user.id === row.user_id);
+                        if (osu_user) {
+                            row.osu_user = JSON.parse(JSON.stringify(osu_user));
+                        }
                     });
                 }
 

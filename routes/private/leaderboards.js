@@ -94,6 +94,16 @@ const STAT_DATA = {
     'c': { query: 'count(*)', table: 'scores', scoreFilter: `rank LIKE '%C%'` },
     'd': { query: 'count(*)', table: 'scores', scoreFilter: `rank LIKE '%D%'` },
     'playcount': { query: 'playcount', table: 'user' },
+    'monthly_playcount': {
+        query: 'user_playcounts.count', table: 'user', joins: [
+            {
+                table: 'user_playcounts',
+                on: 'user_playcounts.user_id = users2.user_id',
+                groupby: 'user_playcounts.count'
+            }
+        ],
+        extra_output: 'user_playcounts.start_date'
+    },
     'clears': { query: 'count(*)', table: 'scores' },
     'fc_clears': { query: `count(*)`, table: 'scores', scoreFilter: FC_FILTER },
     'playtime': { query: 'playtime', table: 'user' },

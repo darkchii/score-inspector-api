@@ -77,6 +77,9 @@ async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult =
                 , ${join.groupby}
             ` : '').join('') : ''
           }
+          ${
+            data?.groupby ? `, ${data.groupby}` : ``
+          }
       ) base
     `;
     return base;

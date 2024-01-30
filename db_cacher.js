@@ -680,6 +680,7 @@ async function UpdateMonthlyScoreFarmers() {
 
         console.log(`[MONTHLY SCORE FARMERS] Got ${data[0].length} rows.`);
 
+
         //reformat data
         const _data = [];
 
@@ -694,7 +695,6 @@ async function UpdateMonthlyScoreFarmers() {
             });
         }
 
-        // console.table(_data);
         for await (const row of _data) {
             //check if row already exists
             const exists = await InspectorScoreStat.findOne({

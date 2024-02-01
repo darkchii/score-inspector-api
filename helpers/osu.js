@@ -49,8 +49,8 @@ async function AuthorizedApiCall(url, type = 'get', api_version = null, timeout 
         'Content-Type': 'application/json',
         Accept: 'application/json',
         Authorization: `Bearer ${stored_token}`,
-        "Accept-Encoding": "gzip,deflate,compress" //axios fix (https://github.com/axios/axios/issues/5346)
-        // 'x-api-version': 20220704
+        "Accept-Encoding": "gzip,deflate,compress", //axios fix (https://github.com/axios/axios/issues/5346)
+        'x-api-version': 20240130
     };
     if (api_version != null) {
         headers['x-api-version'] = api_version;

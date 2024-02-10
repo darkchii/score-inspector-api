@@ -12,8 +12,6 @@ const { AltUniqueSSModel } = require('./models/AltUniqueSS');
 const { AltUniqueFCModel } = require('./models/AltUniqueFC');
 const { AltUniqueDTFCModel } = require('./models/AltUniqueDTFC');
 const { AltUserAchievementModel } = require('./models/AltUserAchievement');
-const { InspectorBeatmapModel } = require('./models/InspectorBeatmap');
-const { InspectorBeatmapMaxScoreModel } = require('./models/InspectorBeatmapMaxScore');
 const { InspectorCheatedScoreModel } = require('./models/InspectorCheatedScore');
 const { InspectorModdedStarsModel } = require('./models/InspectorModdedStars');
 const { InspectorScoreStatModel } = require('./models/InspectorScoreStat');
@@ -44,8 +42,6 @@ const InspectorUserFriend = InspectorUserFriendModel(databases.inspector);
 const InspectorRole = InspectorRoleModel(databases.inspector);
 const InspectorComment = InspectorCommentModel(databases.inspector);
 const InspectorVisitor = InspectorVisitorModel(databases.inspector);
-const InspectorBeatmap = InspectorBeatmapModel(databases.inspector);
-const InspectorBeatmapMaxScore = InspectorBeatmapMaxScoreModel(databases.inspector);
 const InspectorCheatedScore = InspectorCheatedScoreModel(databases.inspector);
 const InspectorModdedStars2014May = InspectorModdedStarsModel(databases.inspector, '2014may');
 const InspectorModdedStars2014July = InspectorModdedStarsModel(databases.inspector, '2014july');
@@ -70,14 +66,8 @@ InspectorVisitor.belongsTo(InspectorUser, { as: 'target_user', foreignKey: 'targ
 InspectorUserMilestone.belongsTo(InspectorOsuUser, { as: 'user', foreignKey: 'user_id', targetKey: 'user_id' });
 InspectorUserMilestone.belongsTo(InspectorUser, { as: 'inspector_user', foreignKey: 'user_id', targetKey: 'osu_id' });
 
-InspectorBeatmap.hasMany(InspectorBeatmapMaxScore, { as: 'max_scores', foreignKey: 'beatmap_id' });
-InspectorBeatmapMaxScore.belongsTo(InspectorBeatmap, { as: 'max_scores', foreignKey: 'beatmap_id' });
-
-InspectorBeatmap.hasMany(InspectorCheatedScore, { as: 'cheated_scores', foreignKey: 'beatmap_id' });
-InspectorCheatedScore.belongsTo(InspectorBeatmap, { as: 'cheated_scores', foreignKey: 'beatmap_id' });
-
-InspectorPerformanceRecord.belongsTo(InspectorOsuUser, { as: 'user', foreignKey: 'user_id', targetKey: 'user_id' });
-InspectorPerformanceRecord.belongsTo(InspectorBeatmap, { as: 'beatmap', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
+// InspectorPerformanceRecord.belongsTo(InspectorOsuUser, { as: 'user', foreignKey: 'user_id', targetKey: 'user_id' });
+// InspectorPerformanceRecord.belongsTo(InspectorBeatmap, { as: 'beatmap', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
 
 const AltUser = AltUserModel(databases.osuAlt);
 const AltPriorityUser = AltPriorityUserModel(databases.osuAlt);
@@ -139,8 +129,6 @@ module.exports.InspectorRole = InspectorRole;
 module.exports.InspectorUserRole = InspectorUserRole;
 module.exports.InspectorComment = InspectorComment;
 module.exports.InspectorVisitor = InspectorVisitor;
-module.exports.InspectorBeatmap = InspectorBeatmap;
-module.exports.InspectorBeatmapMaxScore = InspectorBeatmapMaxScore;
 module.exports.InspectorCheatedScore = InspectorCheatedScore;
 module.exports.InspectorScoreStat = InspectorScoreStat;
 module.exports.InspectorMedal = InspectorMedal;

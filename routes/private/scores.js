@@ -241,71 +241,71 @@ router.get('/stats', async function (req, res, next) {
 
         data.pp_distribution = pp_distribution ?? [];
 
-        const pp_records = await InspectorPerformanceRecord.findAll({
-            order: [
-                ['pp', 'DESC']
-            ],
-            raw: true,
-            nest: true
-        });
+        // const pp_records = await InspectorPerformanceRecord.findAll({
+        //     order: [
+        //         ['pp', 'DESC']
+        //     ],
+        //     raw: true,
+        //     nest: true
+        // });
 
-        if (pp_records) {
-            //unique user ids
-            const user_ids = pp_records.map(record => record.user_id);
-            const beatmap_ids = pp_records.map(record => record.beatmap_id);
+        // if (pp_records) {
+        //     //unique user ids
+        //     const user_ids = pp_records.map(record => record.user_id);
+        //     const beatmap_ids = pp_records.map(record => record.beatmap_id);
 
-            const client = request(req.app);
-            const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipDailyData=true`).set('Origin', req.headers.origin || req.headers.host);
+        //     const client = request(req.app);
+        //     const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipDailyData=true`).set('Origin', req.headers.origin || req.headers.host);
 
-            //find scores for each pp_record
-            const beatmap_user_pairs = pp_records.map(record => {
-                return {
-                    beatmap_id: record.beatmap_id,
-                    user_id: record.user_id
-                }
-            });
+        //     //find scores for each pp_record
+        //     const beatmap_user_pairs = pp_records.map(record => {
+        //         return {
+        //             beatmap_id: record.beatmap_id,
+        //             user_id: record.user_id
+        //         }
+        //     });
 
-            const scores = await AltScore.findAll({
-                where: {
-                    [Op.or]: beatmap_user_pairs
-                },
-                raw: true,
-                nest: true,
-                include: [
-                    {
-                        model: AltBeatmap,
-                        as: 'beatmap',
-                        required: true,
-                        include: [
-                            {
-                                model: AltModdedStars,
-                                as: 'modded_sr',
-                                where: {
-                                    mods_enum: {
-                                        [Op.eq]: Sequelize.literal(CorrectedSqlScoreMods)
-                                    },
-                                    beatmap_id: {
-                                        [Op.eq]: Sequelize.literal('beatmap.beatmap_id')
-                                    }
-                                }
-                            }
-                        ]
-                    }
-                ]
-            });
+        //     const scores = await AltScore.findAll({
+        //         where: {
+        //             [Op.or]: beatmap_user_pairs
+        //         },
+        //         raw: true,
+        //         nest: true,
+        //         include: [
+        //             {
+        //                 model: AltBeatmap,
+        //                 as: 'beatmap',
+        //                 required: true,
+        //                 include: [
+        //                     {
+        //                         model: AltModdedStars,
+        //                         as: 'modded_sr',
+        //                         where: {
+        //                             mods_enum: {
+        //                                 [Op.eq]: Sequelize.literal(CorrectedSqlScoreMods)
+        //                             },
+        //                             beatmap_id: {
+        //                                 [Op.eq]: Sequelize.literal('beatmap.beatmap_id')
+        //                             }
+        //                         }
+        //                     }
+        //                 ]
+        //             }
+        //         ]
+        //     });
 
-            pp_records.forEach(record => {
-                record.score = scores.find(score => score.beatmap_id === record.beatmap_id && score.user_id === record.user_id);
-                record.user = users.body.find(user => user.osu.id === record.user_id);
-            });
+        //     pp_records.forEach(record => {
+        //         record.score = scores.find(score => score.beatmap_id === record.beatmap_id && score.user_id === record.user_id);
+        //         record.user = users.body.find(user => user.osu.id === record.user_id);
+        //     });
 
-            //remove entries if the score is not found
-            let pp_records_filtered = pp_records.filter(record => record.score);
+        //     //remove entries if the score is not found
+        //     let pp_records_filtered = pp_records.filter(record => record.score);
 
-            pp_records_filtered.sort((a, b) => b.pp - a.pp).reverse();
+        //     pp_records_filtered.sort((a, b) => b.pp - a.pp).reverse();
 
-            data.pp_records = pp_records_filtered ?? [];
-        }
+        //     data.pp_records = pp_records_filtered ?? [];
+        // }
     } catch (e) {
         console.error(e);
     }

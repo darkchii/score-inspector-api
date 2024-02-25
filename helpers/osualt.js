@@ -165,7 +165,7 @@ async function GetAltUsers(id_array, include_sub_data = true) {
     try {
         console.log(`Get(Alt)Users: ${id_array}`);
         let _id_array = id_array;
-        if(!Array.isArray(id_array)) _id_array = id_array.split(',');
+        if (!Array.isArray(id_array)) _id_array = id_array.split(',');
         const rows = await AltUser.findAll({
             where: { user_id: _id_array },
             include: include_sub_data ? [
@@ -241,7 +241,7 @@ async function FindUser(query, single, requirePriority = true) {
                 const osu_user = osu_users?.find(x => x.id == rows[i].user_id);
                 const rank_user = rank_users?.find(x => x.user_id == rows[i].user_id);
 
-                
+
                 if (osu_user) {
                     rows[i].osu = osu_user;
                     if (rank_user) {
@@ -334,7 +334,9 @@ async function GetBestScores(period, stat, limit, loved = false) {
                     WHERE beatmap_id = ${score.beatmap_id} 
                     AND mods_enum = ${CorrectedSqlScoreModsCustom(score.enabled_mods)}`);
                 score.beatmap.modded_sr = modded_sr_rows[0]?.[0];
-                score.beatmap.modded_sr['live'] = JSON.parse(JSON.stringify(modded_sr_rows[0]?.[0]));
+                if (score.beatmap.modded_sr !== undefined) {
+                    score.beatmap.modded_sr['live'] = JSON.parse(JSON.stringify(modded_sr_rows[0]?.[0]));
+                }
             }
 
             // add the user data
@@ -494,14 +496,14 @@ async function GetSystemInfo() {
 module.exports.GetPopulation = GetPopulation;
 async function GetPopulation() {
     let data;
-    try{
+    try {
         const rows = await AltUser.findAll({
             attributes: ['country_code', 'country_name', [Sequelize.fn('COUNT', Sequelize.col('country_code')), 'count']],
             group: ['country_code', 'country_name'],
             order: [[Sequelize.col('count'), 'DESC']]
         });
         data = rows;
-    }catch(err){
+    } catch (err) {
         throw new Error(err.message);
     }
     return data;

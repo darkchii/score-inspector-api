@@ -1,6 +1,6 @@
 const { Sequelize } = require("sequelize");
 
-const AltBeatmapModel = (db) => db.define('Beatmap', {
+const modelAltBeatmap = (db) => db.define('Beatmap', {
     beatmap_id: { type: Sequelize.INTEGER, primaryKey: true, allowNull: false, },
     approved: { type: Sequelize.INTEGER, allowNull: false, },
     submit_date: { type: Sequelize.DATE, allowNull: false, },
@@ -44,4 +44,4 @@ const AltBeatmapModel = (db) => db.define('Beatmap', {
     tableName: 'beatmaps',
     timestamps: false
 });
-module.exports.AltBeatmapModel = AltBeatmapModel;
+module.exports.modelAltBeatmap = modelAltBeatmap;

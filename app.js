@@ -6,8 +6,9 @@ var logger = require('morgan');
 var cache = require('persistent-cache');
 var cors = require('cors');
 
+var beatmapsRouter = require('./routes/beatmaps');
+
 const compression = require('compression');
-const StartCacher = require('./db_cacher');
 const { ApplyRoutes } = require('./routes');
 
 var app = express();
@@ -37,7 +38,7 @@ app.use(function (req, res, next) {
   next();
 });
 
-ApplyRoutes(app);
+app.use('/beatmaps', beatmapsRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
@@ -56,10 +57,3 @@ app.use(function (err, req, res, next) {
 });
 
 module.exports = app;
-
-//if production
-
-if (process.env.NODE_ENV === 'production') {
-  StartCacher();
-}
-

@@ -148,6 +148,9 @@ router.get('/full/:ids', cache('10 minutes'), async (req, res, next) => {
     ids = req.params.ids.split(',').map(id => parseInt(id));
   }
 
+  //remove duplicates
+  ids = [...new Set(ids)];
+
   const data = await getFullUsers(ids, skippedData);
 
   if (ids.length === 1 && (req.query.force_array === undefined || req.query.force_array === 'false')) {

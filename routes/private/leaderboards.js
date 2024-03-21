@@ -4,7 +4,7 @@ var router = express.Router();
 const { HasScores, GetBeatmaps } = require('../../helpers/osualt');
 const { GetBeatmapCount } = require('../../helpers/inspector');
 const e = require('express');
-const { parse } = require('../../helpers/misc');
+const { CorrectedSqlScoreMods_2, parse } = require('../../helpers/misc');
 const { InspectorUser, Raw, Databases } = require('../../helpers/db');
 const { GetOsuUsers } = require('../../helpers/osu');
 require('dotenv').config();
@@ -31,6 +31,16 @@ const standardized_formula = `
     ) * mods.multiplier * 0.96
 )
 `;
+const alt_level_xp_formula = `
+    GREATEST(
+    (((ssh_count + ss_count) * 100) +
+    ((sh_count + s_count) * 50) +
+    (a_count * 25) +
+    (ranked_score * 0.000002) +
+    (total_score * 0.000002) +
+    (pp*250) +
+    (playtime*0.055)), 0)
+`;
 const object_count = '(beatmaps.circles+beatmaps.sliders+beatmaps.spinners)';
 const classic_max_score = '1000000';
 
@@ -51,6 +61,7 @@ async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult =
             FROM scores 
             INNER JOIN mods ON scores.enabled_mods = mods.enum 
             INNER JOIN beatmaps ON scores.beatmap_id = beatmaps.beatmap_id 
+            INNER JOIN moddedsr on beatmaps.beatmap_id = moddedsr.beatmap_id AND moddedsr.mods_enum = ${CorrectedSqlScoreMods_2}
             INNER JOIN users2 ON scores.user_id = users2.user_id` : ``}
         ${!isBeatmapResult && tableType === 'user' ? `
             FROM users2
@@ -86,6 +97,7 @@ async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult =
 }
 
 const FC_FILTER = '(countmiss = 0 and (maxcombo - combo) <= scores.count100 or rank like \'%X%\')';
+const FC_FILTER_CASE = 'WHEN scores.rank LIKE \'%X%\' THEN 1 WHEN scores.countmiss = 0 AND (beatmaps.maxcombo - scores.combo) <= scores.count100 THEN 1 ELSE 0 END';
 
 const STAT_DATA = {
     'pp': { query: 'users2.pp', table: 'user' },
@@ -96,6 +108,20 @@ const STAT_DATA = {
     'b': { query: 'count(*)', table: 'scores', scoreFilter: `rank LIKE '%B%'` },
     'c': { query: 'count(*)', table: 'scores', scoreFilter: `rank LIKE '%C%'` },
     'd': { query: 'count(*)', table: 'scores', scoreFilter: `rank LIKE '%D%'` },
+    'dedication_wither': {
+        query: `
+            pow(
+                sum(
+                    CASE
+                        WHEN scores.rank LIKE '%X%' THEN (9 * greatest(1.0,least(2.0, moddedsr.star_rating / 5.0)))
+                        WHEN scores.perfect = 1 THEN (3 * greatest(1.0,least(2.0, moddedsr.star_rating / 5.0)))
+                        ELSE 1
+                    END
+                ) * ROUND(sum(scores.score) / 1000000000),
+                1 / 2.0
+            )
+        `, table: 'scores'
+    },
     'playcount': { query: 'playcount', table: 'user' },
     'monthly_playcount': {
         query: 'user_playcounts.count', table: 'user', joins: [
@@ -161,13 +187,14 @@ const STAT_DATA = {
 async function getQueryUserData(stat, limit, offset, country) {
     let query = '';
     let queryData = {};
-    let _where = '';
+    //stat isnt null and nan
+    let _where = 'where stat is not null and stat != \'nan\'';
     let beatmapCount = (await GetBeatmapCount()) ?? 0;
 
     queryData.limit = limit;
     queryData.offset = offset;
     if (country !== undefined && country !== null) {
-        _where = `where country_code ILIKE :country_code`;
+        _where = `and country_code ILIKE :country_code`;
         queryData.country_code = country;
     }
 
@@ -206,7 +233,7 @@ async function getQueryUserData(stat, limit, offset, country) {
               from ${base} ${_where}
             ) r 
           order by 
-            rank 
+            rank
           LIMIT 
             :limit OFFSET :offset
         ) data
@@ -309,6 +336,7 @@ router.get('/:stat', cache('1 hour'), async function (req, res, next) {
         }
 
         const [rows] = await Databases.osuAlt.query(queryInfo[0], { replacements: queryInfo[1] });
+        console.log(rows);
 
         const total_users = rows[0]?.total_users ?? 0;
         rows.forEach(row => {

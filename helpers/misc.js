@@ -140,6 +140,7 @@ module.exports.ModsToString = (enabled_mods) => {
 }
 
 module.exports.CorrectedSqlScoreMods = `(CAST("Score"."enabled_mods" AS int))& ~${excluded_mods.reduce((ps, a) => ps + a, 0)}`;
+module.exports.CorrectedSqlScoreMods_2 = `(CAST(scores.enabled_mods AS int))& ~${excluded_mods.reduce((ps, a) => ps + a, 0)}`;
 module.exports.CorrectedSqlScoreModsCustom = (enabled_mods) => `${enabled_mods}& ~${excluded_mods.reduce((ps, a) => ps + a, 0)}`;
 
 module.exports.sleep = function (ms) {

@@ -10,14 +10,15 @@ const { InspectorUser, InspectorVisitor } = require('../../helpers/db');
 router.get('/', async (req, res, next) => {
     let data = {};
 
+    console.time('system');
     data.user_count = await InspectorUser.count();
     data.total_visits = await InspectorVisitor.sum('count');
     data.unique_visits = await InspectorVisitor.count({
         distinct: true,
         col: 'target_id'
     });
+    console.timeEnd('system');
     data.osuAlt = await GetSystemInfo();
-
     res.json({
         database: {
             inspector: {

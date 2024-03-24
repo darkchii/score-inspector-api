@@ -1,16 +1,11 @@
 //this script is to store some data in the local database, like overall score statistics.
 //mainly to circumvent extremely slow sql queries that don't need to be live
 
-const { Client } = require("pg");
 const { beatmap_columns } = require("./helpers/osualt");
-const { InspectorScoreStat, InspectorHistoricalScoreRank, AltUser, InspectorOsuUser, InspectorUserMilestone, Databases, InspectorPerformanceRecord, Raw, InspectorCountryStat } = require("./helpers/db");
-const { Op, Sequelize } = require('sequelize');
-const { db_now, sleep } = require("./helpers/misc");
-const { default: axios } = require("axios");
-const { default: axiosRetry } = require("axios-retry");
+const { InspectorScoreStat, AltUser, Databases, Raw, InspectorCountryStat } = require("./helpers/db");
+const { Sequelize } = require('sequelize');
+const { db_now } = require("./helpers/misc");
 const schedule = require('node-schedule');
-const { getCheatedScores } = require("./cacher/cheated.js");
-const { ProcessBeatmapMaxScores } = require("./cacher/beatmap_maxscores.js");
 const { AuthorizedApiCall } = require("./helpers/osu.js");
 const scoreStatCacher = require("./cacher/jobScoreStatistics.js");
 const scoreRankCacher = require("./cacher/jobScoreRanks.js");
@@ -19,6 +14,7 @@ const milestonesCacher = require("./cacher/jobMilestones.js");
 const performanceRecordsCacher = require("./cacher/jobPerformanceRecords.js");
 const monthlyScoreFarmersCacher = require("./cacher/jobMonthlyScoreFarmers.js");
 const populationStatsCacher = require("./cacher/jobPopulationStats.js");
+const systemStatsCacher = require("./cacher/jobSystemStats.js");
 require('dotenv').config();
 
 function StartCacher() {
@@ -35,6 +31,7 @@ const Cachers = [
     { cacher: performanceRecordsCacher, interval: '0 * * * *', data: [] },
     { cacher: monthlyScoreFarmersCacher, interval: '0 * * * *', data: [] },
     { cacher: populationStatsCacher, interval: '0 * * * *', data: [] },
+    { cacher: systemStatsCacher, interval: '*/15 * * * *', data: [] },
 ]
 
 async function Loop() {

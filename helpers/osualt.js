@@ -1,6 +1,6 @@
 const moment = require("moment/moment");
 const { Op, Sequelize, where } = require("sequelize");
-const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, AltModdedStars, Databases, InspectorUser } = require("./db");
+const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, AltModdedStars, Databases, InspectorUser, InspectorScoreStat } = require("./db");
 const { CorrectedSqlScoreMods, CorrectedSqlScoreModsCustom } = require("./misc");
 const { default: axios } = require("axios");
 const { GetOsuUsers } = require("./osu");
@@ -468,25 +468,15 @@ module.exports.GetSystemInfo = GetSystemInfo;
 async function GetSystemInfo() {
     let data;
     try {
-        // const total_scores = await AltScore.count();
-        // const total_users = await AltUser.count();
-        // const tracked_users = await AltPriorityUser.count();
-        // const [size, _] = await Databases.osuAlt.query(`SELECT pg_database_size('osu') as c`);
-        // data = { total_scores, total_users, tracked_users, size: size[0].c };
-
-        await Promise.all([
-            AltScore.count(),
-            AltUser.count(),
-            AltPriorityUser.count(),
-            // Databases.osuAlt.query(`SELECT pg_database_size('osu') as c`)
-        ]).then((values) => {
-            data = {
-                total_scores: values[0],
-                total_users: values[1],
-                tracked_users: values[2],
-                // size: values[3][0].c
-            };
+        const _data = await InspectorScoreStat.findOne({
+            where: {
+                key: 'system_info',
+                period: 'any'
+            }
         });
+
+        data = JSON.parse(_data.value);
+        console.log(data);
     } catch (err) {
         throw new Error(err.message);
     }

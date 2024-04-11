@@ -790,12 +790,12 @@ router.get('/milestones/stats', cache('5 minutes'), async function (req, res, ne
         users: users ?? 0
     });
 });
-router.get('/monthly_score_farmers', cache('1 hour'), async function (req, res, next) {
+router.get('/monthly_farmers/:data', cache('1 hour'), async function (req, res, next) {
     let data = [];
     try {
         const result = await InspectorScoreStat.findAll({
             where: {
-                key: 'monthly_score_farmers'
+                key: `monthly_${req.params.data}_farmers`
             },
             raw: true,
             nest: true
@@ -822,12 +822,12 @@ router.get('/monthly_score_farmers', cache('1 hour'), async function (req, res, 
     }
     res.json(data);
 });
-router.get('/monthly_score_farmers/log', cache('1 hour'), async function (req, res, next) {
+router.get('/monthly_farmers/log/:data', cache('1 hour'), async function (req, res, next) {
     let data = [];
     try {
         const result = await InspectorScoreStat.findOne({
             where: {
-                key: 'monthly_score_farmers_log'
+                key: `monthly_${req.params.data}_farmers_log`
             },
             raw: true,
             nest: true

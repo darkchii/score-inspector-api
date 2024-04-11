@@ -1,8 +1,8 @@
 const { InspectorScoreStat, Databases } = require("../helpers/db");
 
 const cacher = {
-    func: UpdateMonthlyScoreFarmers,
-    name: 'monthly_score_farmers'
+    func: UpdateMonthlyFarmers,
+    name: 'monthly_farmers'
 }
 
 module.exports = cacher;
@@ -19,20 +19,43 @@ const PERIODS_TO_UPDATE = [
         user_count: 1
     }
 ];
-async function UpdateMonthlyScoreFarmers() {
+
+const DATA_TYPES = {
+    score: {
+        query: 'SUM(score)',
+    },
+    pp: {
+        query: 'SUM(pp)',
+    },
+    ss: {
+        query: 'COUNT(CASE WHEN rank LIKE \'%X%\' THEN 1 END)',
+    },
+    clears: {
+        query: 'COUNT(*)',
+    },
+    fcclears: {
+        query: 'COUNT(CASE WHEN rank LIKE \'%X%\' THEN 1 WHEN countmiss = 0 AND (maxcombo - combo) <= count100 THEN 1 ELSE 0 END)',
+    }
+}
+
+async function UpdateMonthlyFarmers(data_type = 'score') {
+    if(!DATA_TYPES[data_type]) {
+        console.log(`[MONTHLY SCORE FARMERS] Invalid data type ${data_type}`);
+        return;
+    }
     //get top 10 users by sum(score) on beatmaps ranked in each month
 
     let overtake_log = [];
 
     const _data = await InspectorScoreStat.findOne({
         where: {
-            key: 'monthly_score_farmers_log',
+            key: `monthly_${data_type}_farmers_log`,
         }
     });
 
     if (!_data) {
         await InspectorScoreStat.create({
-            key: 'monthly_score_farmers_log',
+            key: `monthly_${data_type}_farmers_log`,
             period: 'misc',
             value: JSON.stringify([])
         });
@@ -47,20 +70,26 @@ async function UpdateMonthlyScoreFarmers() {
                 s.user_id,
                 username,
                 DATE_TRUNC('${period.name}', b.approved_date AT TIME ZONE 'UTC') AS ${period.name},
-                s.score
+                s.score,
+                COALESCE(s.pp, 0) as pp,
+                s.rank,
+                countmiss,
+                maxcombo,
+                combo,
+                count100
             FROM
                 beatmaps b
             JOIN scores s ON b.beatmap_id = s.beatmap_id
             JOIN users2 u ON s.user_id = u.user_id
-            WHERE b.approved IN (1, 2, 4) AND mode = 0
+            WHERE b.approved IN (1, 2, 4) AND mode = 0 ${data_type==='pp' ? 'AND s.pp != \'nan\'' : ''}
         )
         , RankedMonthlyScores AS (
             SELECT
                 user_id,
                 username,
                 ${period.name},
-                SUM(score) AS total_score,
-                ROW_NUMBER() OVER (PARTITION BY ${period.name} ORDER BY SUM(score) DESC) AS rnk
+                ${DATA_TYPES[data_type].query} AS result,
+                ROW_NUMBER() OVER (PARTITION BY ${period.name} ORDER BY ${DATA_TYPES[data_type].query} DESC) AS rnk
             FROM
                 MonthlyScores
             GROUP BY
@@ -71,7 +100,7 @@ async function UpdateMonthlyScoreFarmers() {
             user_id,
             username,
             ${period.name} as period,
-            total_score
+            result
         FROM
             RankedMonthlyScores
         WHERE
@@ -79,7 +108,6 @@ async function UpdateMonthlyScoreFarmers() {
         `);
 
         console.log(`[MONTHLY SCORE FARMERS] Got ${data[0].length} rows.`);
-
 
         //reformat data
         const _data = [];
@@ -91,7 +119,7 @@ async function UpdateMonthlyScoreFarmers() {
                 rank: row.rank,
                 //convert to UTC and YYYY-MM
                 period: new Date(row.period).toISOString().split('T')[0].slice(0, period.slice),
-                total_score: row.total_score
+                total_score: row.result
             });
         }
 
@@ -99,7 +127,7 @@ async function UpdateMonthlyScoreFarmers() {
             //check if row already exists
             const exists = await InspectorScoreStat.findOne({
                 where: {
-                    key: 'monthly_score_farmers',
+                    key: `monthly_${data_type}_farmers`,
                     period: row.period
                 }
             });
@@ -128,14 +156,14 @@ async function UpdateMonthlyScoreFarmers() {
                     value: JSON.stringify(row)
                 }, {
                     where: {
-                        key: 'monthly_score_farmers',
+                        key: `monthly_${data_type}_farmers`,
                         period: row.period,
                     }
                 });
             } else {
                 //create
                 await InspectorScoreStat.create({
-                    key: 'monthly_score_farmers',
+                    key: `monthly_${data_type}_farmers`,
                     period: row.period,
                     value: JSON.stringify(row)
                 });
@@ -149,7 +177,7 @@ async function UpdateMonthlyScoreFarmers() {
         value: JSON.stringify(overtake_log)
     }, {
         where: {
-            key: 'monthly_score_farmers_log',
+            key: `monthly_${data_type}_farmers_log`,
         }
     });
     console.log(`[MONTHLY SCORE FARMERS] Updated database.`)

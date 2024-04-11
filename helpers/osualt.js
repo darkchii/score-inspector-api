@@ -330,13 +330,22 @@ async function GetBestScores(period, stat, limit, loved = false) {
             if (score.beatmap) {
                 // add the modded stars data
                 const modded_sr_rows = await Databases.osuAlt.query(`
-                    SELECT * FROM moddedsr 
-                    WHERE beatmap_id = ${score.beatmap_id} 
-                    AND mods_enum = ${CorrectedSqlScoreModsCustom(score.enabled_mods)}`);
+                SELECT * FROM moddedsr 
+                WHERE beatmap_id = ${score.beatmap_id} 
+                AND mods_enum = ${CorrectedSqlScoreModsCustom(score.enabled_mods)}`);
                 score.beatmap.modded_sr = modded_sr_rows[0]?.[0];
                 if (score.beatmap.modded_sr !== undefined) {
                     score.beatmap.modded_sr['live'] = JSON.parse(JSON.stringify(modded_sr_rows[0]?.[0]));
                 }
+                console.table({
+                    beatmap_id: score.beatmap.beatmap_id,
+                    title: score.beatmap.title,
+                    creator: score.beatmap.creator,
+                    mods: score.enabled_mods,
+                    corrected_mods: CorrectedSqlScoreModsCustom(score.enabled_mods),
+                    stars: score.beatmap.stars,
+                    modded_sr: score.beatmap.modded_sr ? score.beatmap.modded_sr.star_rating : null
+                })
             }
 
             // add the user data

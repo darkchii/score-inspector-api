@@ -12,7 +12,7 @@ const scoreRankCacher = require("./cacher/jobScoreRanks.js");
 const performanceDistCacher = require("./cacher/jobPerformanceDistribution.js");
 const milestonesCacher = require("./cacher/jobMilestones.js");
 const performanceRecordsCacher = require("./cacher/jobPerformanceRecords.js");
-const monthlyScoreFarmersCacher = require("./cacher/jobMonthlyScoreFarmers.js");
+const monthlyFarmersCacher = require("./cacher/jobMonthlyFarmers.js");
 const populationStatsCacher = require("./cacher/jobPopulationStats.js");
 const systemStatsCacher = require("./cacher/jobSystemStats.js");
 const mapPollCacher = require("./cacher/jobMapPoll.js");
@@ -30,7 +30,11 @@ const Cachers = [
     { cacher: performanceDistCacher, interval: '0 * * * *', data: [] },
     { cacher: milestonesCacher, interval: '0 * * * *', data: [] },
     { cacher: performanceRecordsCacher, interval: '0 * * * *', data: [] },
-    { cacher: monthlyScoreFarmersCacher, interval: '0 * * * *', data: [] },
+    { cacher: monthlyFarmersCacher, interval: '0 * * * *', data: 'score' },
+    { cacher: monthlyFarmersCacher, interval: '0 * * * *', data: 'ss' },
+    { cacher: monthlyFarmersCacher, interval: '0 * * * *', data: 'pp' },
+    { cacher: monthlyFarmersCacher, interval: '0 * * * *', data: 'clears' },
+    { cacher: monthlyFarmersCacher, interval: '0 * * * *', data: 'fcclears' },
     { cacher: populationStatsCacher, interval: '0 * * * *', data: [] },
     { cacher: systemStatsCacher, interval: '*/15 * * * *', data: [] },
 ]

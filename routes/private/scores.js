@@ -422,19 +422,20 @@ router.get('/activity', cache('20 minutes'), async function (req, res, next) {
             SELECT 
                 json_build_object(
                     'timestamp', t.time_interval,
-                    'entry_count', COALESCE(COUNT(s.date_played), 0),
-                    'entry_count_SS', COALESCE(COUNT(CASE WHEN s.rank = 'XH' OR s.rank = 'X' THEN s.date_played END), 0),
-                    'entry_count_S', COALESCE(COUNT(CASE WHEN s.rank = 'SH' OR s.rank = 'S' THEN s.date_played END), 0),
-                    'entry_count_A', COALESCE(COUNT(CASE WHEN s.rank = 'A' THEN s.date_played END), 0),
-                    'entry_count_B', COALESCE(COUNT(CASE WHEN s.rank = 'B' THEN s.date_played END), 0),
-                    'entry_count_C', COALESCE(COUNT(CASE WHEN s.rank = 'C' THEN s.date_played END), 0),
-                    'entry_count_D', COALESCE(COUNT(CASE WHEN s.rank = 'D' THEN s.date_played END), 0),
+                    'entry_count', COALESCE(COUNT(1), 0),
+                    'entry_count_SS', COALESCE(COUNT(CASE WHEN s.rank = 'XH' OR s.rank = 'X' THEN 1 END), 0),
+                    'entry_count_S', COALESCE(COUNT(CASE WHEN s.rank = 'SH' OR s.rank = 'S' THEN 1 END), 0),
+                    'entry_count_A', COALESCE(COUNT(CASE WHEN s.rank = 'A' THEN 1 END), 0),
+                    'entry_count_B', COALESCE(COUNT(CASE WHEN s.rank = 'B' THEN 1 END), 0),
+                    'entry_count_C', COALESCE(COUNT(CASE WHEN s.rank = 'C' THEN 1 END), 0),
+                    'entry_count_D', COALESCE(COUNT(CASE WHEN s.rank = 'D' THEN 1 END), 0),
                     'entry_count_score', COALESCE(SUM(score), 0)
                 ) AS entry
             FROM time_entries t
             LEFT JOIN scores s 
                 ON date_trunc('${period_long}', s.date_played) = t.time_interval
                 ${all_time ? '' : `AND s.date_played >= date_trunc('${period_long}', ${db_now} - INTERVAL '${interval} ${period_long}s')`}
+            WHERE s.date_played >= date_trunc('${period_long}', ${all_time ? `CAST('${oldest_possible_date}' as timestamp)` : `${db_now} - INTERVAL '${interval} ${period_long}s'`})
             GROUP BY t.time_interval
             ORDER BY t.time_interval
         ) AS time_entries;

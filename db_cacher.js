@@ -15,6 +15,7 @@ const performanceRecordsCacher = require("./cacher/jobPerformanceRecords.js");
 const monthlyScoreFarmersCacher = require("./cacher/jobMonthlyScoreFarmers.js");
 const populationStatsCacher = require("./cacher/jobPopulationStats.js");
 const systemStatsCacher = require("./cacher/jobSystemStats.js");
+const mapPollCacher = require("./cacher/jobMapPoll.js");
 require('dotenv').config();
 
 function StartCacher() {
@@ -33,6 +34,8 @@ const Cachers = [
     { cacher: populationStatsCacher, interval: '0 * * * *', data: [] },
     { cacher: systemStatsCacher, interval: '*/15 * * * *', data: [] },
 ]
+
+mapPollCacher.func();
 
 async function Loop() {
     for await (const cacher of Cachers) {

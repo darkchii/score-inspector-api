@@ -9,6 +9,7 @@ var privateScoresRoute = require('./private/scores');
 var privateSystemRoute = require('./private/system');
 var privateUsersRoute = require('./private/users');
 var privateIndexRoute = require('./private/index');
+var privatePollRoute = require('./private/mappoll');
 
 var publicAltRoute = require('./public/alt');
 var publicExtensionRoute = require('./public/extension');
@@ -42,6 +43,9 @@ let privateRoutes = [
     }, {
         path: '/',
         route: privateIndexRoute
+    }, {
+        path: '/poll',
+        route: privatePollRoute
     }
 ];
 

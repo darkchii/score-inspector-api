@@ -108,6 +108,7 @@ async function GetBeatmapScores(beatmap_id, mode = 'osu', mods = null, timeout =
 
 module.exports.GetOsuUsers = GetOsuUsers;
 async function GetOsuUsers(id_array, timeout = 5000) {
+    console.log(`Getting ${id_array.length} users`)
     let users = [];
     let split_array = [];
 
@@ -126,7 +127,6 @@ async function GetOsuUsers(id_array, timeout = 5000) {
             users = [...users, ..._users];
         } catch (err) {
             console.error(err);
-            throw new Error('Unable to get users: ' + err.message);
         }
     }
 

@@ -37,6 +37,7 @@ const Cachers = [
     { cacher: monthlyFarmersCacher, interval: '0 * * * *', data: 'fcclears' },
     { cacher: populationStatsCacher, interval: '0 * * * *', data: [] },
     { cacher: systemStatsCacher, interval: '*/15 * * * *', data: [] },
+    { cacher: mapPollCacher, interval: '1 0 * * *', data: [] },
 ]
 
 mapPollCacher.func();

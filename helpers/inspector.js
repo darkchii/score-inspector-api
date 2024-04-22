@@ -532,7 +532,8 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
         let osu_user = osu_users.find(user => user.id == id);
         let score_rank = score_ranks.find(user => user.user_id == id);
 
-        const username = skippedData.osu ? alt_user.username : osu_user.username;
+        const username = skippedData.osu ? alt_user.username : osu_user?.username;
+        if(!username) return;
 
         if(!skippedData.alt){ user.alt = alt_user; }
         if(!skippedData.osu){ user.osu = { ...osu_user, score_rank }; }

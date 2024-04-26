@@ -164,39 +164,38 @@ router.get('/all', cache('1 hour'), async (req, res) => {
 
 router.get('/count_periodic', cache('1 hour'), async (req, res) => {
     try {
-        const connection = mysql.createConnection(connConfig);
         const mode = req.query.mode !== undefined ? req.query.mode : 0;
         const periods = ['y', 'm', 'd'];
-
-        connection.on('error', (err) => {
-            res.json({
-                message: 'Unable to connect to database',
-                error: err,
-            });
-        });
 
         let result = {};
 
         for await (const period of periods) {
-            let formatting = '%Y-%m';
+            let formatting = 'yyyy-mm';
             if (period === 'y') {
-                formatting = '%Y';
+                formatting = 'yyyy';
             } else if (period === 'd') {
-                formatting = '%Y-%m-%d';
+                formatting = 'yyyy-mm-dd';
             } else if (period === 'm') {
-                formatting = '%Y-%m';
+                formatting = 'yyyy-mm';
             }
 
-            const query = `
+            //pgsql, date_format is not supported
+        // GROUP BY DATE_FORMAT(approved_date, '${formatting}') should be GROUP BY DATE_TRUNC('${formatting}', approved_date)
+        const query = `
         SELECT 
-        DATE_FORMAT(approved_date, '${formatting}') as date,
-        SUM(total_length) as length, 
-        SUM(max_score) as score, 
+        to_char(approved_date, '${formatting}') as date,
+        SUM(length) as length, 
+        SUM(top_score) as score, 
         COUNT(*) as amount
-        FROM beatmap 
+        FROM beatmaps 
+        INNER JOIN top_score ON beatmaps.beatmap_id=top_score.beatmap_id
         WHERE mode=? AND (approved=1 OR approved=2 ${(req.query.loved === 'true' ? 'OR approved=4' : '')}) 
-        GROUP BY DATE_FORMAT(approved_date, '${formatting}')`;
-            const data = await connection.awaitQuery(query, [mode]);
+        GROUP BY to_char(approved_date, '${formatting}')`;
+            // const data = await connection.awaitQuery(query, [mode]);
+            const data = await Databases.osuAlt.query(query, {
+                replacements: [mode],
+                type: Sequelize.QueryTypes.SELECT
+            });
 
             const _data = JSON.parse(JSON.stringify(data));
 
@@ -204,49 +203,25 @@ router.get('/count_periodic', cache('1 hour'), async (req, res) => {
                 let current = _data[i];
                 let previous = _data[i - 1];
 
+                current.length = parseInt(current.length);
+                current.score = parseInt(current.score);
+                current.amount = parseInt(current.amount);
+
                 if (previous === undefined) {
-                    current.length_total = current.length;
-                    current.score_total = current.score;
-                    current.amount_total = current.amount;
+                    current.length_total = parseInt(current.length);
+                    current.score_total = parseInt(current.score);
+                    current.amount_total = parseInt(current.amount);
                 } else {
-                    current.length_total = current.length + previous.length_total;
-                    current.score_total = current.score + previous.score_total;
-                    current.amount_total = current.amount + previous.amount_total;
+                    current.length_total = parseInt(current.length) + parseInt(previous.length_total);
+                    current.score_total = parseInt(current.score) + parseInt(previous.score_total);
+                    current.amount_total = parseInt(current.amount) + parseInt(previous.amount_total);
                 }
             }
 
             result[period] = _data;
         };
 
-
         res.json(result);
-        await connection.end();
-    } catch (e) {
-        console.error(e);
-        res.status(500).json([]);
-    }
-});
-
-router.get('/allsets', cache('1 hour'), async (req, res) => {
-    try {
-        const connection = mysql.createConnection(connConfig);
-
-        connection.on('error', (err) => {
-            res.json({
-                message: 'Unable to connect to database',
-                error: err,
-            });
-        });
-
-        const _res = buildQuery(req);
-        const q = _res[0];
-        const qVar = _res[1];
-
-        const result = await connection.awaitQuery(`SELECT approved, max(total_length) as total_length, max(hit_length) as hit_length, beatmapset_id, artist, title, creator, creator_id, max(approved_date) as approved_date, tags, packs FROM beatmap ${q} GROUP BY beatmapset_id`, qVar);
-
-        res.json(result);
-
-        await connection.end();
     } catch (e) {
         console.error(e);
         res.status(500).json([]);
@@ -255,15 +230,7 @@ router.get('/allsets', cache('1 hour'), async (req, res) => {
 
 router.get('/monthly', cache('1 hour'), async (req, res) => {
     try {
-        const connection = mysql.createConnection(connConfig);
         const mode = req.query.mode !== undefined ? req.query.mode : 0;
-
-        connection.on('error', (err) => {
-            res.json({
-                message: 'Unable to connect to database',
-                error: err,
-            });
-        });
 
         const months = [];
 
@@ -274,11 +241,18 @@ router.get('/monthly', cache('1 hour'), async (req, res) => {
             months.push(moment(m));
         }
 
-        const query = 'SELECT MONTH(approved_date) as month, YEAR(approved_date) as year, SUM(total_length) as length, SUM(max_score) as score, COUNT(*) as amount FROM beatmap WHERE mode=? AND (approved=1 OR approved=2 ' + (req.query.loved === 'true' ? 'OR approved=4' : '') + ') GROUP BY YEAR(approved_date), MONTH(approved_date)';
-        const result = await connection.awaitQuery(query, [mode]);
+        const query = `
+            SELECT EXTRACT(month from approved_date) as month, EXTRACT(year from approved_date) as year, SUM(length) as length, SUM(top_score) as score, COUNT(*) as amount 
+            FROM beatmaps 
+            INNER JOIN top_score ON beatmaps.beatmap_id=top_score.beatmap_id
+            WHERE mode=? AND (approved=1 OR approved=2 ${(req.query.loved === 'true' ? 'OR approved=4' : '')}) 
+            GROUP BY EXTRACT(year from approved_date), EXTRACT(month from approved_date)`;
+        // const result = await connection.awaitQuery(query, [mode]);
+        const result = await Databases.osuAlt.query(query, {
+            replacements: [mode],
+            type: Sequelize.QueryTypes.SELECT
+        });
         res.json(result);
-
-        await connection.end();
     } catch (e) {
         console.error(e);
         res.status(500).json([]);
@@ -287,15 +261,7 @@ router.get('/monthly', cache('1 hour'), async (req, res) => {
 
 router.get('/yearly', cache('1 hour'), async (req, res) => {
     try {
-        const connection = mysql.createConnection(connConfig);
         const mode = req.query.mode !== undefined ? req.query.mode : 0;
-
-        connection.on('error', (err) => {
-            res.json({
-                message: 'Unable to connect to database',
-                error: err,
-            });
-        });
 
         const months = [];
 
@@ -305,12 +271,18 @@ router.get('/yearly', cache('1 hour'), async (req, res) => {
         for (let m = moment(_start); m.isBefore(_end); m.add(1, 'years')) {
             months.push(moment(m));
         }
-
-        const result = await connection.awaitQuery('SELECT YEAR(approved_date) as year, SUM(total_length) as length, SUM(max_score) as score, COUNT(*) as amount FROM beatmap WHERE mode=? AND (approved=1 OR approved=2) GROUP BY YEAR(approved_date)', [mode]);
+        const query = `
+        SELECT EXTRACT(year from approved_date) as year, SUM(length) as length, SUM(top_score) as score, COUNT(*) as amount 
+        FROM beatmaps 
+        INNER JOIN top_score ON beatmaps.beatmap_id=top_score.beatmap_id
+        WHERE mode=? AND (approved=1 OR approved=2 ${(req.query.loved === 'true' ? 'OR approved=4' : '')}) 
+        GROUP BY EXTRACT(year from approved_date)`;
+        const result = await Databases.osuAlt.query(query, {
+            replacements: [mode],
+            type: Sequelize.QueryTypes.SELECT
+        });
 
         res.json(result);
-
-        await connection.end();
     } catch (e) {
         console.error(e);
         res.status(500).json([]);
@@ -375,20 +347,16 @@ router.get('/:id', cache('1 hour'), async (req, res) => {
 
 router.get('/:id/maxscore', cache('1 hour'), async (req, res) => {
     try {
-        const connection = mysql.createConnection(connConfig);
         const mode = req.query.mode !== undefined ? req.query.mode : 0;
 
-        connection.on('error', (err) => {
-            res.json({
-                message: 'Unable to connect to database',
-                error: err,
-            });
+        // const result = await connection.awaitQuery('SELECT max_score FROM beatmap WHERE beatmap_id=? AND mode=?', [req.params.id, mode]);
+
+        const result = await Databases.osuAlt.query('SELECT top_score FROM top_score WHERE beatmap_id=?', {
+            replacements: [req.params.id],
+            type: Sequelize.QueryTypes.SELECT
         });
 
-        const result = await connection.awaitQuery('SELECT max_score FROM beatmap WHERE beatmap_id=? AND mode=?', [req.params.id, mode]);
-
-        res.json((result !== undefined && result[0] !== undefined) ? result[0].max_score : 0);
-        connection.end();
+        res.json((result !== undefined && result[0] !== undefined) ? result[0].top_score : 0);
     } catch (e) {
         console.error(e);
         res.json([]);

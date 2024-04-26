@@ -62,20 +62,14 @@ router.get('/max_playcount', cache('1 hour'), async (req, res) => {
 
 router.get('/count', cache('1 hour'), async (req, res) => {
     try {
-        const connection = mysql.createConnection(connConfig);
-
-        connection.on('error', (err) => {
-            res.json({
-                message: 'Unable to connect to database',
-                error: err,
-            });
-        });
-
         const _res = buildQuery(req.query);
         const q = _res[0];
         const qVar = _res[1];
 
-        const result = await connection.awaitQuery(`SELECT COUNT(*) as amount FROM beatmap ${q}`, qVar);
+        const result = await Databases.osuAlt.query(`SELECT COUNT(*) as amount FROM beatmaps ${q}`, {
+            replacements: qVar,
+            type: Sequelize.QueryTypes.SELECT
+        });
 
         res.json(result[0].amount);
 
@@ -88,37 +82,57 @@ router.get('/count', cache('1 hour'), async (req, res) => {
 
 router.get('/stats', cache('1 hour'), async (req, res) => {
     try {
-        const connection = mysql.createConnection(connConfig);
-
-        connection.on('error', (err) => {
-            res.json({
-                message: 'Unable to connect to database',
-                error: err,
-            });
-        });
-
         const _res = buildQuery(req);
         const q = _res[0];
         const qVar = _res[1];
 
-        const misc = await connection.awaitQuery(`SELECT 
-    count(*) as amount,
-    count(case when (approved = 1 or approved = 2) and mode = 0 then 1 end) as ranked,
-    count(case when approved = 4 and mode = 0 then 1 end) as loved
-    FROM beatmap ${q}`, qVar);
+    //     const misc = await connection.awaitQuery(`SELECT 
+    // count(*) as amount,
+    // count(case when (approved = 1 or approved = 2) and mode = 0 then 1 end) as ranked,
+    // count(case when approved = 4 and mode = 0 then 1 end) as loved
+    // FROM beatmap ${q}`, qVar);
 
-        const minmax_length = await connection.awaitQuery('SELECT "Length" as name, 0 as rounding, min(total_length) as min, avg(total_length) as avg, max(total_length) as max FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0');
-        const minmax_stars = await connection.awaitQuery('SELECT "Starrating" as name, 2 as rounding, min(star_rating) as min, avg(star_rating) as avg, max(star_rating) as max FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0');
-        const minmax_combo = await connection.awaitQuery('SELECT "Combo" as name, 0 as rounding, min(max_combo) as min, avg(max_combo) as avg, max(max_combo) as max FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0');
-        const minmax_hit_objects = await connection.awaitQuery('SELECT "Hit Objects" as name, 0 as rounding, min(hit_objects) as min, avg(hit_objects) as avg, max(hit_objects) as max FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0');
-        const minmax_bpm = await connection.awaitQuery('SELECT "BPM" as name, min(bpm) as min, 0 as rounding, avg(bpm) as avg, max(bpm) as max FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0');
+    //     const minmax_length = await connection.awaitQuery('SELECT "Length" as name, 0 as rounding, min(length) as min, avg(total_length) as avg, max(total_length) as max FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0');
+    //     const minmax_stars = await connection.awaitQuery('SELECT "Starrating" as name, 2 as rounding, min(stars) as min, avg(stars) as avg, max(stars) as max FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0');
+    //     const minmax_combo = await connection.awaitQuery('SELECT "Combo" as name, 0 as rounding, min(max_combo) as min, avg(max_combo) as avg, max(max_combo) as max FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0');
+    //     const minmax_hit_objects = await connection.awaitQuery('SELECT "Hit Objects" as name, 0 as rounding, min(hit_objects) as min, avg(hit_objects) as avg, max(hit_objects) as max FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0');
+    //     const minmax_bpm = await connection.awaitQuery('SELECT "BPM" as name, min(bpm) as min, 0 as rounding, avg(bpm) as avg, max(bpm) as max FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0');
 
-        const most_played_beatmaps = await connection.awaitQuery('SELECT *, sum(plays) as plays, count(beatmapset_id) as diffcount FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0 GROUP BY beatmapset_id ORDER BY plays DESC LIMIT 10');
-        const newest_maps = await connection.awaitQuery('SELECT *, count(beatmapset_id) as diffcount FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0 GROUP BY beatmapset_id ORDER BY approved_date DESC LIMIT 10');
-        const longest_rank_time = await connection.awaitQuery('SELECT *, count(beatmapset_id) as diffcount FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0 GROUP BY beatmapset_id ORDER BY (approved_date-submitted_date) DESC LIMIT 10');
+    //     const most_played_beatmaps = await connection.awaitQuery('SELECT *, sum(plays) as plays, count(beatmapset_id) as diffcount FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0 GROUP BY beatmapset_id ORDER BY plays DESC LIMIT 10');
+    //     const newest_maps = await connection.awaitQuery('SELECT *, count(beatmapset_id) as diffcount FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0 GROUP BY beatmapset_id ORDER BY approved_date DESC LIMIT 10');
+    //     const longest_rank_time = await connection.awaitQuery('SELECT *, count(beatmapset_id) as diffcount FROM beatmap WHERE (approved=1 OR approved=2) AND mode=0 GROUP BY beatmapset_id ORDER BY (approved_date-submitted_date) DESC LIMIT 10');
+
+        // const misc = await Databases.osuAlt.query(`SELECT
+        // count(*) as amount,
+        // count(case when ((approved = 1 or approved = 2) and mode = 0) then 1 else 0 end) as ranked,
+        // count(case when (approved = 4 and mode = 0) then 1 else 0 end) as loved
+        // FROM beatmaps ${q}`, {
+        //     replacements: qVar,
+        //     type: Sequelize.QueryTypes.SELECT
+        // });
+        const misc = {};
+        misc.ranked = await AltBeatmap.count({ where: { [Op.and]: [ { approved: { [Op.or]: [1, 2] } }, { mode: 0 } ] } });
+        misc.loved = await AltBeatmap.count({ where: { [Op.and]: [ { approved: 4 }, { mode: 0 } ] } });
+        misc.amount = await AltBeatmap.count({ where: { mode: 0 } });
+
+        const minmax_length = await Databases.osuAlt.query('SELECT 0 as rounding, min(length) as min, avg(length) as avg, max(length) as max FROM beatmaps WHERE (approved=1 OR approved=2) AND mode=0', { type: Sequelize.QueryTypes.SELECT });
+        const minmax_stars = await Databases.osuAlt.query('SELECT 2 as rounding, min(stars) as min, avg(stars) as avg, max(stars) as max FROM beatmaps WHERE (approved=1 OR approved=2) AND mode=0', { type: Sequelize.QueryTypes.SELECT });
+        const minmax_combo = await Databases.osuAlt.query('SELECT 0 as rounding, min(maxcombo) as min, avg(maxcombo) as avg, max(maxcombo) as max FROM beatmaps WHERE (approved=1 OR approved=2) AND mode=0', { type: Sequelize.QueryTypes.SELECT });
+        const minmax_hit_objects = await Databases.osuAlt.query('SELECT 0 as rounding, min(circles+spinners+sliders) as min, avg(circles+spinners+sliders) as avg, max(circles+spinners+sliders) as max FROM beatmaps WHERE (approved=1 OR approved=2) AND mode=0', { type: Sequelize.QueryTypes.SELECT });
+        const minmax_bpm = await Databases.osuAlt.query('SELECT min(bpm) as min, 0 as rounding, avg(bpm) as avg, max(bpm) as max FROM beatmaps WHERE (approved=1 OR approved=2) AND mode=0', { type: Sequelize.QueryTypes.SELECT });
+
+        const most_played_beatmaps = await Databases.osuAlt.query('SELECT *, sum(playcount) as plays, count(set_id) as diffcount FROM beatmaps WHERE (approved=1 OR approved=2) AND mode=0 GROUP BY set_id,beatmap_id ORDER BY plays DESC LIMIT 10', { type: Sequelize.QueryTypes.SELECT });
+        const newest_maps = await Databases.osuAlt.query('SELECT *, count(set_id) as diffcount FROM beatmaps WHERE (approved=1 OR approved=2) AND mode=0 GROUP BY set_id,beatmap_id ORDER BY approved_date DESC LIMIT 10', { type: Sequelize.QueryTypes.SELECT });
+        const longest_rank_time = await Databases.osuAlt.query('SELECT *, count(set_id) as diffcount FROM beatmaps WHERE (approved=1 OR approved=2) AND mode=0 GROUP BY set_id,beatmap_id ORDER BY (approved_date-submit_date) DESC LIMIT 10', { type: Sequelize.QueryTypes.SELECT });
+
+        minmax_length[0].name = 'Length';
+        minmax_stars[0].name = 'Starrating';
+        minmax_combo[0].name = 'Combo';
+        minmax_hit_objects[0].name = 'Hit Objects';
+        minmax_bpm[0].name = 'BPM';
 
         const data = {
-            misc: misc[0],
+            misc: misc,
             minmax: {
                 length: minmax_length[0],
                 stars: minmax_stars[0],
@@ -132,8 +146,6 @@ router.get('/stats', cache('1 hour'), async (req, res) => {
         };
 
         res.json(data);
-
-        await connection.end();
     } catch (e) {
         console.error(e);
         res.status(500).json([]);

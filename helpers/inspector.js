@@ -46,15 +46,15 @@ function buildQuery(req) {
     let requiredAttributes = [];
 
     if (req.stars_min) {
-        q += ' AND star_rating>=?';
+        q += ' AND stars>=?';
         qVar.push(req.stars_min);
 
-        if (!requiredAttributes.includes('star_rating')) requiredAttributes.push('star_rating');
+        if (!requiredAttributes.includes('stars')) requiredAttributes.push('stars');
     }
     if (req.stars_max) {
-        q += ' AND star_rating<?';
+        q += ' AND stars<?';
         qVar.push(req.stars_max);
-        if (!requiredAttributes.includes('star_rating')) requiredAttributes.push('star_rating');
+        if (!requiredAttributes.includes('stars')) requiredAttributes.push('stars');
     }
     if (req.ar_min) {
         q += ' AND ar>=?';
@@ -97,14 +97,14 @@ function buildQuery(req) {
         if (!requiredAttributes.includes('hp')) requiredAttributes.push('hp');
     }
     if (req.length_min) {
-        q += ' AND total_length>=?';
+        q += ' AND length>=?';
         qVar.push(req.length_min);
-        if (!requiredAttributes.includes('total_length')) requiredAttributes.push('total_length');
+        if (!requiredAttributes.includes('length')) requiredAttributes.push('length');
     }
     if (req.length_max) {
-        q += ' AND total_length<?';
+        q += ' AND length<?';
         qVar.push(req.length_max);
-        if (!requiredAttributes.includes('total_length')) requiredAttributes.push('total_length');
+        if (!requiredAttributes.includes('length')) requiredAttributes.push('length');
     }
     if (req.pack) {
         q += ` AND 
@@ -130,7 +130,7 @@ function buildQuery(req) {
 
 module.exports.getBeatmaps = getBeatmaps;
 async function getBeatmaps(req) {
-    const connection = mysql.createConnection(connConfig);
+    // const connection = mysql.createConnection(connConfig);
     const _res = buildQuery(req);
     const q = _res[0];
     const qVar = _res[1];
@@ -138,22 +138,28 @@ async function getBeatmaps(req) {
     let querySelector = `*`;
 
     if (req.compact) {
-        querySelector = 'beatmapset_id, beatmap_id, artist, title, version, approved';
+        querySelector = 'beatmapset_id, beatmap_id, artist, title, diffname, approved';
     } else if (req.requiredAttributesOnly) {
         if (!_res[2].includes('beatmapset_id')) _res[2].push('beatmapset_id');
         if (!_res[2].includes('beatmap_id')) _res[2].push('beatmap_id');
         if (!_res[2].includes('artist')) _res[2].push('artist');
         if (!_res[2].includes('title')) _res[2].push('title');
-        if (!_res[2].includes('version')) _res[2].push('version');
+        if (!_res[2].includes('diffname')) _res[2].push('diffname');
         if (!_res[2].includes('approved')) _res[2].push('approved');
-        if (!_res[2].includes('max_combo')) _res[2].push('max_combo');
+        if (!_res[2].includes('maxcombo')) _res[2].push('maxcombo');
         querySelector = _res[2].join(',');
     } else if (req.customAttributeSet) {
         querySelector = req.customAttributeSet.join(',');
     }
 
-    const result = await connection.awaitQuery(`SELECT ${querySelector} FROM beatmap ${q}`, qVar);
-    await connection.end();
+    const query = `SELECT ${querySelector} FROM beatmaps ${q}`;
+    const result = await Databases.osuAlt.query(query, {
+        replacements: qVar,
+        type: Sequelize.QueryTypes.SELECT
+    });
+    console.log(result);
+    // const result = await connection.awaitQuery(query, qVar);
+    // await connection.end();
     return result;
 }
 
@@ -289,7 +295,7 @@ function getCompletionData(scores, beatmaps) {
     for (const year of spread) {
         let perc = 100;
         let filtered_scores = scores.filter(score => new Date(score.beatmap.approved_date).getFullYear() === year);
-        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.approved_date.getFullYear() === year);
+        let filtered_beatmaps = beatmaps.filter(beatmap => new Date(beatmap.approved_date).getFullYear() === year);
         //console.log(new Date(scores[0].approved_date).getFullYear());
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
         completion.years.push({
@@ -332,7 +338,7 @@ function getCompletionData(scores, beatmaps) {
         let min = parseInt(range.split('-')[0]);
         let max = parseInt(range.split('-')[1]);
         let filtered_scores = scores.filter(score => score.beatmap.maxcombo >= min && score.beatmap.maxcombo < max);
-        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.max_combo >= min && beatmap.max_combo < max);
+        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.maxcombo >= min && beatmap.maxcombo < max);
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
         completion.max_combo.push({
             range: (max < 99999 ? range : (range.split('-')[0] + '+')), min, max, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length

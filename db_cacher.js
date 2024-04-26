@@ -39,7 +39,10 @@ const Cachers = [
     { cacher: systemStatsCacher, interval: '*/15 * * * *', data: [] },
     { cacher: mapPollCacher, interval: '1 0 * * *', data: [] },
 ]
-
+// monthlyFarmersCacher.func('ss');
+// monthlyFarmersCacher.func('pp');
+// monthlyFarmersCacher.func('clears');
+// monthlyFarmersCacher.func('fcclears');
 mapPollCacher.func();
 
 async function Loop() {

@@ -140,11 +140,12 @@ router.get('/completion/:id', cache('1 hour'), async function (req, res, next) {
                 'od',
                 'hp',
                 'approved_date',
-                'star_rating',
-                'total_length',
-                'max_combo',
+                'stars',
+                'length',
+                'maxcombo',
             ]
         });
+        console.log(beatmaps.length);
 
         console.time('getCompletionData');
         const data = getCompletionData(scores, beatmaps);

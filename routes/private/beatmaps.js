@@ -72,8 +72,6 @@ router.get('/count', cache('1 hour'), async (req, res) => {
         });
 
         res.json(result[0].amount);
-
-        await connection.end();
     } catch (e) {
         console.error(e);
         res.status(500).json([]);

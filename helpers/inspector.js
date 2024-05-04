@@ -310,7 +310,7 @@ function getCompletionData(scores, beatmaps) {
         let min = parseInt(range.split('-')[0]);
         let max = parseInt(range.split('-')[1]);
         let filtered_scores = scores.filter(score => score.beatmap.stars >= min && score.beatmap.stars < max);
-        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.star_rating >= min && beatmap.star_rating < max);
+        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.stars >= min && beatmap.stars < max);
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
         completion.stars.push({
             range: (max < 20 ? `${range}*` : (range.split('-')[0] + '*+')), min, max, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length
@@ -324,7 +324,7 @@ function getCompletionData(scores, beatmaps) {
         let min = parseInt(range.split('-')[0]);
         let max = parseInt(range.split('-')[1]);
         let filtered_scores = scores.filter(score => score.beatmap.length >= min && score.beatmap.length < max);
-        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.total_length >= min && beatmap.total_length < max);
+        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.length >= min && beatmap.length < max);
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
         completion.length.push({
             range: (max < 99999 ? range : (range.split('-')[0] + '+')), min, max, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length

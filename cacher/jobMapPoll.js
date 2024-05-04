@@ -41,15 +41,54 @@ async function UpdateMapPoll() {
 }
 
 async function GetRandomMaps(amount = 5) {
-    const beatmaps = await AltBeatmap.findAll({
+    //get the first random map
+    const first_random_map = await AltBeatmap.findOne({
         order: Sequelize.literal('random()'),
-        limit: amount,
         where: {
             approved: {
                 [Op.in]: [1, 2, 4]
             }
         }
     });
+
+    console.log(`[MapPoll] Base stars: ${first_random_map.stars}`);
+
+    //find 5 random maps that have a similar star rating to the first map
+    const beatmaps = await AltBeatmap.findAll({
+        order: Sequelize.literal('random()'),
+        limit: amount,
+        where: {
+            approved: {
+                [Op.in]: [1, 2, 4]
+            },
+            stars: {
+                [Op.between]: [first_random_map.stars - 1, first_random_map.stars + 1]
+            }
+        }
+    });
+
+    console.log(`[MapPoll] Found ${beatmaps.length} maps`);
+    console.log(`[MapPoll] Stars: ${beatmaps.map(b => b.stars).join(', ')}`);
+
+    //if we have less than 5 maps, fill the rest with random maps
+    if(beatmaps.length < amount){
+        const random_maps = await AltBeatmap.findAll({
+            order: Sequelize.literal('random()'),
+            limit: amount - beatmaps.length,
+            where: {
+                approved: {
+                    [Op.in]: [1, 2, 4]
+                },
+                beatmap_id: {
+                    [Op.notIn]: beatmaps.map(b => b.beatmap_id)
+                }
+            }
+        });
+
+        console.log(`[MapPoll] Found ${random_maps.length} random maps to fill missing slots`);
+
+        beatmaps.push(...random_maps);
+    }
 
     return beatmaps;
 }

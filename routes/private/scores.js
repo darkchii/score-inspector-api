@@ -40,6 +40,7 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
                         {
                             model: AltModdedStars,
                             as: 'modded_sr',
+                            required: false,
                             where: {
                                 mods_enum: {
                                     [Op.eq]: Sequelize.literal(CorrectedSqlScoreMods)

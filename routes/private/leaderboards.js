@@ -188,13 +188,13 @@ async function getQueryUserData(stat, limit, offset, country) {
     let query = '';
     let queryData = {};
     //stat isnt null and nan
-    let _where = 'where stat is not null and stat != \'nan\'';
+    let _where = 'where stat is not null';
     let beatmapCount = (await GetBeatmapCount()) ?? 0;
 
     queryData.limit = limit;
     queryData.offset = offset;
     if (country !== undefined && country !== null) {
-        _where = `and country_code ILIKE :country_code`;
+        _where += ` and country_code ILIKE :country_code`;
         queryData.country_code = country;
     }
 

@@ -3,7 +3,7 @@ var apicache = require('apicache');
 var router = express.Router();
 const { GetBestScores, score_columns, score_columns_full, beatmap_columns, GetBeatmapScores } = require('../../helpers/osualt');
 const { getBeatmaps, getCompletionData, DefaultInspectorUser } = require('../../helpers/inspector');
-const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat, AltBeatmapEyup, Databases, AltBeatmapSSRatio, AltTopScore, InspectorHistoricalScoreRank, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, InspectorPerformanceRecord, InspectorBeatmap, AltBeatmapMaxScoreNomod } = require('../../helpers/db');
+const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat, AltBeatmapEyup, Databases, AltBeatmapSSRatio, AltTopScore, InspectorHistoricalScoreRank, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, InspectorPerformanceRecord, InspectorBeatmap, AltBeatmapMaxScoreNomod, AltUser } = require('../../helpers/db');
 const { Op, Sequelize } = require('sequelize');
 const { CorrectedSqlScoreMods, CorrectMod, ModsToString, db_now } = require('../../helpers/misc');
 const request = require("supertest");
@@ -15,23 +15,36 @@ require('dotenv').config();
 
 let cache = apicache.middleware;
 
-async function GetUserScores(req, score_attributes = undefined, beatmap_attributes = undefined) {
+async function GetScores(req, score_attributes = undefined, beatmap_attributes = undefined) {
     const include_modded = req.query.ignore_modded_stars !== 'true';
-    console.log(req.query.beatmap_id);
     let scores = await AltScore.findAll({
         where: {
-            user_id: req.params.id
+            ...req.params.id ? { user_id: req.params.id } : {},
+            ...req.query.min_score || req.query.max_score ? { score: { [Op.between]: [req.query.min_score ?? 0, req.query.max_score ?? 100000000000] } } : {},
+            ...req.query.min_pp || req.query.max_pp ? { pp: { [Op.between]: [req.query.min_pp ?? 0, req.query.max_pp ?? 100000000000] } } : {},
+            ...req.query.min_acc || req.query.max_acc ? { accuracy: { [Op.between]: [req.query.min_acc ?? 0, req.query.max_acc ?? 101] } } : {},
+            ...req.query.min_combo || req.query.max_combo ? { max_combo: { [Op.between]: [req.query.min_combo ?? 0, req.query.max_combo ?? 1000000000] } } : {},
+            ...req.query.mods ? { mods: { [Op.contains]: req.query.mods.split(',') } } : {},
+            ...req.query.grades ? { rank: { [Op.in]: req.query.grades.split(',') } } : {},
+            ...req.query.minPlayedDate || req.query.maxPlayedDate ? { date_played: { [Op.between]: [req.query.minPlayedDate ?? '2000-01-01', req.query.maxPlayedDate ?? '2100-01-01'] } } : {},
         },
         order: [
             ...req.query.order ? [['pp', req.query.dir ?? 'DESC']] : []
         ],
         limit: req.query.limit ?? undefined,
+        offset: req.query.offset ?? undefined,
         include: [
             {
                 model: AltBeatmap,
                 as: 'beatmap',
                 where: {
-                    approved: { [Op.in]: [1, 2, req.query.include_loved === 'true' ? 4 : 1] },
+                    ...(req.query.approved ? { [Op.or]: req.query.approved.split(',').map(approved => { return { approved: approved } }) } : {}),
+                    ...(req.query.min_stars || req.query.max_stars ? { stars: { [Op.between]: [req.query.min_stars ?? 0, req.query.max_stars ?? 1000000000] } } : {}),
+                    ...(req.query.min_ar || req.query.max_ar ? { ar: { [Op.between]: [req.query.min_ar ?? 0, req.query.max_ar ?? 1000000000] } } : {}),
+                    ...(req.query.min_od || req.query.max_od ? { od: { [Op.between]: [req.query.min_od ?? 0, req.query.max_od ?? 1000000000] } } : {}),
+                    ...(req.query.min_hp || req.query.max_hp ? { hp: { [Op.between]: [req.query.min_hp ?? 0, req.query.max_hp ?? 1000000000] } } : {}),
+                    ...(req.query.min_length || req.query.max_length ? { length: { [Op.between]: [req.query.min_length ?? 0, req.query.max_length ?? 1000000000] } } : {}),
+                    //approved: { [Op.in]: [1, 2, req.query.include_loved === 'true' ? 4 : 1] },
                     ...(req.query.beatmap_id ? { beatmap_id: req.query.beatmap_id } : {}) //for development purposes
                 },
                 required: true,
@@ -52,59 +65,89 @@ async function GetUserScores(req, score_attributes = undefined, beatmap_attribut
                         }] : [])
                 ],
             },
-            {
-                model: AltTopScore,
-                as: 'top_score',
-                where: {
-                    user_id: req.params.id
-                },
+            ...(!req.params.id ? [{
+                model: AltUser,
+                as: 'user',
                 required: false,
-            }
+            }] : []), 
+            ...(req.params.id ?
+                [{
+                    model: AltTopScore,
+                    as: 'top_score',
+                    where: {
+                        user_id: req.params.id
+                    },
+                    required: false,
+                }] : [])
         ],
         nest: true
     });
 
-    scores = JSON.parse(JSON.stringify(scores));
 
-    //filter to have only approved in (1,2 and possibly 4)
-    scores = scores.filter(score => score.beatmap.approved === 1 || score.beatmap.approved === 2 || (req.query.include_loved === 'true' && score.beatmap.approved === 4));
+    if (req.query.include_packs !== 'false') {
+        scores = JSON.parse(JSON.stringify(scores));
+        let beatmap_set_ids = scores.map(score => score.beatmap.set_id);
+        let beatmap_ids = scores.map(score => score.beatmap.beatmap_id);
+        //remove duplicates and nulls
+        beatmap_set_ids = [...new Set(beatmap_set_ids)].filter(id => id);
+        beatmap_ids = [...new Set(beatmap_ids)].filter(id => id);
 
-    let beatmap_set_ids = scores.map(score => score.beatmap.set_id);
-    let beatmap_ids = scores.map(score => score.beatmap.beatmap_id);
-    //remove duplicates and nulls
-    beatmap_set_ids = [...new Set(beatmap_set_ids)].filter(id => id);
-    beatmap_ids = [...new Set(beatmap_ids)].filter(id => id);
+        const beatmap_packs = await AltBeatmapPack.findAll({
+            where: {
+                beatmap_id: {
+                    [Op.in]: beatmap_ids
+                }
+            },
+            raw: true,
+            nest: true
+        });
 
-    const beatmap_packs = await AltBeatmapPack.findAll({
-        where: {
-            beatmap_id: {
-                [Op.in]: beatmap_ids
+        let _beatmap_packs = {};
+        beatmap_packs.forEach(pack => {
+            if (!_beatmap_packs[pack.beatmap_id]) {
+                _beatmap_packs[pack.beatmap_id] = [];
             }
-        },
-        raw: true,
-        nest: true
-    });
 
-    let _beatmap_packs = {};
-    beatmap_packs.forEach(pack => {
-        if (!_beatmap_packs[pack.beatmap_id]) {
-            _beatmap_packs[pack.beatmap_id] = [];
+            _beatmap_packs[pack.beatmap_id].push(pack);
+        });
+
+        for (const score of scores) {
+            score.beatmap.packs = _beatmap_packs[score.beatmap_id] ?? [];
         }
-
-        _beatmap_packs[pack.beatmap_id].push(pack);
-    });
-
-    for (const score of scores) {
-        score.beatmap.packs = _beatmap_packs[score.beatmap_id] ?? [];
     }
 
     return scores;
 }
 
+router.get('/all', cache('1 hour'), async function (req, res, next) {
+    try {
+        const page = req.query.page ?? 1;
+        const limit = req.query.limit ?? 1000;
+        const offset = (page - 1) * limit;
+
+        const _req = {
+            query: {
+                ...req.query,
+                limit: limit,
+                offset: offset,
+                id: undefined
+            },
+            params: {
+                id: undefined
+            }
+        }
+        const rows = await GetScores(_req);
+        res.json(rows);
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e });
+    }
+});
+
 /* Get the entire list of scores of a user */
 router.get('/user/:id', cache('1 minute'), async function (req, res, next) {
     try {
-        const rows = await GetUserScores(req);
+        const rows = await GetScores(req);
         res.json(rows);
     } catch (e) {
         console.error(e);
@@ -129,10 +172,7 @@ router.get('/beatmap/:id', cache('1 hour'), async function (req, res, next) {
 router.get('/completion/:id', cache('1 hour'), async function (req, res, next) {
     try {
         req.query.ignore_modded_stars = 'true';
-        console.time('GetUserScores');
-        const scores = await GetUserScores(req, ['beatmap_id'], ['beatmap_id', 'approved_date', 'length', 'stars', 'cs', 'ar', 'od', 'hp', 'approved', 'max_combo']);
-        console.timeEnd('GetUserScores');
-
+        const scores = await GetScores(req, ['beatmap_id'], ['beatmap_id', 'approved_date', 'length', 'stars', 'cs', 'ar', 'od', 'hp', 'approved', 'max_combo']);
         const beatmaps = await getBeatmaps({
             ...req.query, customAttributeSet: [
                 'beatmap_id',
@@ -146,12 +186,7 @@ router.get('/completion/:id', cache('1 hour'), async function (req, res, next) {
                 'maxcombo',
             ]
         });
-        console.log(beatmaps.length);
-
-        console.time('getCompletionData');
         const data = getCompletionData(scores, beatmaps);
-        console.timeEnd('getCompletionData');
-
         res.json(data);
     } catch (e) {
         console.error(e);

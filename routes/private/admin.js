@@ -2,8 +2,9 @@ const { default: axios } = require('axios');
 const express = require('express');
 const router = express.Router();
 require('dotenv').config();
-const { InspectorUser, InspectorRole } = require('../../helpers/db');
+const { InspectorUser, InspectorRole, InspectorOsuUser } = require('../../helpers/db');
 const { VerifyToken, GetInspectorUser } = require('../../helpers/inspector');
+const { orderBy } = require('lodash');
 
 async function HasAdminAccess(user_id, session_token) {
     if (session_token == null || user_id == null) {
@@ -69,8 +70,15 @@ router.post('/get_users', async (req, res, next) => {
                     attributes: ['id', 'title', 'description', 'color', 'icon', 'is_visible', 'is_admin', 'is_listed'],
                     through: { attributes: [] },
                     as: 'roles'
-                }
-            ]
+                },
+                {
+                    model: InspectorOsuUser,
+                    attributes: ['user_id', 'username', 'pp', 'global_rank'],
+                    as: 'osu_user'
+                },
+            ],
+            //order by pp desc
+            order: [[{model: InspectorOsuUser, as: 'osu_user'}, 'pp', 'DESC']]
         });
     }catch(err){
         res.json({ error: err.message });

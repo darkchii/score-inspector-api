@@ -63,6 +63,8 @@ const InspectorOsuUser = OsuUserModel(databases.inspector);
 
 InspectorUser.belongsToMany(InspectorRole, { as: 'roles', through: 'inspector_user_roles', foreignKey: 'user_id', otherKey: 'role_id' });
 InspectorRole.belongsTo(InspectorUser, { as: 'roles', through: 'inspector_user_roles', foreignKey: 'user_id', otherKey: 'role_id' });
+InspectorOsuUser.belongsTo(InspectorUser, { as: 'osu_user', foreignKey: 'user_id', targetKey: 'osu_id' });
+InspectorUser.hasOne(InspectorOsuUser, { as: 'osu_user', foreignKey: 'user_id', sourceKey: 'osu_id' });
 InspectorUserRole.belongsTo(InspectorUser, { as: 'user_roles', foreignKey: 'user_id', targetKey: 'id' });
 InspectorComment.belongsTo(InspectorUser, { as: 'commentor', foreignKey: 'commentor_id', targetKey: 'osu_id' });
 InspectorVisitor.belongsTo(InspectorUser, { as: 'visitor_user', foreignKey: 'visitor_id', targetKey: 'osu_id' });

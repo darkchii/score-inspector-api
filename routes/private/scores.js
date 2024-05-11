@@ -5,31 +5,59 @@ const { GetBestScores, score_columns, score_columns_full, beatmap_columns, GetBe
 const { getBeatmaps, getCompletionData, DefaultInspectorUser } = require('../../helpers/inspector');
 const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat, AltBeatmapEyup, Databases, AltBeatmapSSRatio, AltTopScore, InspectorHistoricalScoreRank, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, InspectorPerformanceRecord, InspectorBeatmap, AltBeatmapMaxScoreNomod, AltUser } = require('../../helpers/db');
 const { Op, Sequelize } = require('sequelize');
-const { CorrectedSqlScoreMods, CorrectMod, ModsToString, db_now } = require('../../helpers/misc');
+const { CorrectedSqlScoreMods, CorrectMod, ModsToString, db_now, all_mods_short } = require('../../helpers/misc');
 const request = require("supertest");
 const { GetOsuUsers } = require('../../helpers/osu');
 const fastJson = require('fast-json-parse');
 var _ = require('lodash');
 const { parse } = require('dotenv');
-require('dotenv').config();
+const util = require('util');
 
+require('dotenv').config();
 let cache = apicache.middleware;
 
 async function GetScores(req, score_attributes = undefined, beatmap_attributes = undefined) {
     const include_modded = req.query.ignore_modded_stars !== 'true';
+    const _mods = req.query.mods;
+    const split_mods = _mods ? _mods.split(',') : [];
+    const mods_bit_values = split_mods.map(mod => all_mods_short[mod]);
+    let _enabled_mods = {};
+    if (req.query.mods) {
+        //we do NOT correct any mods here
+        //enabled_mods is a varchar in database, keep that in mind
+        if (req.query.mods === 'NM') {
+            _enabled_mods[Op.eq] = '0';
+        } else {
+            if (req.query.mods_usage === 'all') {
+                //enabled_mods must contain all mods
+                _enabled_mods[Op.eq] = '' + mods_bit_values.reduce((ps, a) => ps + a, 0);
+            } else {
+                //enabled_mods must contain any of the mods
+                //Op.bitwiseAnd is not a thing, use raw sql for this
+                _enabled_mods[Op.or] = mods_bit_values.map(mod => {
+                    return Sequelize.literal(`(CAST("Score"."enabled_mods" AS int) & ${mod}) = ${mod}`);
+                });
+            }
+        }
+    }
     let scores = await AltScore.findAll({
         where: {
             ...req.params.id ? { user_id: req.params.id } : {},
             ...req.query.min_score || req.query.max_score ? { score: { [Op.between]: [req.query.min_score ?? 0, req.query.max_score ?? 100000000000] } } : {},
             ...req.query.min_pp || req.query.max_pp ? { pp: { [Op.between]: [req.query.min_pp ?? 0, req.query.max_pp ?? 100000000000] } } : {},
             ...req.query.min_acc || req.query.max_acc ? { accuracy: { [Op.between]: [req.query.min_acc ?? 0, req.query.max_acc ?? 101] } } : {},
-            ...req.query.min_combo || req.query.max_combo ? { max_combo: { [Op.between]: [req.query.min_combo ?? 0, req.query.max_combo ?? 1000000000] } } : {},
-            ...req.query.mods ? { mods: { [Op.contains]: req.query.mods.split(',') } } : {},
+            ...req.query.min_combo || req.query.max_combo ? { combo: { [Op.between]: [req.query.min_combo ?? 0, req.query.max_combo ?? 1000000000] } } : {},
+            //for mods we check if enabled_mods & mod == mod, depending on mods_usage we use AND or OR, we do NOT correct the mods here
+            ...req.query.mods ? {
+                enabled_mods: _enabled_mods
+            } : {},
             ...req.query.grades ? { rank: { [Op.in]: req.query.grades.split(',') } } : {},
-            ...req.query.minPlayedDate || req.query.maxPlayedDate ? { date_played: { [Op.between]: [req.query.minPlayedDate ?? '2000-01-01', req.query.maxPlayedDate ?? '2100-01-01'] } } : {},
+            ...req.query.min_played_date || req.query.max_played_date ? { date_played: { [Op.between]: [req.query.min_played_date ?? '2000-01-01', req.query.max_played_date ?? '2100-01-01'] } } : {},
         },
         order: [
-            ...req.query.order ? [['pp', req.query.dir ?? 'DESC']] : []
+            //order by pp desc default
+            ...(req.query.order ? [[req.query.order, req.query.order_dir ?? 'DESC']] : []),
+            ['pp', 'DESC']
         ],
         limit: req.query.limit ?? undefined,
         offset: req.query.offset ?? undefined,
@@ -45,7 +73,8 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
                     ...(req.query.min_hp || req.query.max_hp ? { hp: { [Op.between]: [req.query.min_hp ?? 0, req.query.max_hp ?? 1000000000] } } : {}),
                     ...(req.query.min_length || req.query.max_length ? { length: { [Op.between]: [req.query.min_length ?? 0, req.query.max_length ?? 1000000000] } } : {}),
                     //approved: { [Op.in]: [1, 2, req.query.include_loved === 'true' ? 4 : 1] },
-                    ...(req.query.beatmap_id ? { beatmap_id: req.query.beatmap_id } : {}) //for development purposes
+                    ...(req.query.beatmap_id ? { beatmap_id: req.query.beatmap_id } : {}), //for development purposes
+                    ...(req.query.min_approved_date || req.query.max_approved_date ? { approved_date: { [Op.between]: [req.query.min_approved_date ?? '2000-01-01', req.query.max_approved_date ?? '2100-01-01'] } } : {}),
                 },
                 required: true,
                 include: [
@@ -68,8 +97,14 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
             ...(!req.params.id ? [{
                 model: AltUser,
                 as: 'user',
-                required: false,
-            }] : []), 
+                required: true,
+                where: {
+                    ...(req.query.min_rank || req.query.max_rank ? { global_rank: { [Op.between]: [req.query.min_rank ?? 0, req.query.max_rank ?? 1000000000] } } : {}),
+                    //country is comma separated, so we split it, if 'world' is in the array, we don't filter by country at all
+                    //entire country code is capitalized in the database
+                    ...(req.query.country ? { country_code: { [Op.or]: req.query.country.split(',').map(country => { return { [Op.iLike]: `%${country}%` } }) } } : {}),
+                }
+            }] : []),
             ...(req.params.id ?
                 [{
                     model: AltTopScore,
@@ -80,9 +115,24 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
                     required: false,
                 }] : [])
         ],
-        nest: true
+        nest: true,
+        logging: console.log
     });
+    console.log(util.inspect(_enabled_mods, {showHidden: false, depth: null, colors: true}));
 
+    scores = JSON.parse(JSON.stringify(scores));
+
+    if (!req.params.id) {
+        //add user data after the fact, since we don't need it in the massive query
+        const inspectorUsers = await InspectorUser.findAll({ where: { osu_id: scores.map(row => row.user_id) } });
+        // scores.forEach(score => {
+        //     // score.inspector_user = inspectorUsers.find(user => user.osu_id === score.user_id) ?? DefaultInspectorUser();
+        //     score.inspector_user = DefaultInspectorUser(inspectorUsers.find(user => user.osu_id === score.user_id), score.user.username, score.user_id);
+        // });
+        for (let i = 0; i < scores.length; i++) {
+            scores[i].inspector_user = DefaultInspectorUser(inspectorUsers.find(user => user.osu_id === scores[i].user_id), scores[i].user.username, scores[i].user_id);
+        }
+    }
 
     if (req.query.include_packs !== 'false') {
         scores = JSON.parse(JSON.stringify(scores));

@@ -51,7 +51,7 @@ const all_mods = {
     Mirror: 1073741824,
 }
 
-const all_mods_short = {
+module.exports.all_mods_short = {
     NM: 0,
     NF: 1,
     EZ: 2,

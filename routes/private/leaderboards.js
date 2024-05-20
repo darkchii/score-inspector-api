@@ -113,12 +113,12 @@ const STAT_DATA = {
             pow(
                 sum(
                     CASE
-                        WHEN scores.rank LIKE '%X%' THEN (9 * greatest(1.0,least(2.0, moddedsr.star_rating / 5.0)))
-                        WHEN scores.perfect = 1 THEN (3 * greatest(1.0,least(2.0, moddedsr.star_rating / 5.0)))
+                        WHEN scores.rank LIKE '%X%' THEN (9 * mods.multiplier)
+                        WHEN scores.perfect = 1 THEN (3 * mods.multiplier)
                         ELSE 1
                     END
-                ) * ROUND(sum(scores.score) / 1000000000),
-                1 / 2.0
+                ) * ROUND(sum(scores.score) / 1000000000) * (0.1 * (users2.playtime / 60 / 60 / 1000)),
+                0.5
             )
         `, table: 'scores'
     },

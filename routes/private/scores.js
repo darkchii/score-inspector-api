@@ -67,7 +67,6 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
                 as: 'beatmap',
                 where: {
                     ...(req.query.approved ? { [Op.or]: req.query.approved.split(',').map(approved => { return { approved: approved } }) } : {}),
-                    ...(req.query.min_stars || req.query.max_stars ? { stars: { [Op.between]: [req.query.min_stars ?? 0, req.query.max_stars ?? 1000000000] } } : {}),
                     ...(req.query.min_ar || req.query.max_ar ? { ar: { [Op.between]: [req.query.min_ar ?? 0, req.query.max_ar ?? 1000000000] } } : {}),
                     ...(req.query.min_od || req.query.max_od ? { od: { [Op.between]: [req.query.min_od ?? 0, req.query.max_od ?? 1000000000] } } : {}),
                     ...(req.query.min_hp || req.query.max_hp ? { hp: { [Op.between]: [req.query.min_hp ?? 0, req.query.max_hp ?? 1000000000] } } : {}),
@@ -82,13 +81,16 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
                         {
                             model: AltModdedStars,
                             as: 'modded_sr',
-                            required: false,
+                            required: true,
                             where: {
-                                mods_enum: {
-                                    [Op.eq]: Sequelize.literal(CorrectedSqlScoreMods)
-                                },
-                                beatmap_id: {
-                                    [Op.eq]: Sequelize.literal('beatmap.beatmap_id')
+                                [Op.and]: {
+                                    mods_enum: {
+                                        [Op.eq]: Sequelize.literal(CorrectedSqlScoreMods)
+                                    },
+                                    beatmap_id: {
+                                        [Op.eq]: Sequelize.literal('beatmap.beatmap_id')
+                                    },
+                                    ...(req.query.min_stars || req.query.max_stars ? { star_rating: { [Op.between]: [req.query.min_stars ?? 0, req.query.max_stars ?? 1000000000] } } : {}),
                                 }
                             }
                         }] : [])
@@ -102,7 +104,7 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
                     ...(req.query.min_rank || req.query.max_rank ? { global_rank: { [Op.between]: [req.query.min_rank ?? 0, req.query.max_rank ?? 1000000000] } } : {}),
                     //country is comma separated, so we split it, if 'world' is in the array, we don't filter by country at all
                     //entire country code is capitalized in the database
-                    ...(req.query.country ? { country_code: { [Op.or]: req.query.country.split(',').map(country => { return { [Op.iLike]: `%${country}%` } }) } } : {}),
+                    ...(req.query.country && req.query.country !== 'world' ? { country_code: { [Op.or]: req.query.country.split(',').map(country => { return { [Op.iLike]: `%${country}%` } }) } } : {}),
                 }
             }] : []),
             ...(req.params.id ?
@@ -118,7 +120,7 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
         nest: true,
         logging: console.log
     });
-    console.log(util.inspect(_enabled_mods, {showHidden: false, depth: null, colors: true}));
+    console.log(util.inspect(_enabled_mods, { showHidden: false, depth: null, colors: true }));
 
     scores = JSON.parse(JSON.stringify(scores));
 

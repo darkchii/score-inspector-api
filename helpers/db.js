@@ -30,6 +30,7 @@ const { InspectorPerformanceRecordModel } = require('./models/InspectorPerforman
 const { InspectorCountryStatModel } = require('./models/InspectorCountryStat.js');
 const { InspectorMapPollModel } = require('./models/InspectorMapPoll.js');
 const { InspectorMapPollVoteModel } = require('./models/InspectorMapPollVote.js');
+const { InspectorCompletionistModel } = require('./models/InspectorCompletionist.js');
 require('dotenv').config();
 
 let databases = {
@@ -58,6 +59,7 @@ const InspectorPerformanceRecord = InspectorPerformanceRecordModel(databases.ins
 const InspectorCountryStat = InspectorCountryStatModel(databases.inspector);
 const InspectorMapPoll = InspectorMapPollModel(databases.inspector);
 const InspectorMapPollVote = InspectorMapPollVoteModel(databases.inspector);
+const InspectorCompletionist = InspectorCompletionistModel(databases.inspector);
 
 const InspectorOsuUser = OsuUserModel(databases.inspector);
 
@@ -145,6 +147,7 @@ module.exports.InspectorPerformanceRecord = InspectorPerformanceRecord;
 module.exports.InspectorCountryStat = InspectorCountryStat;
 module.exports.InspectorMapPoll = InspectorMapPoll;
 module.exports.InspectorMapPollVote = InspectorMapPollVote;
+module.exports.InspectorCompletionist = InspectorCompletionist;
 
 module.exports.AltUser = AltUser;
 module.exports.AltPriorityUser = AltPriorityUser;

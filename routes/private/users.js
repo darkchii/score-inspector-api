@@ -3,6 +3,7 @@ var apicache = require('apicache');
 const { GetUser: GetOsuUser, GetDailyUser, GetUsers, GetUserBeatmaps } = require('../../helpers/osu');
 const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser, GetPopulation } = require('../../helpers/osualt');
 const { getFullUsers } = require('../../helpers/inspector');
+const { InspectorCompletionist } = require('../../helpers/db');
 
 let cache = apicache.middleware;
 const router = express.Router();
@@ -67,6 +68,31 @@ router.get('/osu/ids', cache('1 hour'), async (req, res) => {
   });
 
   res.json(end_data)
+});
+
+router.get('/osu/completionists', cache('1 hour'), async (req, res) => {
+  try{
+    const completionists = await InspectorCompletionist.findAll();
+
+    const ids = completionists.map(c => c.osu_id);
+    const full_users = await getFullUsers(ids, {daily: true, alt: false, score: false, osu: false});
+
+    const data = completionists.map(c => {
+      const user = full_users.find(u => u.osu.id == c.osu_id);
+      return {
+        osu_id: c.osu_id,
+        mode: c.mode,
+        completion_date: c.completion_date,
+        scores: c.scores,
+        user: user
+      }
+    });
+
+    res.json(data);
+  }catch(e){
+    console.error(e);
+    res.json({error: e.message});
+  }
 });
 
 router.get('/daily/:id', cache('30 minutes'), async (req, res) => {

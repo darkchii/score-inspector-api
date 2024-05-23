@@ -4,7 +4,7 @@ var express = require('express');
 const request = require('request');
 const { RankTest, GetCountryLeaderboard } = require('../../helpers/osu');
 var router = express.Router();
-const { InspectorRole, InspectorUserRole, InspectorUser } = require('../../helpers/db');
+const { InspectorRole, InspectorUserRole, InspectorUser, InspectorClanMember, InspectorClan } = require('../../helpers/db');
 require('dotenv').config();
 
 let cache = apicache.middleware;
@@ -65,6 +65,16 @@ router.get('/roles/:id', cache('1 hour'), async (req, res) => {
           attributes: ['id', 'title', 'description', 'color', 'icon', 'is_visible', 'is_admin', 'is_listed'],
           through: { attributes: [] },
           as: 'roles'
+        },
+        {
+          model: InspectorClanMember,
+          attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
+          as: 'clan_member',
+          include: [{
+            model: InspectorClan,
+            attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
+            as: 'clan',
+          }]
         }
       ]
     });

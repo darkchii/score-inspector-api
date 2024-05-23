@@ -16,6 +16,7 @@ const monthlyFarmersCacher = require("./cacher/jobMonthlyFarmers.js");
 const populationStatsCacher = require("./cacher/jobPopulationStats.js");
 const systemStatsCacher = require("./cacher/jobSystemStats.js");
 const mapPollCacher = require("./cacher/jobMapPoll.js");
+const clansCacher = require("./cacher/jobClans.js");
 require('dotenv').config();
 
 function StartCacher() {
@@ -38,12 +39,14 @@ const Cachers = [
     { cacher: populationStatsCacher, interval: '0 * * * *', data: [] },
     { cacher: systemStatsCacher, interval: '*/15 * * * *', data: [] },
     { cacher: mapPollCacher, interval: '1 0 * * *', data: [] },
+    { cacher: clansCacher, interval: '1 * * *', data: [] }, //every hour
 ]
 // monthlyFarmersCacher.func('ss');
 // monthlyFarmersCacher.func('pp');
 // monthlyFarmersCacher.func('clears');
 // monthlyFarmersCacher.func('fcclears');
 mapPollCacher.func();
+clansCacher.func();
 
 async function Loop() {
     for await (const cacher of Cachers) {

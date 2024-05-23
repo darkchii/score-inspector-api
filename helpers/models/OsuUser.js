@@ -20,6 +20,7 @@ const OsuUserModel = (db) => db.define('OsuUser', {
     sh_count: { type: Sequelize.INTEGER, allowNull: false, },
     a_count: { type: Sequelize.INTEGER, allowNull: false, },
     country_rank: { type: Sequelize.INTEGER, allowNull: false, },
+    hit_accuracy: { type: Sequelize.FLOAT, allowNull: false, },
 }, {
     tableName: 'osu_users',
     timestamps: false

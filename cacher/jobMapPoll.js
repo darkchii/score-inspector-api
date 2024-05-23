@@ -47,7 +47,8 @@ async function GetRandomMaps(amount = 5) {
         where: {
             approved: {
                 [Op.in]: [1, 2, 4]
-            }
+            },
+            mode: 0
         }
     });
 
@@ -63,7 +64,8 @@ async function GetRandomMaps(amount = 5) {
             },
             stars: {
                 [Op.between]: [first_random_map.stars - 1, first_random_map.stars + 1]
-            }
+            },
+            mode: 0
         }
     });
 

@@ -1,0 +1,93 @@
+const { InspectorClanMember, InspectorOsuUser, InspectorClanStats, AltScore } = require("./db");
+
+async function UpdateClan(id) {
+    const data = {
+        total_ss: 0,
+        total_ssh: 0,
+        total_s: 0,
+        total_sh: 0,
+        total_a: 0,
+        total_b: 0,
+        total_c: 0,
+        total_d: 0,
+        playcount: 0,
+        playtime: 0,
+        ranked_score: 0,
+        total_score: 0,
+        replays_watched: 0,
+        total_hits: 0,
+        average_pp: 0,
+        total_pp: 0,
+        accuracy: 0,
+        clears: 0
+    };
+
+    let temp_sum_pp = 0;
+    let temp_sum_acc = 0;
+
+    //get all members of the clan
+    const members = await InspectorClanMember.findAll({
+        where: {
+            clan_id: id,
+            pending: false
+        }
+    });
+
+    const ids = members.map(m => m.osu_id);
+
+    //we only use local data, not osu api, too many requests
+    const local_users = await InspectorOsuUser.findAll({
+        where: {
+            user_id: ids
+        }
+    });
+
+    local_users.forEach(u => {
+        data.total_ss += u.ss_count;
+        data.total_ssh += u.ssh_count;
+        data.total_s += u.s_count;
+        data.total_sh += u.sh_count;
+        data.total_a += u.a_count;
+        data.playcount += u.playcount;
+        data.playtime += u.playtime;
+        data.ranked_score += u.ranked_score;
+        data.total_score += u.total_score;
+        data.replays_watched += u.replays_watched;
+        data.total_hits += u.total_hits;
+        data.clears += u.ss_count + u.s_count + u.sh_count + u.ssh_count + u.a_count;
+        temp_sum_pp += u.pp;
+        temp_sum_acc += u.hit_accuracy;
+    });
+
+    data.average_pp = temp_sum_pp / members.length;
+    data.accuracy = temp_sum_acc / members.length;
+
+    //next up, use scores table to get B, C and D ranks etc
+    const scores_B = await AltScore.findAll({ where: { user_id: ids, rank: 'B' } });
+    const scores_C = await AltScore.findAll({ where: { user_id: ids, rank: 'C' } });
+    const scores_D = await AltScore.findAll({ where: { user_id: ids, rank: 'D' } });
+    const total_pp = await AltScore.sum('pp', { where: { user_id: ids } });
+
+    data.total_b = scores_B.length;
+    data.total_c = scores_C.length;
+    data.total_d = scores_D.length;
+    data.total_pp = total_pp;
+
+    data.clears += scores_B.length + scores_C.length + scores_D.length;
+
+
+    //update stats
+    let stats = await InspectorClanStats.findOne({
+        where: {
+            clan_id: id
+        }
+    });
+
+    for (const key in data) {
+        stats[key] = data[key];
+    }
+
+    await stats.save();
+}
+
+module.exports.UpdateClan = UpdateClan;

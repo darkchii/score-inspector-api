@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const crypto = require("crypto");
 require('dotenv').config();
-const { InspectorUser, InspectorComment, InspectorToken, Raw, InspectorVisitor, AltUser, Databases, InspectorRole, InspectorUserAccessToken, InspectorUserFriend } = require('../../helpers/db');
+const { InspectorUser, InspectorComment, InspectorToken, Raw, InspectorVisitor, AltUser, Databases, InspectorRole, InspectorUserAccessToken, InspectorUserFriend, InspectorClanMember, InspectorClan } = require('../../helpers/db');
 const { Sequelize, Op } = require('sequelize');
 const { VerifyToken, GetInspectorUser, InspectorRefreshFriends, getFullUsers, GetToken } = require('../../helpers/inspector');
 const { GetUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET, GetOsuUsers } = require('../../helpers/osu');
@@ -281,7 +281,19 @@ router.all('/visitors/get/:id', async (req, res, next) => {
 
         //for each user, add the inspector user object if it exists
         for await (let user of users) {
-            let inspector_user = await InspectorUser.findOne({ where: { osu_id: user.id } });
+            let inspector_user = await InspectorUser.findOne({
+                where: { osu_id: user.id },
+                includes: [{
+                    model: InspectorClanMember,
+                    attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
+                    as: 'clan_member',
+                    include: [{
+                        model: InspectorClan,
+                        attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
+                        as: 'clan',
+                    }]
+                }]
+            });
             if (inspector_user != null) {
                 user.inspector_user = inspector_user;
             } else {
@@ -311,7 +323,21 @@ router.all('/visitors/get/:id', async (req, res, next) => {
 router.get('/friends/:id', async (req, res, next) => {
     //check if user exists and allows public friends listing
     const user_id = req.params.id;
-    const user = await InspectorUser.findOne({ where: { osu_id: user_id } });
+    const user = await InspectorUser.findOne({
+        where: { osu_id: user_id },
+        includes: [
+            {
+                model: InspectorClanMember,
+                attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
+                as: 'clan_member',
+                include: [{
+                    model: InspectorClan,
+                    attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
+                    as: 'clan',
+                }]
+            }
+        ]
+    });
 
     if (user == null) {
         res.status(401).json({ error: 'Invalid user' });

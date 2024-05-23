@@ -2,7 +2,7 @@ const { default: axios } = require('axios');
 const express = require('express');
 const router = express.Router();
 require('dotenv').config();
-const { InspectorUser, InspectorRole, InspectorOsuUser } = require('../../helpers/db');
+const { InspectorUser, InspectorRole, InspectorOsuUser, InspectorClanMember, InspectorClan } = require('../../helpers/db');
 const { VerifyToken, GetInspectorUser } = require('../../helpers/inspector');
 const { orderBy } = require('lodash');
 
@@ -76,6 +76,16 @@ router.post('/get_users', async (req, res, next) => {
                     attributes: ['user_id', 'username', 'pp', 'global_rank'],
                     as: 'osu_user'
                 },
+                {
+                    model: InspectorClanMember,
+                    attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
+                    as: 'clan_member',
+                    include: [{
+                        model: InspectorClan,
+                        attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
+                        as: 'clan',
+                    }]
+                }
             ],
             //order by pp desc
             order: [[{model: InspectorOsuUser, as: 'osu_user'}, 'pp', 'DESC']]

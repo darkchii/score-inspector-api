@@ -78,8 +78,8 @@ async function AuthorizedApiCall(url, type = 'get', api_version = null, timeout 
 
 module.exports.GetOsuUser = GetOsuUser;
 async function GetOsuUser(username, mode = 'osu', key = 'username', timeout = 10000) {
-    const res = await AuthorizedApiCall(`https://osu.ppy.sh/api/v2/users/${username}/${mode}?key=${key}`, 'get', null, timeout);
     try {
+        const res = await AuthorizedApiCall(`https://osu.ppy.sh/api/v2/users/${username}/${mode}?key=${key}`, 'get', null, timeout);
         return res.data;
     } catch (err) {
         throw new Error('Unable to get user: ' + err.message);

@@ -1,6 +1,6 @@
 const moment = require("moment/moment");
 const { Op, Sequelize, where } = require("sequelize");
-const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, AltModdedStars, Databases, InspectorUser, InspectorScoreStat } = require("./db");
+const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, AltModdedStars, Databases, InspectorUser, InspectorScoreStat, InspectorClanMember, InspectorClan } = require("./db");
 const { CorrectedSqlScoreMods, CorrectedSqlScoreModsCustom } = require("./misc");
 const { default: axios } = require("axios");
 const { GetOsuUsers } = require("./osu");
@@ -212,7 +212,19 @@ async function FindUser(query, single, requirePriority = true) {
 
             const user_ids = rows.map(x => x.user_id);
             const inspector_users = await InspectorUser.findAll({
-                where: { osu_id: { [Op.in]: user_ids } }
+                where: { osu_id: { [Op.in]: user_ids } },
+                include: [
+                    {
+                        model: InspectorClanMember,
+                        attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
+                        as: 'clan_member',
+                        include: [{
+                            model: InspectorClan,
+                            attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
+                            as: 'clan',
+                        }]
+                    }
+                ]
             });
 
             let osu_users = [];
@@ -433,7 +445,19 @@ async function GetBeatmapScores(beatmap_id, limit = 0, offset = 0) {
         });
 
         const inspector_users = await InspectorUser.findAll({
-            where: { osu_id: user_ids }
+            where: { osu_id: user_ids },
+            includes: [
+                {
+                    model: InspectorClanMember,
+                    attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
+                    as: 'clan_member',
+                    include: [{
+                        model: InspectorClan,
+                        attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
+                        as: 'clan',
+                    }]
+                }
+            ]
         });
 
         for await (let score of scores) {

@@ -5,7 +5,7 @@ const { HasScores, GetBeatmaps } = require('../../helpers/osualt');
 const { GetBeatmapCount } = require('../../helpers/inspector');
 const e = require('express');
 const { CorrectedSqlScoreMods_2, parse } = require('../../helpers/misc');
-const { InspectorUser, Raw, Databases } = require('../../helpers/db');
+const { InspectorUser, Raw, Databases, InspectorClanMember, InspectorClan } = require('../../helpers/db');
 const { GetOsuUsers } = require('../../helpers/osu');
 require('dotenv').config();
 let cache = apicache.middleware;
@@ -52,10 +52,10 @@ async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult =
             `${groupSets ? 'beatmaps.set_id' : 'beatmaps.beatmap_id'}, ${noModeCheck ? '' : 'beatmaps.mode,'} beatmaps.approved` :
             `users2.user_id, users2.username`}
             ${country && !groupSets && !noScores ? ', country_code' : ''}, 
-            ${data.extra_output ? 
-                //extra_data is seperated by comma, but we want to get a single column (json array)
-                `json_agg(${data.extra_output})` 
-                : 'NULL'} as extra_data,
+            ${data.extra_output ?
+            //extra_data is seperated by comma, but we want to get a single column (json array)
+            `json_agg(${data.extra_output})`
+            : 'NULL'} as extra_data,
             ${tableType === 'array_table' ? (beatmapQuery !== null ? beatmapQuery : 'count(*)') : stat} as stat
         ${!isBeatmapResult && tableType === 'scores' ? `
             FROM scores 
@@ -83,14 +83,12 @@ async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult =
             `${(groupSets ? 'beatmaps.set_id' : 'beatmaps.beatmap_id')}, ${noModeCheck ? '' : 'beatmaps.mode,'} beatmaps.approved, beatmaps.approved_date, beatmaps.submit_date` :
             `users2.user_id${statRequiresGroup ? `, ${stat}` : ''}`}
           ${country && !groupSets && !noScores ? ', country_code' : ''}
-          ${
-            data?.joins ? data.joins.map(join => join.groupby ? `
+          ${data?.joins ? data.joins.map(join => join.groupby ? `
                 , ${join.groupby}
             ` : '').join('') : ''
-          }
-          ${
-            data?.groupby ? `, ${data.groupby}` : ``
-          }
+        }
+          ${data?.groupby ? `, ${data.groupby}` : ``
+        }
       ) base
     `;
     return base;
@@ -380,7 +378,21 @@ router.get('/:stat', cache('1 hour'), async function (req, res, next) {
                     });
                 }
 
-                const inspectorUsers = await InspectorUser.findAll({ where: { osu_id: rows.map(row => row.user_id) } });
+                const inspectorUsers = await InspectorUser.findAll({
+                    where: { osu_id: rows.map(row => row.user_id) },
+                    includes: [
+                        {
+                            model: InspectorClanMember,
+                            attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
+                            as: 'clan_member',
+                            include: [{
+                                model: InspectorClan,
+                                attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
+                                as: 'clan',
+                            }]
+                        }
+                    ]
+                });
                 if (inspectorUsers) {
                     inspectorUsers.forEach(inspector_user => {
                         const row = rows.find(row => row.user_id === inspector_user.osu_id);

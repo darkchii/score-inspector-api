@@ -31,6 +31,9 @@ const { InspectorCountryStatModel } = require('./models/InspectorCountryStat.js'
 const { InspectorMapPollModel } = require('./models/InspectorMapPoll.js');
 const { InspectorMapPollVoteModel } = require('./models/InspectorMapPollVote.js');
 const { InspectorCompletionistModel } = require('./models/InspectorCompletionist.js');
+const { InspectorClanModel } = require('./models/InspectorClan.js');
+const { InspectorClanMemberModel } = require('./models/InspectorClanMember.js');
+const { InspectorClanStatsModel } = require('./models/InspectorClanStats.js');
 require('dotenv').config();
 
 let databases = {
@@ -60,6 +63,9 @@ const InspectorCountryStat = InspectorCountryStatModel(databases.inspector);
 const InspectorMapPoll = InspectorMapPollModel(databases.inspector);
 const InspectorMapPollVote = InspectorMapPollVoteModel(databases.inspector);
 const InspectorCompletionist = InspectorCompletionistModel(databases.inspector);
+const InspectorClan = InspectorClanModel(databases.inspector);
+const InspectorClanMember = InspectorClanMemberModel(databases.inspector);
+const InspectorClanStats = InspectorClanStatsModel(databases.inspector);
 
 const InspectorOsuUser = OsuUserModel(databases.inspector);
 
@@ -73,6 +79,9 @@ InspectorVisitor.belongsTo(InspectorUser, { as: 'visitor_user', foreignKey: 'vis
 InspectorVisitor.belongsTo(InspectorUser, { as: 'target_user', foreignKey: 'target_id', targetKey: 'osu_id' });
 InspectorUserMilestone.belongsTo(InspectorOsuUser, { as: 'user', foreignKey: 'user_id', targetKey: 'user_id' });
 InspectorUserMilestone.belongsTo(InspectorUser, { as: 'inspector_user', foreignKey: 'user_id', targetKey: 'osu_id' });
+InspectorClanStats.belongsTo(InspectorClan, { as: 'clan', foreignKey: 'clan_id', targetKey: 'id' });
+InspectorUser.hasOne(InspectorClanMember, { as: 'clan_member', foreignKey: 'osu_id', sourceKey: 'osu_id' });
+InspectorClanMember.hasOne(InspectorClan, { as: 'clan', foreignKey: 'id', sourceKey: 'clan_id' });
 
 // InspectorPerformanceRecord.belongsTo(InspectorOsuUser, { as: 'user', foreignKey: 'user_id', targetKey: 'user_id' });
 // InspectorPerformanceRecord.belongsTo(InspectorBeatmap, { as: 'beatmap', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
@@ -162,6 +171,9 @@ module.exports.AltUniqueSS = AltUniqueSS;
 module.exports.AltUniqueFC = AltUniqueFC;
 module.exports.AltUniqueDTFC = AltUniqueDTFC;
 module.exports.AltUserAchievement = AltUserAchievement;
+module.exports.InspectorClan = InspectorClan;
+module.exports.InspectorClanMember = InspectorClanMember;
+module.exports.InspectorClanStats = InspectorClanStats;
 
 module.exports.Raw = Raw;
 async function Raw(query, db = 'inspector') {

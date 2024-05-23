@@ -3,7 +3,7 @@ const { GetDailyUser, GetOsuUser, GetOsuUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET 
 const mysql = require('mysql-await');
 const { default: axios } = require("axios");
 const { range, renameKey } = require("./misc");
-const { InspectorBeatmap, Databases, AltBeatmap, InspectorUser, InspectorRole, InspectorOsuUser, InspectorUserAccessToken, InspectorUserFriend, InspectorModdedStars } = require("./db");
+const { InspectorBeatmap, Databases, AltBeatmap, InspectorUser, InspectorRole, InspectorOsuUser, InspectorUserAccessToken, InspectorUserFriend, InspectorModdedStars, InspectorClan, InspectorClanMember } = require("./db");
 const { Op, Sequelize } = require("sequelize");
 const { GetAltUsers } = require("./osualt");
 require('dotenv').config();
@@ -27,6 +27,16 @@ async function GetInspectorUser(id) {
                         attributes: ['id', 'title', 'description', 'color', 'icon', 'is_visible', 'is_admin', 'is_listed'],
                         through: { attributes: [] },
                         as: 'roles'
+                    },
+                    {
+                        model: InspectorClanMember,
+                        attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
+                        as: 'clan_member',
+                        include: [{
+                            model: InspectorClan,
+                            attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
+                            as: 'clan',
+                        }]
                     }
                 ]
             });
@@ -331,7 +341,7 @@ function getCompletionData(scores, beatmaps) {
         });
     }
 
-    spread = ["0-100", "100-200", "200-300","300-400","400-500","500-600","600-700","700-800","800-900", "900-1000", "1000-99999"];
+    spread = ["0-100", "100-200", "200-300", "300-400", "400-500", "500-600", "600-700", "700-800", "800-900", "900-1000", "1000-99999"];
     completion.max_combo = [];
     for (const range of spread) {
         let perc = 100;
@@ -502,6 +512,15 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
                 attributes: ['id', 'title', 'description', 'color', 'icon', 'is_visible', 'is_admin', 'is_listed'],
                 through: { attributes: [] },
                 as: 'roles'
+            }, {
+                model: InspectorClanMember,
+                attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
+                as: 'clan_member',
+                include: [{
+                    model: InspectorClan,
+                    attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
+                    as: 'clan',
+                }]
             }]
         }).then(users => {
             inspector_users = users;
@@ -538,10 +557,10 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
         let score_rank = score_ranks.find(user => user.user_id == id);
 
         const username = skippedData.osu ? alt_user?.username : osu_user?.username;
-        if(!username) return;
+        if (!username) return;
 
-        if(!skippedData.alt){ user.alt = alt_user; }
-        if(!skippedData.osu){ user.osu = { ...osu_user, score_rank }; }
+        if (!skippedData.alt) { user.alt = alt_user; }
+        if (!skippedData.osu) { user.osu = { ...osu_user, score_rank }; }
 
         user.inspector_user = DefaultInspectorUser(inspector_user, username, parseInt(id));
 

@@ -3,7 +3,7 @@ var apicache = require('apicache');
 var router = express.Router();
 const { GetBestScores, score_columns, score_columns_full, beatmap_columns, GetBeatmapScores } = require('../../helpers/osualt');
 const { getBeatmaps, getCompletionData, DefaultInspectorUser } = require('../../helpers/inspector');
-const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat, AltBeatmapEyup, Databases, AltBeatmapSSRatio, AltTopScore, InspectorHistoricalScoreRank, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, InspectorPerformanceRecord, InspectorBeatmap, AltBeatmapMaxScoreNomod, AltUser } = require('../../helpers/db');
+const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat, AltBeatmapEyup, Databases, AltBeatmapSSRatio, AltTopScore, InspectorHistoricalScoreRank, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, InspectorPerformanceRecord, InspectorBeatmap, AltBeatmapMaxScoreNomod, AltUser, InspectorClanMember, InspectorClan } = require('../../helpers/db');
 const { Op, Sequelize } = require('sequelize');
 const { CorrectedSqlScoreMods, CorrectMod, ModsToString, db_now, all_mods_short } = require('../../helpers/misc');
 const request = require("supertest");
@@ -126,7 +126,21 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
 
     if (!req.params.id) {
         //add user data after the fact, since we don't need it in the massive query
-        const inspectorUsers = await InspectorUser.findAll({ where: { osu_id: scores.map(row => row.user_id) } });
+        const inspectorUsers = await InspectorUser.findAll({
+            where: { osu_id: scores.map(row => row.user_id) },
+            includes: [
+                {
+                    model: InspectorClanMember,
+                    attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
+                    as: 'clan_member',
+                    include: [{
+                        model: InspectorClan,
+                        attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
+                        as: 'clan',
+                    }]
+                }
+            ]
+        });
         // scores.forEach(score => {
         //     // score.inspector_user = inspectorUsers.find(user => user.osu_id === score.user_id) ?? DefaultInspectorUser();
         //     score.inspector_user = DefaultInspectorUser(inspectorUsers.find(user => user.osu_id === score.user_id), score.user.username, score.user_id);
@@ -712,6 +726,16 @@ router.get('/ranking', cache('1 hour'), async function (req, res, next) {
                         attributes: ['id', 'title', 'description', 'color', 'icon', 'is_visible', 'is_admin', 'is_listed'],
                         through: { attributes: [] },
                         as: 'roles'
+                    },
+                    {
+                        model: InspectorClanMember,
+                        attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
+                        as: 'clan_member',
+                        include: [{
+                            model: InspectorClan,
+                            attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
+                            as: 'clan',
+                        }]
                     }
                 ]
             });

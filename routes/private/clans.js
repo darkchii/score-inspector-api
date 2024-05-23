@@ -3,11 +3,48 @@ const { VerifyToken, getFullUsers } = require('../../helpers/inspector');
 const { InspectorClanMember, InspectorClan, InspectorClanStats } = require('../../helpers/db');
 const { Op } = require('sequelize');
 const { UpdateClan } = require('../../helpers/clans');
+const { includes } = require('lodash');
 const router = express.Router();
 require('dotenv').config();
 
+const stat_rankings = [
+    { key: 'clears', query: 'clears' },
+    { key: 'total_ss', query: 'total_ssh+total_ss' },
+    { key: 'total_s', query: 'total_sh+total_s' },
+    { key: 'total_a', query: 'total_a' },
+    { key: 'total_b', query: 'total_b' },
+    { key: 'total_c', query: 'total_c' },
+    { key: 'total_d', query: 'total_d' },
+    { key: 'playcount', query: 'playcount' },
+    { key: 'playtime', query: 'playtime' },
+    { key: 'ranked_score', query: 'ranked_score' },
+    { key: 'total_score', query: 'total_score' },
+    { key: 'replays_watched', query: 'replays_watched' },
+    { key: 'total_hits', query: 'total_hits' },
+    { key: 'average_pp', query: 'average_pp' },
+    { key: 'total_pp', query: 'total_pp' },
+    { key: 'accuracy', query: 'accuracy' }
+]
+
 router.get('/list', async (req, res, next) => {
-    res.json({});
+    const order = req.query.order || 'average_pp';
+    const clans = await InspectorClan.findAll({
+        include: [
+            { 
+                model: InspectorClanStats,
+                as: 'clan_stats',
+            },
+            {
+                model: InspectorClanMember,
+                as: 'clan_members',
+                where: {
+                    pending: false
+                }
+            }
+        ],
+    });
+
+    res.json({ clans: clans });
 });
 
 router.post('/create', async (req, res, next) => {
@@ -132,25 +169,6 @@ router.get('/get/:id', async (req, res, next) => {
 
     const rankings = {};
 
-    const stat_rankings = [
-        { key: 'clears', query: 'clears' },
-        { key: 'total_ss', query: 'total_ssh+total_ss' },
-        { key: 'total_s', query: 'total_sh+total_s' },
-        { key: 'total_a', query: 'total_a' },
-        { key: 'total_b', query: 'total_b' },
-        { key: 'total_c', query: 'total_c' },
-        { key: 'total_d', query: 'total_d' },
-        { key: 'playcount', query: 'playcount' },
-        { key: 'playtime', query: 'playtime' },
-        { key: 'ranked_score', query: 'ranked_score' },
-        { key: 'total_score', query: 'total_score' },
-        { key: 'replays_watched', query: 'replays_watched' },
-        { key: 'total_hits', query: 'total_hits' },
-        { key: 'average_pp', query: 'average_pp' },
-        { key: 'total_pp', query: 'total_pp' },
-        { key: 'accuracy', query: 'accuracy' }
-    ]
-
     for (const rank of stat_rankings) {
         const sorted = await InspectorClanStats.findAll({
             order: [[rank.key, 'DESC']]
@@ -204,7 +222,7 @@ router.post('/update', async (req, res, next) => {
     //validate header image url
     const header_image_url = req.body.header_image_url;
     if (header_image_url && header_image_url.length > 0) {
-        try{
+        try {
             const url = new URL(header_image_url);
             if (url.protocol != "http:" && url.protocol != "https:") {
                 res.json({ error: "Invalid header image url" });
@@ -228,7 +246,7 @@ router.post('/update', async (req, res, next) => {
                 return;
             }
 
-        }catch(err){
+        } catch (err) {
             res.json({ error: err.message });
             return;
         }

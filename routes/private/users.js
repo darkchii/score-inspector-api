@@ -3,7 +3,7 @@ var apicache = require('apicache');
 const { GetUser: GetOsuUser, GetDailyUser, GetUsers, GetUserBeatmaps } = require('../../helpers/osu');
 const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser, GetPopulation } = require('../../helpers/osualt');
 const { getFullUsers } = require('../../helpers/inspector');
-const { InspectorCompletionist } = require('../../helpers/db');
+const { InspectorCompletionist, AltUser, Databases } = require('../../helpers/db');
 
 let cache = apicache.middleware;
 const router = express.Router();
@@ -71,11 +71,11 @@ router.get('/osu/ids', cache('1 hour'), async (req, res) => {
 });
 
 router.get('/osu/completionists', cache('1 hour'), async (req, res) => {
-  try{
+  try {
     const completionists = await InspectorCompletionist.findAll();
 
     const ids = completionists.map(c => c.osu_id);
-    const full_users = await getFullUsers(ids, {daily: true, alt: false, score: false, osu: false});
+    const full_users = await getFullUsers(ids, { daily: true, alt: false, score: false, osu: false });
 
     const data = completionists.map(c => {
       const user = full_users.find(u => u.osu.id == c.osu_id);
@@ -89,9 +89,9 @@ router.get('/osu/completionists', cache('1 hour'), async (req, res) => {
     });
 
     res.json(data);
-  }catch(e){
+  } catch (e) {
     console.error(e);
-    res.json({error: e.message});
+    res.json({ error: e.message });
   }
 });
 
@@ -166,6 +166,7 @@ router.get('/full/:ids', cache('10 minutes'), async (req, res, next) => {
     alt: req.query.skipAltData === 'true' ? true : false,
     score: req.query.skipScoreRank === 'true' ? true : false,
     osu: req.query.skipOsuData === 'true' ? true : false,
+    stats: req.query.skipStats === 'true' ? true : false,
   }
 
   let ids = req.params.ids;
@@ -189,6 +190,50 @@ router.get('/full/:ids', cache('10 minutes'), async (req, res, next) => {
     });
   } else {
     res.json(data);
+  }
+});
+
+router.get('/stats/:id', cache('1 hour'), async (req, res) => {
+  const id = req.params.id;
+
+  try {
+    const user = await AltUser.findOne({
+      where: { user_id: id },
+    });
+
+    const query = `
+    SELECT
+        count(*) as clears,
+        count(case when scores.rank = 'X' then 1 end) as ss,
+        count(case when scores.rank = 'XH' then 1 end) as ssh,
+        count(case when scores.rank = 'S' then 1 end) as s,
+        count(case when scores.rank = 'SH' then 1 end) as sh,
+        count(case when scores.rank = 'A' then 1 end) as a,
+        count(case when scores.rank = 'B' then 1 end) as b,
+        count(case when scores.rank = 'C' then 1 end) as c,
+        count(case when scores.rank = 'D' then 1 end) as d,
+        sum(scores.pp) as total_pp,
+        sum(scores.score) as total_score,
+        sum(scores.count300+scores.count100+scores.count50) as total_hits,
+        sum(beatmaps.length) as total_length,
+        count(case when scores.perfect = '1' then 1 end) as perfect_clears,
+        avg(scores.pp) as avg_pp,
+        avg(scores.accuracy) as avg_acc,
+        count(*)::float / (SELECT count(*) FROM beatmaps WHERE approved IN (1,2,4) AND mode=0) * 100 as completion
+    FROM scores
+    INNER JOIN beatmaps
+    ON beatmaps.beatmap_id = scores.beatmap_id
+    WHERE scores.user_id = ${id} AND mode = 0 AND approved IN (1,2,4)
+    `;
+
+    const stats = (await Databases.osuAlt.query(query))[0][0];
+    res.json({
+      user: user,
+      stats: stats,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Unable to get user', message: err.message });
   }
 });
 

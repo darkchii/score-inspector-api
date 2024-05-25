@@ -1,4 +1,4 @@
-const { InspectorClanMember, InspectorOsuUser, InspectorClanStats, AltScore } = require("./db");
+const { InspectorClanMember, InspectorOsuUser, InspectorClanStats, AltScore, InspectorClan } = require("./db");
 
 async function UpdateClan(id) {
     const data = {
@@ -32,6 +32,11 @@ async function UpdateClan(id) {
             pending: false
         }
     });
+
+    if (members.length === 0) {
+        console.warn(`Clan ${id} has no members`);
+        return;
+    }
 
     const ids = members.map(m => m.osu_id);
 
@@ -89,5 +94,19 @@ async function UpdateClan(id) {
 
     await stats.save();
 }
-
 module.exports.UpdateClan = UpdateClan;
+
+async function IsUserClanOwner(user_id, clan_id) {
+    const clan = await InspectorClan.findOne({
+        where: {
+            id: clan_id
+        }
+    });
+
+    if (clan.owner_id === user_id) {
+        return true;
+    }
+
+    return false;
+}
+module.exports.IsUserClanOwner = IsUserClanOwner;

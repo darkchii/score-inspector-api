@@ -163,7 +163,6 @@ module.exports.GetAltUsers = GetAltUsers;
 async function GetAltUsers(id_array, include_sub_data = true) {
     let data;
     try {
-        console.log(`Get(Alt)Users: ${id_array}`);
         let _id_array = id_array;
         if (!Array.isArray(id_array)) _id_array = id_array.split(',');
         const rows = await AltUser.findAll({
@@ -175,7 +174,6 @@ async function GetAltUsers(id_array, include_sub_data = true) {
                 { model: AltUserAchievement, as: 'medals', attributes: ['achievement_id', 'achieved_at'], required: false }]
                 : [],
         });
-        console.log(rows.length);
         data = rows;
     } catch (err) {
         throw new Error(err.message);
@@ -203,8 +201,6 @@ async function FindUser(query, single, requirePriority = true) {
             ],
             where: single ? { user_id: query } : { username: { [Op.iLike]: `%${query}%` } },
         });
-
-        console.log(requirePriority);
 
         if (rows.length > 0) {
             //find or create proxy inspector user
@@ -509,7 +505,6 @@ async function GetSystemInfo() {
         });
 
         data = JSON.parse(_data.value);
-        console.log(data);
     } catch (err) {
         throw new Error(err.message);
     }

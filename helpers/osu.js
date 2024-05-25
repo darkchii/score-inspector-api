@@ -42,7 +42,6 @@ async function AuthorizedApiCall(url, type = 'get', api_version = null, timeout 
             throw new Error('Unable to get osu!apiv2 token: ' + err.message);
         }
         refetch_token = Date.now() + 3600000;
-        console.log('Refreshed osu!apiv2 token');
     }
 
     const headers = {
@@ -108,7 +107,6 @@ async function GetBeatmapScores(beatmap_id, mode = 'osu', mods = null, timeout =
 
 module.exports.GetOsuUsers = GetOsuUsers;
 async function GetOsuUsers(id_array, timeout = 5000) {
-    console.log(`Getting ${id_array.length} users`)
     let users = [];
     let split_array = [];
 
@@ -139,7 +137,7 @@ async function GetDailyUser(user_id, mode = 0, key = 'id', timeout = 1000) {
         const res = await axios.get(`https://osudaily.net/api/user.php?k=${process.env.OSUDAILY_API}&u=${user_id}&m=${mode}&min=0`, { timeout });
         return res.data;
     } catch (err) {
-        console.log(err);
+        console.error(err);
         return null;
     }
 }
@@ -178,7 +176,7 @@ async function GetCountryLeaderboard() {
 
         return merged;
     }catch(err){
-        console.log(err);
+        console.error(err);
         return null;
     }
 

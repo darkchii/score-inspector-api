@@ -25,7 +25,6 @@ router.get('/current/:user_id?', async (req, res) => {
 
             //check if user is set and if user has a score on the maps
             if (user_id) {
-                console.log('user_id', user_id);
                 const scores = await AltScore.findAll({
                     where: {
                         user_id: user_id,

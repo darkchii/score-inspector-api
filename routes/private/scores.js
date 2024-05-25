@@ -117,10 +117,8 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
                     required: false,
                 }] : [])
         ],
-        nest: true,
-        logging: console.log
+        nest: true
     });
-    console.log(util.inspect(_enabled_mods, { showHidden: false, depth: null, colors: true }));
 
     scores = JSON.parse(JSON.stringify(scores));
 

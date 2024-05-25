@@ -4,7 +4,7 @@ const mysql = require('mysql-await');
 const { default: axios } = require("axios");
 const { range, renameKey } = require("./misc");
 const { InspectorBeatmap, Databases, AltBeatmap, InspectorUser, InspectorRole, InspectorOsuUser, InspectorUserAccessToken, InspectorUserFriend, InspectorModdedStars, InspectorClan, InspectorClanMember } = require("./db");
-const { Op, Sequelize } = require("sequelize");
+const { Op, Sequelize, where } = require("sequelize");
 const { GetAltUsers } = require("./osualt");
 require('dotenv').config();
 
@@ -167,9 +167,6 @@ async function getBeatmaps(req) {
         replacements: qVar,
         type: Sequelize.QueryTypes.SELECT
     });
-    console.log(result);
-    // const result = await connection.awaitQuery(query, qVar);
-    // await connection.end();
     return result;
 }
 
@@ -371,7 +368,7 @@ async function VerifyToken(session_token, user_id, refresh = false) {
     //check if created_at + expires_in is greater than current time
     let valid = result !== null && result !== undefined;
     if (valid) {
-        console.log(`[TOKEN DEBUG] Found token for ${user_id}`);
+        //console.log(`[TOKEN DEBUG] Found token for ${user_id}`);
         const created_at = new Date(result.created_at);
         const expires_in = result.expires_in;
         const now = new Date();
@@ -381,7 +378,7 @@ async function VerifyToken(session_token, user_id, refresh = false) {
     }
 
     if (!valid && refresh) {
-        console.log(`[TOKEN DEBUG] Token for ${user_id} is expired`);
+        //console.log(`[TOKEN DEBUG] Token for ${user_id} is expired`);
         //try to refresh token
         const refresh_token = result.refresh_token;
         let refresh_result = null;
@@ -398,7 +395,7 @@ async function VerifyToken(session_token, user_id, refresh = false) {
         }
         if (refresh_result?.data?.access_token !== null) {
             //update token
-            console.log(`[TOKEN DEBUG] Refreshed token for ${user_id}`);
+            //console.log(`[TOKEN DEBUG] Refreshed token for ${user_id}`);
             await InspectorUserAccessToken.update({
                 access_token: refresh_result.data.access_token,
                 refresh_token: refresh_result.data.refresh_token,
@@ -492,6 +489,8 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
         ids = user_ids.split(',').map(id => parseInt(id));
     }
 
+    if (ids.length === 0) return [];
+
     let data = [];
 
     //we create arrays of each type of user data, and then we merge them together
@@ -524,26 +523,36 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
             }]
         }).then(users => {
             inspector_users = users;
+        }).catch(err => {
+            console.error(err);
         }),
         //osu users
         skippedData.osu ? null : ids.length === 1 ? GetOsuUser(ids[0], 'osu', 'id').then(user => {
             osu_users = [user];
-        }) : GetOsuUsers(ids).then(users => {
+        }).catch(err => { console.error(err) }) : GetOsuUsers(ids).then(users => {
             osu_users = users;
+        }).catch(err => {
+            console.error(err);
         }),
         //daily users
         skippedData.daily ? null : Promise.all(ids.map(id => GetDailyUser(id, 0, 'id'))).then(users => {
             daily_users = users;
+        }).catch(err => {
+            console.error(err);
         }),
         //alt users
         skippedData.alt ? null : GetAltUsers(ids, ids.length === 1).then(users => {
             alt_users = JSON.parse(JSON.stringify(users));
+        }).catch(err => {
+            console.error(err);
         }),
         //score ranks
         skippedData.score || skippedData.osu ? null : axios.get(`https://score.respektive.pw/u/${ids.join(',')}`, {
             headers: { "Accept-Encoding": "gzip,deflate,compress" }
         }).then(res => {
             score_ranks = res.data;
+        }).catch(err => {
+            console.error(err);
         })
     ]);
 

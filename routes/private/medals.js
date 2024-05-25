@@ -15,7 +15,7 @@ router.get('/get/', cache('1 hour'), async (req, res) => {
         let data = await InspectorMedal.findAll();
         res.json(data ?? []);
     }catch(e){
-        console.log(e);
+        console.error(e);
         res.status(500).json({ error: e });
     }
 });

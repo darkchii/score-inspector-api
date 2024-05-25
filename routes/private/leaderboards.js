@@ -269,8 +269,6 @@ async function getQueryBeatmapData(stat, limit, offset) {
           LIMIT 
             :limit OFFSET :offset
     `;
-    console.log(query);
-
     return [query, queryData, stat.groupSets ? 'beatmapsets' : 'beatmaps'];
 }
 
@@ -287,8 +285,6 @@ async function getQuery(stat, limit, offset, country) {
     if (country?.toLowerCase() === 'world') {
         country = undefined;
     }
-
-    console.log(selectedStat);
 
     if (!selectedStat.isBeatmaps) {
         return await getQueryUserData(selectedStat, limit, offset, country);
@@ -334,7 +330,6 @@ router.get('/:stat', cache('1 hour'), async function (req, res, next) {
         }
 
         const [rows] = await Databases.osuAlt.query(queryInfo[0], { replacements: queryInfo[1] });
-        console.log(rows);
 
         const total_users = rows[0]?.total_users ?? 0;
         rows.forEach(row => {
@@ -359,17 +354,7 @@ router.get('/:stat', cache('1 hour'), async function (req, res, next) {
         if (queryInfo[2] === 'users') {
             try {
                 const users = await GetOsuUsers(rows.map(row => row.user_id));
-                console.log(users);
                 if (users) {
-                    // users.forEach(osu_user => {
-                    //     const row = rows.find(row => row.user_id === osu_user.id);
-                    //     // row.osu_user = osu_user;
-                    //     //deep clone osu_user
-                    //     row.osu_user = JSON.parse(JSON.stringify(osu_user));
-                    //     if(!row){
-                    //         console.log('row not found', osu_user.id);
-                    //     }
-                    // });
                     rows.forEach(row => {
                         const osu_user = users.find(user => user.id === row.user_id);
                         if (osu_user) {

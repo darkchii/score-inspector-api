@@ -1,5 +1,5 @@
 const { Sequelize } = require("sequelize");
-const { Raw, InspectorCountryStat } = require("../helpers/db");
+const { Raw, InspectorCountryStat, AltUser } = require("../helpers/db");
 const { AuthorizedApiCall } = require("../helpers/osu");
 
 const cacher = {

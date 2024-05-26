@@ -1,5 +1,7 @@
 const { default: axios } = require("axios");
 const { InspectorHistoricalScoreRank } = require("../helpers/db");
+const { sleep } = require("../helpers/misc");
+const axiosRetry = require('axios-retry').default;
 
 const cacher = {
     func: UpdateScoreRanks,

@@ -1,4 +1,6 @@
 const { Databases, InspectorScoreStat } = require("../helpers/db");
+const { db_now } = require("../helpers/misc");
+const { beatmap_columns } = require("../helpers/osualt");
 
 const cacher = {
     func: UpdateScoreStatistics,
@@ -6,6 +8,14 @@ const cacher = {
 }
 
 module.exports = cacher;
+
+const user_rows = [
+    { key: "user_most_scores", select: "count(*)" },
+    { key: "user_most_pp", select: "sum(case when scores.pp = 'NaN' then 0 else scores.pp end)" },
+    { key: "user_top_pp", select: "max(case when scores.pp = 'NaN' then 0 else scores.pp end)" },
+    { key: "user_most_score", select: "sum(score)" },
+    { key: "user_top_score", select: "max(score)" },
+]
 
 async function UpdateScoreStatistics(STAT_PERIODS) {
     const approved_query = `(beatmaps.approved = 1 OR beatmaps.approved = 2 OR beatmaps.approved = 4)`;

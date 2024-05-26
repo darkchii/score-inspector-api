@@ -96,6 +96,26 @@ router.post('/create', async (req, res, next) => {
     //if everything is good, we create the clan
     //we also add the user to the clan
 
+    if(clan_name.length > 20){
+        res.json({ error: "Clan name is too long" });
+        return;
+    }
+
+    if(clan_tag.length > 5){
+        res.json({ error: "Clan tag is too long" });
+        return;
+    }
+
+    if(req.body.description.length > 100){
+        res.json({ error: "Clan description is too long" });
+        return;
+    }
+
+    if(req.body.color.length > 6){
+        res.json({ error: "Clan color string is too long" });
+        return;
+    }
+
     const new_clan = await InspectorClan.create({
         name: clan_name,
         tag: clan_tag,
@@ -226,6 +246,26 @@ router.post('/update', async (req, res, next) => {
         return;
     }
 
+    if(req.body.name.length > 20){
+        res.json({ error: "Clan name is too long" });
+        return;
+    }
+
+    if(req.body.tag.length > 5){
+        res.json({ error: "Clan tag is too long" });
+        return;
+    }
+
+    if(req.body.description.length > 100){
+        res.json({ error: "Clan description is too long" });
+        return;
+    }
+
+    if(req.body.color.length > 6){
+        res.json({ error: "Clan color string is too long" });
+        return;
+    }
+
     //validate header image url
     const header_image_url = req.body.header_image_url;
     if (header_image_url && header_image_url.length > 0) {
@@ -272,7 +312,7 @@ router.post('/update', async (req, res, next) => {
     }
 
     await clan.save();
-    
+
     await UpdateClan(clan_id);
 
     res.json({ clan: clan });

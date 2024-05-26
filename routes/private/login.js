@@ -283,13 +283,11 @@ router.all('/visitors/get/:id', async (req, res, next) => {
         for await (let user of users) {
             let inspector_user = await InspectorUser.findOne({
                 where: { osu_id: user.id },
-                includes: [{
+                include: [{
                     model: InspectorClanMember,
-                    attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
                     as: 'clan_member',
                     include: [{
                         model: InspectorClan,
-                        attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
                         as: 'clan',
                     }]
                 }]
@@ -325,7 +323,7 @@ router.get('/friends/:id', async (req, res, next) => {
     const user_id = req.params.id;
     const user = await InspectorUser.findOne({
         where: { osu_id: user_id },
-        includes: [
+        include: [
             {
                 model: InspectorClanMember,
                 attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],

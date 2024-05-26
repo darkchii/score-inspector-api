@@ -442,7 +442,7 @@ async function GetBeatmapScores(beatmap_id, limit = 0, offset = 0) {
 
         const inspector_users = await InspectorUser.findAll({
             where: { osu_id: user_ids },
-            includes: [
+            include: [
                 {
                     model: InspectorClanMember,
                     attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],

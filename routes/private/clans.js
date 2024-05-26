@@ -410,6 +410,7 @@ router.post('/accept_request', async (req, res, next) => {
     }
 
     member.pending = false;
+    member.join_date = new Date();
 
     await member.save();
 
@@ -459,6 +460,56 @@ router.post('/reject_request', async (req, res, next) => {
 
     if (!member) {
         res.json({ error: "User is not pending to join this clan" });
+        return;
+    }
+
+    await member.destroy();
+
+    res.json({ success: true });
+});
+
+router.post('/remove_member', async (req, res, next) => {
+    const owner_id = req.body.owner_id;
+    const token = req.body.token;
+    const user_id = req.body.member_id;
+    const clan_id = req.body.clan_id;
+
+    if (VerifyToken(token, owner_id) === false) {
+        res.json({ error: "Invalid token" });
+        return;
+    }
+
+    if(!IsUserClanOwner(owner_id, clan_id)){
+        res.json({ error: "You are not the owner of this clan" });
+        return;
+    }
+
+    const user = await GetInspectorUser(user_id);
+    if (!user) {
+        res.json({ error: "User not found" });
+        return;
+    }
+
+    const clan = await InspectorClan.findOne({
+        where: {
+            id: clan_id
+        }
+    });
+
+    if (!clan) {
+        res.json({ error: "Clan not found" });
+        return;
+    }
+
+    const member = await InspectorClanMember.findOne({
+        where: {
+            osu_id: user_id,
+            clan_id: clan_id
+        }
+    });
+
+    if (!member) {
+        res.json({ error: "User is not in this clan" });
         return;
     }
 

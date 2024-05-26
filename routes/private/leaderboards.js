@@ -365,10 +365,9 @@ router.get('/:stat', cache('1 hour'), async function (req, res, next) {
 
                 const inspectorUsers = await InspectorUser.findAll({
                     where: { osu_id: rows.map(row => row.user_id) },
-                    includes: [
+                    include: [
                         {
                             model: InspectorClanMember,
-                            attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
                             as: 'clan_member',
                             include: [{
                                 model: InspectorClan,

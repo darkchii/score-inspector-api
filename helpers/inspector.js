@@ -513,11 +513,9 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
                 as: 'roles'
             }, {
                 model: InspectorClanMember,
-                attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
                 as: 'clan_member',
                 include: [{
                     model: InspectorClan,
-                    attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
                     as: 'clan',
                 }]
             }]

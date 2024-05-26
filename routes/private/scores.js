@@ -126,7 +126,7 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
         //add user data after the fact, since we don't need it in the massive query
         const inspectorUsers = await InspectorUser.findAll({
             where: { osu_id: scores.map(row => row.user_id) },
-            includes: [
+            include: [
                 {
                     model: InspectorClanMember,
                     attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],

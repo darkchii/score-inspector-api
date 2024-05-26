@@ -272,6 +272,8 @@ router.post('/update', async (req, res, next) => {
     }
 
     await clan.save();
+    
+    await UpdateClan(clan_id);
 
     res.json({ clan: clan });
 });
@@ -414,6 +416,8 @@ router.post('/accept_request', async (req, res, next) => {
 
     await member.save();
 
+    await UpdateClan(clan_id);
+
     res.json({ success: true });
 });
 
@@ -515,6 +519,8 @@ router.post('/remove_member', async (req, res, next) => {
 
     await member.destroy();
 
+    await UpdateClan(clan_id);
+
     res.json({ success: true });
 });
 
@@ -550,6 +556,8 @@ router.post('/leave', async (req, res, next) => {
     }
 
     await user.clan_member.destroy();
+
+    await UpdateClan(clan_id);
 
     res.json({ success: true });
 });

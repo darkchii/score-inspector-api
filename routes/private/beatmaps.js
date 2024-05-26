@@ -203,7 +203,6 @@ router.get('/count_periodic', cache('1 hour'), async (req, res) => {
             });
 
             for (let i = 0; i < _data.length; i++) {
-                console.log(_data[i].date);
                 let current = _data[i];
                 let previous = _data[i - 1];
 

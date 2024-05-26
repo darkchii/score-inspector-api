@@ -187,7 +187,7 @@ router.get('/count_periodic', cache('1 hour'), async (req, res) => {
         COUNT(*) as amount
         FROM beatmaps 
         INNER JOIN top_score ON beatmaps.beatmap_id=top_score.beatmap_id
-        WHERE mode=? AND (approved=1 OR approved=2 ${(req.query.loved === 'true' ? 'OR approved=4' : '')}) 
+        WHERE mode=? AND (approved=1 OR approved=2 ${(req.query.include_loved === 'true' ? 'OR approved=4' : '')}) 
         GROUP BY to_char(approved_date, '${formatting}')`;
             // const data = await connection.awaitQuery(query, [mode]);
             const data = await Databases.osuAlt.query(query, {
@@ -197,7 +197,13 @@ router.get('/count_periodic', cache('1 hour'), async (req, res) => {
 
             const _data = JSON.parse(JSON.stringify(data));
 
+            //order by date
+            _data.sort((a, b) => {
+                return new Date(a.date) - new Date(b.date);
+            });
+
             for (let i = 0; i < _data.length; i++) {
+                console.log(_data[i].date);
                 let current = _data[i];
                 let previous = _data[i - 1];
 
@@ -205,15 +211,9 @@ router.get('/count_periodic', cache('1 hour'), async (req, res) => {
                 current.score = parseInt(current.score);
                 current.amount = parseInt(current.amount);
 
-                if (previous === undefined) {
-                    current.length_total = parseInt(current.length);
-                    current.score_total = parseInt(current.score);
-                    current.amount_total = parseInt(current.amount);
-                } else {
-                    current.length_total = parseInt(current.length) + parseInt(previous.length_total);
-                    current.score_total = parseInt(current.score) + parseInt(previous.score_total);
-                    current.amount_total = parseInt(current.amount) + parseInt(previous.amount_total);
-                }
+                current.length_total = parseInt(previous?.length_total ?? 0) + parseInt(current.length);
+                current.score_total = parseInt(previous?.score_total ?? 0) + parseInt(current.score);
+                current.amount_total = parseInt(previous?.amount_total ?? 0) + parseInt(current.amount);
             }
 
             result[period] = _data;

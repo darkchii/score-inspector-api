@@ -103,7 +103,7 @@ async function IsUserClanOwner(user_id, clan_id) {
         }
     });
 
-    if (clan.owner_id === user_id) {
+    if (clan.owner === user_id) {
         return true;
     }
 

@@ -416,7 +416,7 @@ router.post('/accept_request', async (req, res, next) => {
         return;
     }
 
-    if(!IsUserClanOwner(owner_id, clan_id)){
+    if(!(await IsUserClanOwner(owner_id, clan_id))){
         res.json({ error: "You are not the owner of this clan" });
         return;
     }
@@ -472,7 +472,7 @@ router.post('/reject_request', async (req, res, next) => {
         return;
     }
 
-    if(!IsUserClanOwner(owner_id, clan_id)){
+    if(!(await IsUserClanOwner(owner_id, clan_id))){
         res.json({ error: "You are not the owner of this clan" });
         return;
     }
@@ -523,7 +523,7 @@ router.post('/remove_member', async (req, res, next) => {
         return;
     }
 
-    if(!IsUserClanOwner(owner_id, clan_id)){
+    if(!(await IsUserClanOwner(owner_id, clan_id))){
         res.json({ error: "You are not the owner of this clan" });
         return;
     }
@@ -574,7 +574,7 @@ router.post('/leave', async (req, res, next) => {
         return;
     }
 
-    if(IsUserClanOwner(user_id, clan_id)){
+    if((await IsUserClanOwner(user_id, clan_id))){
         res.json({ error: "You cannot leave a clan you own" });
         return;
     }

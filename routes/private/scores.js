@@ -559,12 +559,12 @@ const today_categories = [
         name: 'SS',
         query: `COUNT(*) FILTER (WHERE rank = 'XH' OR rank = 'X')`
     },
-    {
-        name: 'Total PP',
-        query: `SUM(pp)`,
-        round: true,
-        formatter: `{value}pp`
-    },
+    // {
+    //     name: 'Total PP',
+    //     query: `SUM(pp)`,
+    //     round: true,
+    //     formatter: `{value}pp`
+    // },
     {
         name: 'Score',
         query: `SUM(score)`

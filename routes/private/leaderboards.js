@@ -96,6 +96,30 @@ async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult =
 
 const FC_FILTER = '(countmiss = 0 and (maxcombo - combo) <= scores.count100 or rank like \'%X%\')';
 const FC_FILTER_CASE = 'WHEN scores.rank LIKE \'%X%\' THEN 1 WHEN scores.countmiss = 0 AND (beatmaps.maxcombo - scores.combo) <= scores.count100 THEN 1 ELSE 0 END';
+const DEDICATION_VALUES = {
+    a: 5,
+    b: 80,
+    c: 225,
+    d: -310,
+    //points awarded for each score
+    points_ss: 200,
+    points_s: 100,
+    points_a: 50,
+    points_r_score: 0.000008,
+    points_t_score: 0.000004,
+    points_medal: 20000, //points awarded for each medal
+    points_points_hour: 300
+}
+const DEDICATION_XP_FORMULA = `(
+    users2.ssh_count * ${DEDICATION_VALUES.points_ss}
+    + users2.ss_count * ${DEDICATION_VALUES.points_ss}
+    + users2.sh_count * ${DEDICATION_VALUES.points_s}
+    + users2.s_count * ${DEDICATION_VALUES.points_s}
+    + users2.a_count * ${DEDICATION_VALUES.points_a}
+    + users2.ranked_score * ${DEDICATION_VALUES.points_r_score}
+    + users2.total_score * ${DEDICATION_VALUES.points_t_score}
+    + (select count(*) from user_achievements where user_achievements.user_id = users2.user_id) * ${DEDICATION_VALUES.points_medal}
+    + (users2.playtime / 60 / 60) * ${DEDICATION_VALUES.points_points_hour})`;
 
 const STAT_DATA = {
     'pp': { query: 'users2.pp', table: 'user' },
@@ -106,19 +130,13 @@ const STAT_DATA = {
     'b': { query: 'count(*)', table: 'scores', scoreFilter: `rank LIKE '%B%'` },
     'c': { query: 'count(*)', table: 'scores', scoreFilter: `rank LIKE '%C%'` },
     'd': { query: 'count(*)', table: 'scores', scoreFilter: `rank LIKE '%D%'` },
-    'dedication_wither': {
-        query: `
-            pow(
-                sum(
-                    CASE
-                        WHEN scores.rank LIKE '%X%' THEN (9 * mods.multiplier)
-                        WHEN scores.perfect = 1 THEN (3 * mods.multiplier)
-                        ELSE 1
-                    END
-                ) * ROUND(sum(scores.score) / 1000000000) * (0.1 * (users2.playtime / 60 / 60 / 1000)),
-                0.5
-            )
-        `, table: 'scores'
+    'dedication_points': {
+        query: `${DEDICATION_XP_FORMULA}/1000`,
+        table: 'user'
+    },
+    'dedication_level': {
+        query: `${DEDICATION_XP_FORMULA}/1000`,
+        table: 'user'
     },
     'playcount': { query: 'playcount', table: 'user' },
     'monthly_playcount': {

@@ -11,6 +11,7 @@ const populationStatsCacher = require("./cacher/jobPopulationStats.js");
 const systemStatsCacher = require("./cacher/jobSystemStats.js");
 const mapPollCacher = require("./cacher/jobMapPoll.js");
 const clansCacher = require("./cacher/jobClans.js");
+const usersCacher = require("./cacher/jobUsers.js");
 require('dotenv').config();
 
 function StartCacher() {
@@ -34,14 +35,34 @@ const Cachers = [
     { cacher: systemStatsCacher, interval: '*/15 * * * *', data: [] },
     { cacher: mapPollCacher, interval: '1 0 * * *', data: [] },
     { cacher: clansCacher, interval: '0 */1 * * *', data: [] }, //every hour
+    { cacher: usersCacher, interval: '0 */1 * * *', data: [] }, //every hour
 ]
+
+const jobQueue = [];
+
+async function QueueProcessor() {
+    while (true) {
+        if (jobQueue.length > 0) {
+            const job = jobQueue.shift();
+            try {
+                await job.cacher.func(job.data);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        await new Promise(r => setTimeout(r, 1000));
+    }
+}
+QueueProcessor();
 
 async function Loop() {
     for await (const cacher of Cachers) {
+        jobQueue.push(cacher);
         schedule.scheduleJob(cacher.interval, () => {
             try{
-                console.log(`[CACHER] Running ${cacher.cacher.name} ...`);
-                cacher.cacher.func(cacher.data);
+                console.log(`[CACHER] Queuing ${cacher.cacher.name} ...`);
+                // cacher.cacher.func(cacher.data);
+                jobQueue.push(cacher);
             }catch(e){
                 console.error(e);
             }
@@ -49,3 +70,4 @@ async function Loop() {
         console.log(`[CACHER] Scheduled ${cacher.cacher.name} to run every ${cacher.interval}`);
     }
 }
+// Loop();

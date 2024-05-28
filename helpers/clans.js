@@ -68,17 +68,17 @@ async function UpdateClan(id) {
     data.accuracy = temp_sum_acc / members.length;
 
     //next up, use scores table to get B, C and D ranks etc
-    const scores_B = await AltScore.findAll({ where: { user_id: ids, rank: 'B' } });
-    const scores_C = await AltScore.findAll({ where: { user_id: ids, rank: 'C' } });
-    const scores_D = await AltScore.findAll({ where: { user_id: ids, rank: 'D' } });
+    const scores_B = await AltScore.count({ where: { user_id: ids, rank: 'B' } });
+    const scores_C = await AltScore.count({ where: { user_id: ids, rank: 'C' } });
+    const scores_D = await AltScore.count({ where: { user_id: ids, rank: 'D' } });
     const total_pp = await AltScore.sum('pp', { where: { user_id: ids } });
 
-    data.total_b = scores_B.length;
-    data.total_c = scores_C.length;
-    data.total_d = scores_D.length;
+    data.total_b = scores_B;
+    data.total_c = scores_C;
+    data.total_d = scores_D;
     data.total_pp = total_pp;
 
-    data.clears += scores_B.length + scores_C.length + scores_D.length;
+    data.clears += scores_B + scores_C + scores_D;
 
 
     //update stats

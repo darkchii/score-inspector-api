@@ -1,9 +1,10 @@
 const express = require('express');
 const { VerifyToken, getFullUsers, GetInspectorUser } = require('../../helpers/inspector');
-const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore } = require('../../helpers/db');
+const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser } = require('../../helpers/db');
 const { Op } = require('sequelize');
 const { UpdateClan, IsUserClanOwner } = require('../../helpers/clans');
 const { includes } = require('lodash');
+const { UpdateUser } = require('../../helpers/osualt');
 const router = express.Router();
 require('dotenv').config();
 
@@ -188,30 +189,29 @@ router.all('/get/:id', async (req, res, next) => {
             pending: m.pending
         }
 
-        //some additional data
-        const scores_B = await AltScore.count({ where: { user_id: user.osu.id, rank: 'B' } });
-        const scores_C = await AltScore.count({ where: { user_id: user.osu.id, rank: 'C' } });
-        const scores_D = await AltScore.count({ where: { user_id: user.osu.id, rank: 'D' } });
-        const total_pp = await AltScore.sum('pp', { where: { user_id: user.osu.id } });
+        const expanded_user = await InspectorOsuUser.findOne({
+            where: {
+                user_id: m.osu_id
+            }
+        });
 
         _data.user.extra = {
-            total_pp: total_pp,
             total_ss: user.alt.ss_count ?? 0,
             total_ssh: user.alt.ssh_count ?? 0,
             total_s: user.alt.s_count ?? 0,
             total_sh: user.alt.sh_count ?? 0,
             total_a: user.alt.a_count ?? 0,
-            total_b: scores_B,
-            total_c: scores_C,
-            total_d: scores_D,
-            total_pp: total_pp,
+            total_b: expanded_user.b_count ?? 0,
+            total_c: expanded_user.c_count ?? 0,
+            total_d: expanded_user.d_count ?? 0,
+            total_pp: expanded_user.total_pp ?? 0,
             playcount: user.alt.playcount,
             playtime: user.alt.playtime,
             ranked_score: user.alt.ranked_score,
             total_score: user.alt.total_score,
             replays_watched: user.alt.replays_watched,
             total_hits: user.alt.total_hits,
-            clears: user.alt.ss_count + user.alt.s_count + user.alt.sh_count + user.alt.ssh_count + user.alt.a_count + scores_B + scores_C + scores_D,
+            clears: user.alt.ss_count + user.alt.s_count + user.alt.sh_count + user.alt.ssh_count + user.alt.a_count + expanded_user.b_count + expanded_user.c_count + expanded_user.d_count,
             accuracy: user.alt.hit_accuracy,
             level: user.alt.level,
             average_pp: user.alt.pp, //not really average, but easier to be picked up by the frontend,
@@ -219,6 +219,8 @@ router.all('/get/:id', async (req, res, next) => {
         }
 
         _members.push(_data);
+
+        UpdateUser(m.osu_id); //async, we use updated data next time, its very slow
     };
 
     const pending_members = _members.filter(m => m.pending == true);
@@ -504,6 +506,7 @@ router.post('/accept_request', async (req, res, next) => {
 
     await member.save();
 
+    await UpdateUser(user_id);
     await UpdateClan(clan_id);
 
     res.json({ success: true });

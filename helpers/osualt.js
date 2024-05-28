@@ -1,6 +1,6 @@
 const moment = require("moment/moment");
 const { Op, Sequelize, where } = require("sequelize");
-const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, AltModdedStars, Databases, InspectorUser, InspectorScoreStat, InspectorClanMember, InspectorClan } = require("./db");
+const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, AltModdedStars, Databases, InspectorUser, InspectorScoreStat, InspectorClanMember, InspectorClan, InspectorOsuUser } = require("./db");
 const { CorrectedSqlScoreMods, CorrectedSqlScoreModsCustom } = require("./misc");
 const { default: axios } = require("axios");
 const { GetOsuUsers } = require("./osu");
@@ -107,6 +107,27 @@ const score_columns_full = `
 module.exports.score_columns = score_columns;
 module.exports.beatmap_columns = beatmap_columns;
 module.exports.score_columns_full = score_columns_full;
+
+module.exports.UpdateUser = UpdateUser;
+async function UpdateUser(user_id) {
+    //check if user is a sequelize object or an id
+    const user_obj = await InspectorOsuUser.findOne({ where: { user_id } });
+
+    const scores_B = await AltScore.count({ where: { user_id: user_id, rank: 'B' } });
+    const scores_C = await AltScore.count({ where: { user_id: user_id, rank: 'C' } });
+    const scores_D = await AltScore.count({ where: { user_id: user_id, rank: 'D' } });
+    const total_pp = await AltScore.sum('pp', { where: { user_id: user_id } });
+
+    user_obj.b_count = scores_B;
+    user_obj.c_count = scores_C;
+    user_obj.d_count = scores_D;
+    user_obj.total_pp = total_pp;
+
+    //save
+    await user_obj.save();
+
+    return user_obj;
+}
 
 module.exports.IsRegistered = IsRegistered;
 async function IsRegistered(id) {

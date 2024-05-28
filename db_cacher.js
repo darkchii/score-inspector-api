@@ -57,7 +57,6 @@ QueueProcessor();
 
 async function Loop() {
     for await (const cacher of Cachers) {
-        jobQueue.push(cacher);
         schedule.scheduleJob(cacher.interval, () => {
             try{
                 console.log(`[CACHER] Queuing ${cacher.cacher.name} ...`);

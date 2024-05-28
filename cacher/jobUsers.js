@@ -33,11 +33,9 @@ async function UpdateUsers() {
         ]
     });
 
-    console.time('UpdateUsers');
     for await (const user of users) {
         await UpdateUser(user.osu_id);
     }
-    console.timeEnd('UpdateUsers');
 
-    console.log(`[CACHER] Updating ${users.length} users ...`);
+    console.log(`[CACHER] Updated ${users.length} users ...`);
 }

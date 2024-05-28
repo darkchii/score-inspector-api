@@ -52,14 +52,18 @@ async function UpdateClan(id) {
         data.total_ssh += u.ssh_count;
         data.total_s += u.s_count;
         data.total_sh += u.sh_count;
-        data.total_a += u.a_count;
+        data.total_a += u.a_count ?? 0;
+        data.total_b += u.b_count ?? 0;
+        data.total_c += u.c_count ?? 0;
+        data.total_d += u.d_count ?? 0;
+        data.total_pp += u.total_pp ?? 0;
         data.playcount += u.playcount;
         data.playtime += u.playtime;
         data.ranked_score += u.ranked_score;
         data.total_score += u.total_score;
         data.replays_watched += u.replays_watched;
         data.total_hits += u.total_hits;
-        data.clears += u.ss_count + u.s_count + u.sh_count + u.ssh_count + u.a_count;
+        data.clears += u.ss_count + u.s_count + u.sh_count + u.ssh_count + u.a_count + (u.b_count ?? 0) + (u.c_count ?? 0) + (u.d_count ?? 0);
         temp_sum_pp += u.pp;
         temp_sum_acc += u.hit_accuracy;
     });
@@ -68,15 +72,15 @@ async function UpdateClan(id) {
     data.accuracy = temp_sum_acc / members.length;
 
     //next up, use scores table to get B, C and D ranks etc
-    const scores_B = await AltScore.count({ where: { user_id: ids, rank: 'B' } });
-    const scores_C = await AltScore.count({ where: { user_id: ids, rank: 'C' } });
-    const scores_D = await AltScore.count({ where: { user_id: ids, rank: 'D' } });
-    const total_pp = await AltScore.sum('pp', { where: { user_id: ids } });
+    // const scores_B = await AltScore.count({ where: { user_id: ids, rank: 'B' } });
+    // const scores_C = await AltScore.count({ where: { user_id: ids, rank: 'C' } });
+    // const scores_D = await AltScore.count({ where: { user_id: ids, rank: 'D' } });
+    // const total_pp = await AltScore.sum('pp', { where: { user_id: ids } });
 
-    data.total_b = scores_B;
-    data.total_c = scores_C;
-    data.total_d = scores_D;
-    data.total_pp = total_pp;
+    // data.total_b = scores_B;
+    // data.total_c = scores_C;
+    // data.total_d = scores_D;
+    // data.total_pp = total_pp;
 
     data.clears += scores_B + scores_C + scores_D;
 

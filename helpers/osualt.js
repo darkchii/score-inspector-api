@@ -118,10 +118,10 @@ async function UpdateUser(user_id) {
     const scores_D = await AltScore.count({ where: { user_id: user_id, rank: 'D' } });
     const total_pp = await AltScore.sum('pp', { where: { user_id: user_id } });
 
-    user_obj.b_count = scores_B;
-    user_obj.c_count = scores_C;
-    user_obj.d_count = scores_D;
-    user_obj.total_pp = total_pp;
+    user_obj.b_count = scores_B ?? 0;
+    user_obj.c_count = scores_C ?? 0;
+    user_obj.d_count = scores_D ?? 0;
+    user_obj.total_pp = total_pp ?? 0;
 
     //save
     await user_obj.save();

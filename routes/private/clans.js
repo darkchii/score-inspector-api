@@ -1,11 +1,13 @@
 const express = require('express');
 const { VerifyToken, getFullUsers, GetInspectorUser } = require('../../helpers/inspector');
-const { InspectorClanMember, InspectorClan, InspectorClanStats } = require('../../helpers/db');
+const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore } = require('../../helpers/db');
 const { Op } = require('sequelize');
 const { UpdateClan, IsUserClanOwner } = require('../../helpers/clans');
 const { includes } = require('lodash');
 const router = express.Router();
 require('dotenv').config();
+
+const CLAN_MEMBER_LIMIT = 50;
 
 const stat_rankings = [
     { key: 'clears', query: 'clears' },
@@ -96,22 +98,22 @@ router.post('/create', async (req, res, next) => {
     //if everything is good, we create the clan
     //we also add the user to the clan
 
-    if(clan_name.length > 20){
+    if (clan_name.length > 20) {
         res.json({ error: "Clan name is too long" });
         return;
     }
 
-    if(clan_tag.length > 5){
+    if (clan_tag.length > 5) {
         res.json({ error: "Clan tag is too long" });
         return;
     }
 
-    if(req.body.description.length > 100){
+    if (req.body.description.length > 100) {
         res.json({ error: "Clan description is too long" });
         return;
     }
 
-    if(req.body.color.length > 6){
+    if (req.body.color.length > 6) {
         res.json({ error: "Clan color string is too long" });
         return;
     }
@@ -177,14 +179,47 @@ router.all('/get/:id', async (req, res, next) => {
 
     let _members = [];
 
-    members.forEach(m => {
+    // members.forEach(m => {
+    for await(const m of members) {
         const user = full_users.find(u => u.osu.id == m.osu_id);
-        _members.push({
+        let _data = {
             user: user,
             join_date: m.join_date,
             pending: m.pending
-        });
-    });
+        }
+
+        //some additional data
+        const scores_B = await AltScore.count({ where: { user_id: user.osu.id, rank: 'B' } });
+        const scores_C = await AltScore.count({ where: { user_id: user.osu.id, rank: 'C' } });
+        const scores_D = await AltScore.count({ where: { user_id: user.osu.id, rank: 'D' } });
+        const total_pp = await AltScore.sum('pp', { where: { user_id: user.osu.id } });
+
+        _data.user.extra = {
+            total_pp: total_pp,
+            total_ss: user.alt.ss_count ?? 0,
+            total_ssh: user.alt.ssh_count ?? 0,
+            total_s: user.alt.s_count ?? 0,
+            total_sh: user.alt.sh_count ?? 0,
+            total_a: user.alt.a_count ?? 0,
+            total_b: scores_B,
+            total_c: scores_C,
+            total_d: scores_D,
+            total_pp: total_pp,
+            playcount: user.alt.playcount,
+            playtime: user.alt.playtime,
+            ranked_score: user.alt.ranked_score,
+            total_score: user.alt.total_score,
+            replays_watched: user.alt.replays_watched,
+            total_hits: user.alt.total_hits,
+            clears: user.alt.ss_count + user.alt.s_count + user.alt.sh_count + user.alt.ssh_count + user.alt.a_count + scores_B + scores_C + scores_D,
+            accuracy: user.alt.hit_accuracy,
+            level: user.alt.level,
+            average_pp: user.alt.pp, //not really average, but easier to be picked up by the frontend,
+            join_date: m.join_date
+        }
+
+        _members.push(_data);
+    };
 
     const pending_members = _members.filter(m => m.pending == true);
     const full_members = _members.filter(m => m.pending == false);
@@ -246,22 +281,22 @@ router.post('/update', async (req, res, next) => {
         return;
     }
 
-    if(req.body.name.length > 20){
+    if (req.body.name.length > 20) {
         res.json({ error: "Clan name is too long" });
         return;
     }
 
-    if(req.body.tag.length > 5){
+    if (req.body.tag.length > 5) {
         res.json({ error: "Clan tag is too long" });
         return;
     }
 
-    if(req.body.description.length > 100){
+    if (req.body.description.length > 100) {
         res.json({ error: "Clan description is too long" });
         return;
     }
 
-    if(req.body.color.length > 6){
+    if (req.body.color.length > 6) {
         res.json({ error: "Clan color string is too long" });
         return;
     }
@@ -416,7 +451,7 @@ router.post('/accept_request', async (req, res, next) => {
         return;
     }
 
-    if(!(await IsUserClanOwner(owner_id, clan_id))){
+    if (!(await IsUserClanOwner(owner_id, clan_id))) {
         res.json({ error: "You are not the owner of this clan" });
         return;
     }
@@ -435,6 +470,19 @@ router.post('/accept_request', async (req, res, next) => {
 
     if (!clan) {
         res.json({ error: "Clan not found" });
+        return;
+    }
+
+    //get member count
+    const member_count = await InspectorClanMember.count({
+        where: {
+            clan_id: clan_id,
+            pending: false
+        }
+    });
+
+    if (member_count >= CLAN_MEMBER_LIMIT) {
+        res.json({ error: `Clan member limit reached: ${CLAN_MEMBER_LIMIT}` });
         return;
     }
 
@@ -472,7 +520,7 @@ router.post('/reject_request', async (req, res, next) => {
         return;
     }
 
-    if(!(await IsUserClanOwner(owner_id, clan_id))){
+    if (!(await IsUserClanOwner(owner_id, clan_id))) {
         res.json({ error: "You are not the owner of this clan" });
         return;
     }
@@ -523,7 +571,7 @@ router.post('/remove_member', async (req, res, next) => {
         return;
     }
 
-    if(!(await IsUserClanOwner(owner_id, clan_id))){
+    if (!(await IsUserClanOwner(owner_id, clan_id))) {
         res.json({ error: "You are not the owner of this clan" });
         return;
     }
@@ -574,7 +622,7 @@ router.post('/leave', async (req, res, next) => {
         return;
     }
 
-    if((await IsUserClanOwner(user_id, clan_id))){
+    if ((await IsUserClanOwner(user_id, clan_id))) {
         res.json({ error: "You cannot leave a clan you own" });
         return;
     }

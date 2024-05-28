@@ -113,6 +113,10 @@ async function UpdateUser(user_id) {
     //check if user is a sequelize object or an id
     const user_obj = await InspectorOsuUser.findOne({ where: { user_id } });
 
+    if(!user_obj) {
+        return null;
+    }
+
     const scores_B = await AltScore.count({ where: { user_id: user_id, rank: 'B' } });
     const scores_C = await AltScore.count({ where: { user_id: user_id, rank: 'C' } });
     const scores_D = await AltScore.count({ where: { user_id: user_id, rank: 'D' } });

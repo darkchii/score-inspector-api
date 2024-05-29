@@ -51,8 +51,6 @@ router.get('/list', async (req, res, next) => {
 });
 
 router.post('/create', async (req, res, next) => {
-    //console.log(req.body);
-
     //first we check osu_id and token, to see if the user is valid
     const user_id = req.body.user.id;
     const token = req.body.user.token;
@@ -226,9 +224,6 @@ router.all('/get/:id', async (req, res, next) => {
     const pending_members = _members.filter(m => m.pending == true);
     const full_members = _members.filter(m => m.pending == false);
 
-    console.log(full_members);
-    console.log(pending_members);
-
     const owner = full_members.find(m => m.user?.osu?.id == clan.owner) || null;
 
     const stats = await InspectorClanStats.findOne({
@@ -251,8 +246,6 @@ router.all('/get/:id', async (req, res, next) => {
         const index = sorted.findIndex(s => s.clan_id == clan_id);
         rankings[rank.key] = index + 1;
     }
-
-    console.log(full_members);
 
     res.json({ clan: clan, stats: stats, members: full_members, owner: owner, ranking: rankings, pending_members: pending_members });
 });

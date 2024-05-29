@@ -101,10 +101,9 @@ async function UpdateClan(id) {
 
     console.log(`Updated clan ${id}`);
 
-    // await stats.save();
+    await stats.save();
 }
 module.exports.UpdateClan = UpdateClan;
-UpdateClan(14);
 
 async function IsUserClanOwner(user_id, clan_id) {
     const clan = await InspectorClan.findOne({

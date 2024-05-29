@@ -78,14 +78,18 @@ async function UpdateClan(id) {
     //sort by pp
     local_users.sort((a, b) => b.pp - a.pp);
 
-    local_users.forEach(u => {
-        const weight = Math.pow(u.pp, 0.99);
+    local_users.forEach((u, index) => {
+        // const weight = Math.pow(u.pp, 0.99);
+        // total_weight += weight;
+        // total_pp += u.pp * weight;
+
+        const weight = Math.pow(0.98, index);
         total_weight += weight;
         total_pp += u.pp * weight;
     });
 
     if (total_weight > 0) {
-        data.average_pp = total_pp / total_weight;
+        data.average_pp = (total_pp / total_weight) * 0.95 + (temp_sum_pp / local_users.length) * 0.05;
     } else {
         data.average_pp = 0;
     }

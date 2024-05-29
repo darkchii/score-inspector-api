@@ -52,7 +52,7 @@ async function UpdateClan(id) {
         data.total_ssh += u.ssh_count;
         data.total_s += u.s_count;
         data.total_sh += u.sh_count;
-        data.total_a += u.a_count ?? 0;
+        data.total_a += u.a_count;
         data.total_b += u.b_count ?? 0;
         data.total_c += u.c_count ?? 0;
         data.total_d += u.d_count ?? 0;
@@ -82,7 +82,7 @@ async function UpdateClan(id) {
     // data.total_d = scores_D;
     // data.total_pp = total_pp;
 
-    data.clears += scores_B + scores_C + scores_D;
+    // data.clears += scores_B + scores_C + scores_D;
 
 
     //update stats

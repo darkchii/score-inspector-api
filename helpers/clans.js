@@ -68,8 +68,24 @@ async function UpdateClan(id) {
         temp_sum_acc += u.hit_accuracy;
     });
 
-    data.average_pp = temp_sum_pp / members.length;
+    // data.average_pp = temp_sum_pp / members.length;
     data.accuracy = temp_sum_acc / members.length;
+
+    //smart average pp calculation, so low pp players don't affect the average too much (weighted average)
+    let total_weight = 0;
+    let total_pp = 0;
+
+    local_users.forEach(u => {
+        const weight = Math.pow(u.pp, 0.5);
+        total_weight += weight;
+        total_pp += u.pp * weight;
+    });
+
+    if (total_weight > 0) {
+        data.average_pp = total_pp / total_weight;
+    } else {
+        data.average_pp = 0;
+    }
 
 
     //update stats

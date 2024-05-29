@@ -20,8 +20,8 @@ function StartCacher() {
 module.exports = StartCacher;
 
 const Cachers = [
-    { cacher: scoreStatCacher, interval: '0 * * * *', data: ['24h', '7d', 'all'] },
-    { cacher: scoreStatCacher, interval: '*/30 * * * *', data: ['30min'] },
+    { cacher: scoreStatCacher, interval: '0 * * * *', data: ['24h', '7d', 'all'], onStart: true },
+    { cacher: scoreStatCacher, interval: '*/30 * * * *', data: ['30min'], onStart: true },
     { cacher: scoreRankCacher, interval: '1 0 * * *', data: [] },
     { cacher: performanceDistCacher, interval: '0 * * * *', data: [] },
     { cacher: milestonesCacher, interval: '0 * * * *', data: [] },
@@ -34,8 +34,8 @@ const Cachers = [
     { cacher: populationStatsCacher, interval: '0 * * * *', data: [] },
     { cacher: systemStatsCacher, interval: '*/15 * * * *', data: [] },
     { cacher: mapPollCacher, interval: '1 0 * * *', data: [] },
-    { cacher: clansCacher, interval: '0 */1 * * *', data: [] }, //every hour
-    { cacher: usersCacher, interval: '0 */1 * * *', data: [] }, //every hour
+    { cacher: clansCacher, interval: '0 */1 * * *', data: [], onStart: true }, //every hour
+    { cacher: usersCacher, interval: '0 */1 * * *', data: [], onStart: true }, //every hour
 ]
 
 const jobQueue = [];
@@ -57,14 +57,12 @@ QueueProcessor();
 
 async function Loop() {
     for await (const cacher of Cachers) {
+        if (cacher.onStart) {
+            jobQueue.push(cacher);
+        }
         schedule.scheduleJob(cacher.interval, () => {
-            try{
-                console.log(`[CACHER] Queuing ${cacher.cacher.name} ...`);
-                // cacher.cacher.func(cacher.data);
-                jobQueue.push(cacher);
-            }catch(e){
-                console.error(e);
-            }
+            console.log(`[CACHER] Queuing ${cacher.cacher.name} ...`);
+            jobQueue.push(cacher);
         });
         console.log(`[CACHER] Scheduled ${cacher.cacher.name} to run every ${cacher.interval}`);
     }

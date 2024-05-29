@@ -71,29 +71,22 @@ async function UpdateClan(id) {
     // data.average_pp = temp_sum_pp / members.length;
     data.accuracy = temp_sum_acc / local_users.length;
 
-    //smart average pp calculation, so low pp players don't affect the average too much (weighted average)
-    let total_weight = 0;
+    //weighted clan pp, based on user profile pp
+
     let total_pp = 0;
+    let total_weight = 0;
+    const weight = 0.5;
 
-    //sort by pp
-    local_users.sort((a, b) => b.pp - a.pp);
-
-    local_users.forEach((u, index) => {
-        // const weight = Math.pow(u.pp, 0.99);
-        // total_weight += weight;
-        // total_pp += u.pp * weight;
-
-        const weight = Math.pow(0.98, index);
-        total_weight += weight;
+    local_users.forEach(u => {
         total_pp += u.pp * weight;
+        total_weight += weight;
     });
 
-    if (total_weight > 0) {
-        data.average_pp = (total_pp / total_weight) * 0.95 + (temp_sum_pp / local_users.length) * 0.05;
-    } else {
+    if(total_weight > 0){
+        data.average_pp = total_pp / (total_weight * weight);
+    }else{
         data.average_pp = 0;
     }
-
 
     //update stats
     let stats = await InspectorClanStats.findOne({
@@ -107,11 +100,11 @@ async function UpdateClan(id) {
     }
 
     console.log(`Updated clan ${id}`);
-    console.table(data);
 
-    await stats.save();
+    // await stats.save();
 }
 module.exports.UpdateClan = UpdateClan;
+UpdateClan(14);
 
 async function IsUserClanOwner(user_id, clan_id) {
     const clan = await InspectorClan.findOne({

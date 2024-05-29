@@ -421,18 +421,6 @@ router.post('/join_request', async (req, res, next) => {
         return;
     }
 
-    //find InspectorOsuUser
-    const local_osu_user = await InspectorOsuUser.findOne({
-        where: {
-            user_id: user_id
-        }
-    });
-
-    if(!local_osu_user) {
-        res.json({ error: "Registering on the osu!alt Discord is a requirement to join clans. Follow the procedure there and wait a bit before you can join." });
-        return;
-    }
-
     const clan = await InspectorClan.findOne({
         where: {
             id: clan_id

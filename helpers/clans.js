@@ -75,11 +75,12 @@ async function UpdateClan(id) {
 
     let total_pp = 0;
     let total_weight = 0;
+    let user_weight = 0;
     const weight = 0.5;
 
-    local_users.forEach(u => {
+    local_users.forEach((u, index) => {
         total_pp += u.pp * weight;
-        total_weight += weight;
+        total_weight += Math.pow(weight, index);
     });
 
     if(total_weight > 0){

@@ -71,23 +71,18 @@ async function UpdateClan(id) {
     // data.average_pp = temp_sum_pp / members.length;
     data.accuracy = temp_sum_acc / local_users.length;
 
+    //sort
+    local_users.sort((a, b) => b.pp - a.pp);
     //weighted clan pp, based on user profile pp
-
     let total_pp = 0;
-    let total_weight = 0;
-    let user_weight = 0;
     const weight = 0.5;
 
     local_users.forEach((u, index) => {
-        total_pp += u.pp * weight;
-        total_weight += Math.pow(weight, index);
+        const _weight = Math.pow(weight, index);
+        total_pp += u.pp * _weight;
     });
 
-    if(total_weight > 0){
-        data.average_pp = total_pp / (total_weight * weight);
-    }else{
-        data.average_pp = 0;
-    }
+    data.average_pp = total_pp;
 
     //update stats
     let stats = await InspectorClanStats.findOne({

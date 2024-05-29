@@ -45,6 +45,7 @@ async function QueueProcessor() {
         if (jobQueue.length > 0) {
             const job = jobQueue.shift();
             try {
+                console.log(`[CACHER] Running ${job.cacher.name} ...`);
                 await job.cacher.func(job.data);
             } catch (e) {
                 console.error(e);

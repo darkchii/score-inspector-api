@@ -2,7 +2,7 @@ const express = require('express');
 const moment = require('moment');
 const mysql = require('mysql-await');
 var apicache = require('apicache');
-const { getCurrentPoll } = require('../../helpers/mappoll');
+const { getCurrentPoll, updateMapPoll } = require('../../helpers/mappoll');
 const { AltBeatmap, AltUser, AltScore, InspectorMapPollVote } = require('../../helpers/db');
 const { VerifyToken } = require('../../helpers/inspector');
 
@@ -14,6 +14,11 @@ router.get('/current/:user_id?', async (req, res) => {
     try {
         let user_id = req.params.user_id;
         let data = await getCurrentPoll();
+
+        if(!data){
+            await updateMapPoll();
+            data = await getCurrentPoll();
+        }
 
         if (data?.map_ids && data.map_ids.length > 0) {
             const maps = await AltBeatmap.findAll({
@@ -60,6 +65,7 @@ router.get('/current/:user_id?', async (req, res) => {
         }
         res.json(data ?? []);
     } catch (e) {
+        console.error(e);
         res.status(500).json({ error: e });
     }
 });

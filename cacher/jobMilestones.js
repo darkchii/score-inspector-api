@@ -115,13 +115,14 @@ async function UpdateUsers() {
     //get column names from InspectorOsuUser
     const columns = Object.keys(InspectorOsuUser.rawAttributes);
     const exclude = ['b_count', 'c_count', 'd_count', 'total_pp']
+    const actual_columns = columns.filter(x => !exclude);
 
     const remote_users = await AltUser.findAll({
-        attributes: columns.filter(x => !exclude.includes(x)),
+        attributes: actual_columns,
         raw: true
     });
     const local_users = await InspectorOsuUser.findAll({
-        attributes: columns,
+        attributes: actual_columns,
         raw: true
     });
 
@@ -173,6 +174,6 @@ async function UpdateUsers() {
 
     // //insert or update all users in InspectorOsuUser
     await InspectorOsuUser.bulkCreate(remote_users, {
-        updateOnDuplicate: columns
+        updateOnDuplicate: actual_columns
     });
 }

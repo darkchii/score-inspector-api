@@ -20,12 +20,14 @@ function StartCacher() {
 module.exports = StartCacher;
 
 const Cachers = [
-    { cacher: scoreStatCacher, interval: '0 * * * *', data: ['24h', '7d', 'all'], onStart: true },
-    { cacher: scoreStatCacher, interval: '*/30 * * * *', data: ['30min'], onStart: true },
-    { cacher: scoreRankCacher, interval: '1 0 * * *', data: [] },
+    { cacher: usersCacher, interval: '0 */1 * * *', data: [], onStart: true }, //every hour
+    { cacher: clansCacher, interval: '0 */1 * * *', data: [], onStart: true }, //every hour
     { cacher: performanceDistCacher, interval: '0 * * * *', data: [] },
     { cacher: milestonesCacher, interval: '0 * * * *', data: [] },
     { cacher: performanceRecordsCacher, interval: '0 * * * *', data: [] },
+    { cacher: scoreStatCacher, interval: '0 * * * *', data: ['24h', '7d', 'all'], onStart: true },
+    { cacher: scoreStatCacher, interval: '*/30 * * * *', data: ['30min'], onStart: true },
+    { cacher: scoreRankCacher, interval: '1 0 * * *', data: [] },
     { cacher: monthlyFarmersCacher, interval: '0 * * * *', data: 'score' },
     { cacher: monthlyFarmersCacher, interval: '0 * * * *', data: 'ss' },
     { cacher: monthlyFarmersCacher, interval: '0 * * * *', data: 'pp' },
@@ -34,8 +36,6 @@ const Cachers = [
     { cacher: populationStatsCacher, interval: '0 * * * *', data: [] },
     { cacher: systemStatsCacher, interval: '*/15 * * * *', data: [] },
     { cacher: mapPollCacher, interval: '1 0 * * *', data: [] },
-    { cacher: clansCacher, interval: '0 */1 * * *', data: [], onStart: true }, //every hour
-    { cacher: usersCacher, interval: '0 */1 * * *', data: [], onStart: true }, //every hour
 ]
 
 const jobQueue = [];

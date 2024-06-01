@@ -218,7 +218,7 @@ router.all('/get/:id', async (req, res, next) => {
 
         _members.push(_data);
 
-        UpdateUser(m.osu_id); //async, we use updated data next time, its very slow
+        //UpdateUser(m.osu_id); //async, we use updated data next time, its very slow
     };
 
     const pending_members = _members.filter(m => m.pending == true);

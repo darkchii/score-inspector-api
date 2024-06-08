@@ -3,7 +3,7 @@ const { GetDailyUser, GetOsuUser, GetOsuUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET 
 const mysql = require('mysql-await');
 const { default: axios } = require("axios");
 const { range, renameKey } = require("./misc");
-const { InspectorBeatmap, Databases, AltBeatmap, InspectorUser, InspectorRole, InspectorOsuUser, InspectorUserAccessToken, InspectorUserFriend, InspectorModdedStars, InspectorClan, InspectorClanMember } = require("./db");
+const { InspectorBeatmap, Databases, AltBeatmap, InspectorUser, InspectorRole, InspectorOsuUser, InspectorUserAccessToken, InspectorUserFriend, InspectorClan, InspectorClanMember } = require("./db");
 const { Op, Sequelize, where } = require("sequelize");
 const { GetAltUsers } = require("./osualt");
 require('dotenv').config();
@@ -364,6 +364,8 @@ async function VerifyToken(session_token, user_id, refresh = false) {
             osu_id: user_id,
         }
     });
+
+    if(result === null) return false;
 
     //check if created_at + expires_in is greater than current time
     let valid = result !== null && result !== undefined;

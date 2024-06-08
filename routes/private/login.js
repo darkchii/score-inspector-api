@@ -14,7 +14,6 @@ const SESSION_DAYS = 3;
 router.post('/', async (req, res, next) => {
     let authResponse = null;
     const auth_code = req.body.code;
-    const dev_mode = req.body.is_dev;
     const redirect = req.body.redirect;
 
     try {

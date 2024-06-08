@@ -370,6 +370,24 @@ async function VerifyToken(session_token, user_id, refresh = false) {
     //check if created_at + expires_in is greater than current time
     let valid = result !== null && result !== undefined;
     if (valid) {
+        // check if token is valid at osu api
+        let check_result = null;
+        try {
+            check_result = await axios.get('https://osu.ppy.sh/api/v2/me/osu', {
+                headers: {
+                    "Accept-Encoding": "gzip,deflate,compress",
+                    "Authorization": `Bearer ${session_token}`
+                }
+            });  
+            console.log(check_result?.data?.id == user_id);
+        }catch(err){
+            console.error(err);
+        }
+
+        if(!check_result || check_result?.data?.id != user_id){
+            throw new Error('Invalid token');
+        }
+
         //console.log(`[TOKEN DEBUG] Found token for ${user_id}`);
         const created_at = new Date(result.created_at);
         const expires_in = result.expires_in;

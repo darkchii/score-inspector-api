@@ -126,13 +126,16 @@ router.post('/validate_token', async (req, res, next) => {
         result = await VerifyToken(session_token, user_id, true);
     } catch (err) {
         error = err.message;
+        console.error(err);
     }
 
     let data;
-    try {
-        data = await GetToken(user_id);
-    } catch (err) {
-        console.error(err);
+    if(error === ""){
+        try {
+            data = await GetToken(user_id);
+        } catch (err) {
+            console.error(err);
+        }
     }
 
     res.json({ valid: result !== false, error: error, data: data });

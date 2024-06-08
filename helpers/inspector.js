@@ -365,7 +365,10 @@ async function VerifyToken(session_token, user_id, refresh = false) {
         }
     });
 
-    if (result === null) return false;
+    if (result === null) {
+        throw new Error('Invalid token');
+        return false;
+    }
 
     //check if created_at + expires_in is greater than current time
     let valid = result !== null && result !== undefined;
@@ -379,9 +382,6 @@ async function VerifyToken(session_token, user_id, refresh = false) {
                     "Authorization": `Bearer ${session_token}`
                 }
             });
-            console.log(check_result?.data?.id == user_id);
-            console.log(`[TOKEN DEBUG] Verifying token for ${user_id} - ${session_token}`);
-            console.log(`[TOKEN DEBUG] Found: ${check_result?.data?.id} - ${check_result?.data?.username}`);
         } catch (err) {
             console.error(err);
         }

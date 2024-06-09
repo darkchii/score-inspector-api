@@ -24,6 +24,18 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(compression({ level: 9 }));
 
+app.use(function (req, res, next) {
+  if (res.headersSent) {
+    console.log(req.method, req.url, res.statusCode);
+  } else {
+    res.on('finish', function () {
+      const remote_ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+      console.log(req.method, remote_ip, req.url, res.statusCode);
+    })
+  }
+  next();
+});
+
 var expressStats = cache();
 app.use(function (req, res, next) {
   res.on('finish', function () {

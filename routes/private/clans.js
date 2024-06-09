@@ -432,7 +432,7 @@ router.post('/join_request', async (req, res, next) => {
     const token = req.body.token;
     const clan_id = req.body.clan_id;
 
-    if (VerifyToken(token, user_id) === false) {
+    if (!(await VerifyToken(token, user_id))) {
         res.json({ error: "Invalid token" });
         return;
     }

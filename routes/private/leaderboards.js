@@ -181,7 +181,9 @@ const STAT_DATA = {
     'top_pp': { query: 'max(scores.pp)', table: 'scores', scoreFilter: `scores.pp != 'nan'` },
     'avg_pp': { query: 'avg(scores.pp)', table: 'scores', scoreFilter: `scores.pp != 'nan'` },
     'avg_score': { query: 'avg(scores.score)', table: 'scores' },
-    'completion': { query: 'round((cast(count(*) * 100::float/%s as numeric)), 3)', table: 'scores' },
+    // 'completion': { query: 'round((cast(count(*) * 100::float/%s as numeric)), 3)', table: 'scores' },
+    //dont round for now
+    'completion': { query: '(count(*) * 100::float/%s)', table: 'scores' },
     'avg_acc': { query: 'avg(nullif(scores.accuracy, \'nan\'))', table: 'scores' },
     'acc': { query: 'hit_accuracy', table: 'user' },
     'user_achievements': { query: 'user_achievements', table: 'array_table', isArray: true },

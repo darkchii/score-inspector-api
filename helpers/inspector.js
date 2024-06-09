@@ -222,20 +222,16 @@ async function GetBeatmapCount(loved = true) {
     if (loved) {
         req.query.include_loved = true;
     }
-    const connection = mysql.createConnection(connConfig);
-
-    connection.on('error', (err) => {
-        res.json({
-            message: 'Unable to connect to database',
-            error: err,
-        });
-    });
 
     const _res = buildQuery(req);
     const q = _res[0];
     const qVar = _res[1];
 
-    const result = await connection.awaitQuery(`SELECT COUNT(*) as amount FROM beatmap ${q}`, qVar);
+    // const result = await connection.awaitQuery(`SELECT COUNT(*) as amount FROM beatmap ${q}`, qVar);
+    const result = await Databases.osuAlt.query(`SELECT COUNT(*) as amount FROM beatmaps ${q}`, {
+        replacements: qVar,
+        type: Sequelize.QueryTypes.SELECT
+    });
 
     return result?.[0]?.amount;
 }

@@ -220,10 +220,10 @@ async function GetBeatmapCount(loved = true) {
         query: {}
     };
     if (loved) {
-        req.query.include_loved = true;
+        req.query.include_loved = 'true';
     }
 
-    const _res = buildQuery(req);
+    const _res = buildQuery(req.query);
     const q = _res[0];
     const qVar = _res[1];
 

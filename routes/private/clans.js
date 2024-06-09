@@ -97,25 +97,52 @@ router.post('/create', async (req, res, next) => {
     //if everything is good, we create the clan
     //we also add the user to the clan
 
-    if (clan_name.length > 20) {
-        res.json({ error: "Clan name is too long" });
-        return;
+    const validate = (key, value, max_length, is_url = false) => {
+        //check for max length
+        if (value.length > max_length) {
+            res.json({ error: `${key} is too long: ${value}` });
+            return false;
+        }
+
+        //check for invalid characters (unicode)
+        if (!/^[\x00-\x7F]*$/.test(value)) {
+            res.json({ error: `Invalid characters in ${key}: ${value}` });
+            return false;
+        }
+
+        //check for invalid characters (special, if not url)
+        if (!/^[\w\s]*$/.test(value) && !is_url) {
+            res.json({ error: `Invalid characters in ${key}: ${value}` });
+            return false;
+        }
+
+        return true;
     }
 
-    if (clan_tag.length > 5) {
-        res.json({ error: "Clan tag is too long" });
-        return;
-    }
+    if(!validate('name', clan_name, 20)) return;
+    if(!validate('tag', clan_tag, 5)) return;
+    if(!validate('description', req.body.description, 100)) return;
+    if(!validate('color', req.body.color, 6)) return;
 
-    if (req.body.description.length > 100) {
-        res.json({ error: "Clan description is too long" });
-        return;
-    }
+    // if (clan_name.length > 20) {
+    //     res.json({ error: "Clan name is too long" });
+    //     return;
+    // }
 
-    if (req.body.color.length > 6) {
-        res.json({ error: "Clan color string is too long" });
-        return;
-    }
+    // if (clan_tag.length > 5) {
+    //     res.json({ error: "Clan tag is too long" });
+    //     return;
+    // }
+
+    // if (req.body.description.length > 100) {
+    //     res.json({ error: "Clan description is too long" });
+    //     return;
+    // }
+
+    // if (req.body.color.length > 6) {
+    //     res.json({ error: "Clan color string is too long" });
+    //     return;
+    // }
 
     const new_clan = await InspectorClan.create({
         name: clan_name,

@@ -276,27 +276,34 @@ router.post('/update', async (req, res, next) => {
         return;
     }
 
-    if (req.body.name.length > 20) {
-        res.json({ error: "Clan name is too long" });
-        return;
+    const validate = (key, value, max_length, is_url = false) => {
+        //check for max length
+        if (value.length > max_length) {
+            res.json({ error: `${key} is too long: ${value}` });
+            return false;
+        }
+
+        //check for invalid characters (unicode)
+        if (!/^[\x00-\x7F]*$/.test(value)) {
+            res.json({ error: `Invalid characters in ${key}: ${value}` });
+            return false;
+        }
+
+        //check for invalid characters (special, if not url)
+        if (!/^[\w\s]*$/.test(value) && !is_url) {
+            res.json({ error: `Invalid characters in ${key}: ${value}` });
+            return false;
+        }
+
+        return true;
     }
 
-    if (req.body.tag.length > 5) {
-        res.json({ error: "Clan tag is too long" });
-        return;
-    }
+    if(!validate('name', req.body.name, 20)) return;
+    if(!validate('tag', req.body.tag, 5)) return;
+    if(!validate('description', req.body.description, 100)) return;
+    if(!validate('color', req.body.color, 6)) return;
+    if(!validate('header_image_url', req.body.header_image_url, 255, true)) return;
 
-    if (req.body.description.length > 100) {
-        res.json({ error: "Clan description is too long" });
-        return;
-    }
-
-    if (req.body.color.length > 6) {
-        res.json({ error: "Clan color string is too long" });
-        return;
-    }
-
-    //validate header image url
     const header_image_url = req.body.header_image_url;
     if (header_image_url && header_image_url.length > 0) {
         try {

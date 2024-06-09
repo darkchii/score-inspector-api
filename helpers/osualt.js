@@ -113,7 +113,7 @@ async function UpdateUser(user_id) {
     //check if user is a sequelize object or an id
     const user_obj = await InspectorOsuUser.findOne({ where: { user_id } });
 
-    if(!user_obj) {
+    if (!user_obj) {
         return null;
     }
 
@@ -197,11 +197,27 @@ async function GetAltUsers(id_array, include_sub_data = true) {
                 { model: AltUniqueSS, as: 'unique_ss', attributes: ['beatmap_id'], required: false },
                 { model: AltUniqueFC, as: 'unique_fc', attributes: ['beatmap_id'], required: false },
                 { model: AltUniqueDTFC, as: 'unique_dt_fc', attributes: ['beatmap_id'], required: false },
-                { model: AltUserAchievement, as: 'medals', attributes: ['achievement_id', 'achieved_at'], required: false }]
+                // { model: AltUserAchievement, as: 'medals', attributes: ['achievement_id', 'achieved_at'], required: false }
+            ]
                 : [],
         });
-        data = rows;
+
+        //do achievements separately, for some reason nodejs crashes when trying to include it in the query
+        const achievements = await AltUserAchievement.findAll({
+            where: { user_id: _id_array },
+            attributes: ['user_id', 'achievement_id', 'achieved_at']
+        });
+
+        //clone rows so it becomes writable
+        const _rows = JSON.parse(JSON.stringify(rows));
+
+        for (let i = 0; i < _rows.length; i++) {
+            _rows[i].medals = achievements.filter(x => x.user_id == _rows[i].user_id);
+        }
+
+        data = _rows;
     } catch (err) {
+        console.error(err);
         throw new Error(err.message);
     }
     return data;

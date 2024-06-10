@@ -499,7 +499,7 @@ async function InspectorRefreshFriends(access_token, osu_id) {
     }
 }
 
-module.exports.getFullUsers = async function (user_ids, skippedData = { daily: false, alt: false, score: false, osu: false }) {
+module.exports.getFullUsers = async function (user_ids, skippedData = { daily: false, alt: false, score: false, osu: false, extras: false }) {
     //split ids in array of integers
     let ids = user_ids;
 
@@ -557,7 +557,7 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
             console.error(err);
         }),
         //alt users
-        skippedData.alt ? null : GetAltUsers(ids, ids.length === 1).then(users => {
+        skippedData.alt ? null : GetAltUsers(ids, ids.length === 1 && !skippedData.extras).then(users => {
             alt_users = JSON.parse(JSON.stringify(users));
         }).catch(err => {
             console.error(err);

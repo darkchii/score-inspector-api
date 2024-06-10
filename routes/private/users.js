@@ -168,6 +168,7 @@ router.get('/full/:ids', cache('10 minutes'), async (req, res, next) => {
     score: req.query.skipScoreRank === 'true' ? true : false,
     osu: req.query.skipOsuData === 'true' ? true : false,
     stats: req.query.skipStats === 'true' ? true : false,
+    extras: req.query.skipExtras === 'true' ? true : false,
   }
 
   let ids = req.params.ids;

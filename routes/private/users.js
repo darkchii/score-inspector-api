@@ -3,7 +3,8 @@ var apicache = require('apicache');
 const { GetUser: GetOsuUser, GetDailyUser, GetUsers, GetUserBeatmaps } = require('../../helpers/osu');
 const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser, GetPopulation } = require('../../helpers/osualt');
 const { getFullUsers } = require('../../helpers/inspector');
-const { InspectorCompletionist, AltUser, Databases } = require('../../helpers/db');
+const { InspectorCompletionist, AltUser, Databases, InspectorHistoricalScoreRank } = require('../../helpers/db');
+const { Op } = require('sequelize');
 
 let cache = apicache.middleware;
 const router = express.Router();
@@ -227,9 +228,24 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
     `;
 
     const stats = (await Databases.osuAlt.query(query))[0][0];
+
+    //only last 90 days
+    const scoreRankHistory = await InspectorHistoricalScoreRank.findAll({
+      where: {
+        [Op.and]: [
+          { osu_id: id },
+          { date: { [Op.gte]: new Date(new Date() - 90 * 24 * 60 * 60 * 1000) } }
+        ]
+      },
+      order: [
+        ['date', 'ASC']
+      ]
+    });
+
     res.json({
       user: user,
       stats: stats,
+      scoreRankHistory: scoreRankHistory
     });
   } catch (err) {
     console.error(err);

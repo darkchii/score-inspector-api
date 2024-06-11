@@ -1,11 +1,28 @@
 const { Sequelize } = require("sequelize");
+const moment = require("moment");
 
 const AltBeatmapModel = (db) => db.define('Beatmap', {
     beatmap_id: { type: Sequelize.INTEGER, primaryKey: true, allowNull: false, },
     approved: { type: Sequelize.INTEGER, allowNull: false, },
-    submit_date: { type: Sequelize.DATE, allowNull: false, },
-    approved_date: { type: Sequelize.DATE, allowNull: false, },
-    last_update: { type: Sequelize.DATE, allowNull: false, },
+    submit_date: {
+        type: Sequelize.DATE, allowNull: false,
+        get() {
+            const rawValue = this.getDataValue('submit_date');
+            return moment(rawValue).format('YYYY-MM-DDTHH:mm:ss[Z]');
+        },
+    },
+    approved_date: { type: Sequelize.DATE, allowNull: false, 
+        get() {
+            const rawValue = this.getDataValue('approved_date');
+            return moment(rawValue).format('YYYY-MM-DDTHH:mm:ss[Z]');
+        },
+    },
+    last_update: { type: Sequelize.DATE, allowNull: false,
+        get() {
+            const rawValue = this.getDataValue('last_update');
+            return moment(rawValue).format('YYYY-MM-DDTHH:mm:ss[Z]');
+        },
+     },
     artist: { type: Sequelize.STRING, allowNull: false, },
     set_id: { type: Sequelize.INTEGER, allowNull: false, },
     bpm: { type: Sequelize.FLOAT, allowNull: false, },

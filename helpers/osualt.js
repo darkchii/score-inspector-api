@@ -203,16 +203,19 @@ async function GetAltUsers(id_array, include_sub_data = true) {
         });
 
         //do achievements separately, for some reason nodejs crashes when trying to include it in the query
-        const achievements = await AltUserAchievement.findAll({
-            where: { user_id: _id_array },
-            attributes: ['user_id', 'achievement_id', 'achieved_at']
-        });
-
-        //clone rows so it becomes writable
         const _rows = JSON.parse(JSON.stringify(rows));
+        
+        if (include_sub_data) {
+            const achievements = await AltUserAchievement.findAll({
+                where: { user_id: _id_array },
+                attributes: ['user_id', 'achievement_id', 'achieved_at']
+            });
 
-        for (let i = 0; i < _rows.length; i++) {
-            _rows[i].medals = achievements.filter(x => x.user_id == _rows[i].user_id);
+            //clone rows so it becomes writable
+
+            for (let i = 0; i < _rows.length; i++) {
+                _rows[i].medals = achievements.filter(x => x.user_id == _rows[i].user_id);
+            }
         }
 
         data = _rows;

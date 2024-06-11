@@ -12,7 +12,6 @@ const { AltUniqueSSModel } = require('./models/AltUniqueSS');
 const { AltUniqueFCModel } = require('./models/AltUniqueFC');
 const { AltUniqueDTFCModel } = require('./models/AltUniqueDTFC');
 const { AltUserAchievementModel } = require('./models/AltUserAchievement');
-const { InspectorModdedStarsModel } = require('./models/InspectorModdedStars');
 const { InspectorScoreStatModel } = require('./models/InspectorScoreStat');
 const { AltBeatmapEyupModel } = require('./models/AltBeatmapEyup');
 const { AltBeatmapSSRatioModel } = require('./models/AltBeatmapSSRatio');
@@ -47,10 +46,6 @@ const InspectorUserFriend = InspectorUserFriendModel(databases.inspector);
 const InspectorRole = InspectorRoleModel(databases.inspector);
 const InspectorComment = InspectorCommentModel(databases.inspector);
 const InspectorVisitor = InspectorVisitorModel(databases.inspector);
-const InspectorModdedStars2014May = InspectorModdedStarsModel(databases.inspector, '2014may');
-const InspectorModdedStars2014July = InspectorModdedStarsModel(databases.inspector, '2014july');
-const InspectorModdedStars2018 = InspectorModdedStarsModel(databases.inspector, '2018');
-const InspectorModdedStars2019 = InspectorModdedStarsModel(databases.inspector, '2019');
 const InspectorScoreStat = InspectorScoreStatModel(databases.inspector);
 const InspectorMedal = InspectorMedalModel(databases.inspector);
 const InspectorUserRole = InspectorUserRoleModel(databases.inspector);
@@ -133,12 +128,6 @@ AltUniqueDTFC.belongsTo(AltUser, { as: 'unique_dt_fc', foreignKey: 'user_id', ta
 AltUser.hasMany(AltUserAchievement, { as: 'medals', foreignKey: 'user_id', sourceKey: 'user_id' });
 AltUserAchievement.belongsTo(AltUser, { as: 'medals', foreignKey: 'user_id', targetKey: 'user_id' });
 
-module.exports.InspectorModdedStars = {
-    '2014may': InspectorModdedStars2014May,
-    '2014july': InspectorModdedStars2014July,
-    '2018': InspectorModdedStars2018,
-    '2019': InspectorModdedStars2019
-};
 module.exports.InspectorUser = InspectorUser;
 module.exports.InspectorUserAccessToken = InspectorUserAccessToken;
 module.exports.InspectorUserFriend = InspectorUserFriend;

@@ -166,7 +166,6 @@ const STAT_DATA = {
     },
     'ranked_score': { query: 'ranked_score', table: 'user' },
     'lazer_standard': { query: `sum(${standardized_formula})`, table: 'scores' },
-    // 'lazer_classic': { query: `sum((round((${object_count}*${object_count})*32.57+100000)*${standardized_formula}/${classic_max_score}))`, table: 'scores' },
     'lazer_classic': { query: `sum((round((${object_count}*${object_count})*32.57+100000)*${standardized_formula}/${classic_max_score}))`, table: 'scores' },
     'total_score': { query: 'total_score', table: 'user' },
     'ss_score': { query: 'sum(scores.score)', table: 'scores', scoreFilter: `rank LIKE '%X%'` },
@@ -181,8 +180,6 @@ const STAT_DATA = {
     'top_pp': { query: 'max(scores.pp)', table: 'scores', scoreFilter: `scores.pp != 'nan'` },
     'avg_pp': { query: 'avg(scores.pp)', table: 'scores', scoreFilter: `scores.pp != 'nan'` },
     'avg_score': { query: 'avg(scores.score)', table: 'scores' },
-    // 'completion': { query: 'round((cast(count(*) * 100::float/%s as numeric)), 3)', table: 'scores' },
-    //dont round for now
     'completion': { query: '(count(*) * 100::float/%s)', table: 'scores' },
     'avg_acc': { query: 'avg(nullif(scores.accuracy, \'nan\'))', table: 'scores' },
     'acc': { query: 'hit_accuracy', table: 'user' },
@@ -207,7 +204,7 @@ async function getQueryUserData(stat, limit, offset, country) {
     let queryData = {};
     //stat isnt null and nan
     let _where = 'where stat is not null';
-    let beatmapCount = (await GetBeatmapCount()) ?? 0;
+    let beatmapCount = (await GetBeatmapCount(stat.include_loved ?? true)) ?? 0;
 
     queryData.limit = limit;
     queryData.offset = offset;
@@ -307,7 +304,7 @@ async function getQuery(stat, limit, offset, country) {
     }
 
     if (!selectedStat.isBeatmaps) {
-        return await getQueryUserData(selectedStat, limit, offset, country);
+        return await getQueryUserData(selectedStat, limit, offset, country, selectedStat.include_loved ?? true);
     } else {
         return await getQueryBeatmapData(selectedStat, limit, offset);
     }

@@ -1,17 +1,14 @@
 var express = require('express');
 var apicache = require('apicache');
 var router = express.Router();
-const { GetBestScores, score_columns, score_columns_full, beatmap_columns, GetBeatmapScores } = require('../../helpers/osualt');
+const { GetBestScores, GetBeatmapScores } = require('../../helpers/osualt');
 const { getBeatmaps, getCompletionData, DefaultInspectorUser } = require('../../helpers/inspector');
-const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorModdedStars, InspectorScoreStat, AltBeatmapEyup, Databases, AltBeatmapSSRatio, AltTopScore, InspectorHistoricalScoreRank, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, InspectorPerformanceRecord, InspectorBeatmap, AltBeatmapMaxScoreNomod, AltUser, InspectorClanMember, InspectorClan } = require('../../helpers/db');
+const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorScoreStat, Databases, AltTopScore, InspectorHistoricalScoreRank, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, AltUser, InspectorClanMember, InspectorClan } = require('../../helpers/db');
 const { Op, Sequelize } = require('sequelize');
-const { CorrectedSqlScoreMods, CorrectMod, ModsToString, db_now, all_mods_short } = require('../../helpers/misc');
+const { CorrectedSqlScoreMods, db_now, all_mods_short } = require('../../helpers/misc');
 const request = require("supertest");
 const { GetOsuUsers } = require('../../helpers/osu');
-const fastJson = require('fast-json-parse');
 var _ = require('lodash');
-const { parse } = require('dotenv');
-const util = require('util');
 
 require('dotenv').config();
 let cache = apicache.middleware;

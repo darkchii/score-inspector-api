@@ -1,13 +1,12 @@
 const express = require('express');
 const moment = require('moment');
-const mysql = require('mysql-await');
 var apicache = require('apicache');
 const { buildQuery } = require('../../helpers/inspector');
-const { AltModdedStars, AltBeatmap, AltBeatmapPack, Databases, InspectorModdedStars } = require('../../helpers/db');
+const { AltModdedStars, AltBeatmap, Databases } = require('../../helpers/db');
 const { default: axios } = require('axios');
 const { GetBeatmaps } = require('../../helpers/osualt');
 const { Op, Sequelize } = require('sequelize');
-const { CorrectedSqlScoreMods, CorrectedSqlScoreModsCustom, CorrectMod } = require('../../helpers/misc');
+const { CorrectMod } = require('../../helpers/misc');
 
 const router = express.Router();
 let cache = apicache.middleware;
@@ -314,13 +313,6 @@ router.get('/:id', cache('1 hour'), async (req, res) => {
                 }
             });
             res = { ...JSON.parse(JSON.stringify(sr_result)) };
-
-            const sr_results = await InspectorModdedStars.findAll({
-                where: {
-                    beatmap_id: req.params.id,
-                    mods: correctedMods
-                }
-            });
 
             sr_results.forEach(sr => {
                 const version = sr.version;

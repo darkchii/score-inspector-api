@@ -245,7 +245,7 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
 
     res.json({
       user: user,
-      stats: stats,
+      stats: stats[0][0],
       scoreRankHistory: scoreRankHistory
     });
   } catch (err) {

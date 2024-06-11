@@ -29,12 +29,6 @@ const DATA_TYPES = {
     },
     ss: {
         query: 'COUNT(CASE WHEN rank LIKE \'%X%\' THEN 1 END)',
-    },
-    clears: {
-        query: 'COUNT(*)',
-    },
-    fcclears: {
-        query: 'COUNT(CASE WHEN rank LIKE \'%X%\' THEN 1 WHEN countmiss = 0 AND (maxcombo - combo) <= count100 THEN 1 ELSE 0 END)',
     }
 }
 

@@ -228,20 +228,20 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
     WHERE scores.user_id = ${id} AND mode = 0 AND approved IN (1,2,4)
     `;
 
-    const stats = (await Databases.osuAlt.query(query))[0][0];
-
-    //only last 90 days
-    const scoreRankHistory = await InspectorHistoricalScoreRank.findAll({
-      where: {
-        [Op.and]: [
-          { osu_id: id },
-          { date: { [Op.gte]: new Date(new Date() - 90 * 24 * 60 * 60 * 1000) } }
+    const [stats, scoreRankHistory] = await Promise.all([
+      Databases.osuAlt.query(query),
+      InspectorHistoricalScoreRank.findAll({
+        where: {
+          [Op.and]: [
+            { osu_id: id },
+            { date: { [Op.gte]: new Date(new Date() - 90 * 24 * 60 * 60 * 1000) } }
+          ]
+        },
+        order: [
+          ['date', 'ASC']
         ]
-      },
-      order: [
-        ['date', 'ASC']
-      ]
-    });
+      })
+    ]);
 
     res.json({
       user: user,

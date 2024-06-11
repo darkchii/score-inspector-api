@@ -483,6 +483,7 @@ router.get('/user/:id/scores', cache('10 minutes'), async function (req, res, ne
             },
             options: andAdditions,
         });
+        
     } catch (err) {
         res.status(500).json({ error: 'Unable to get scores', message: err });
     }

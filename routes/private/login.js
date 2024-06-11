@@ -126,7 +126,6 @@ router.post('/validate_token', async (req, res, next) => {
         result = await VerifyToken(session_token, user_id, true);
     } catch (err) {
         error = err.message;
-        console.error(err);
     }
 
     let data;

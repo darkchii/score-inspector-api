@@ -12,6 +12,7 @@ module.exports = cacher;
 
 const SCORE_RANK_PAGES = 200;
 async function UpdateScoreRanks() {
+    console.log(`[SCORE RANKS] Updating score ranks ...`);
     const FULL_LIST = [];
 
     //get a Date object of yesterday 00:00:00

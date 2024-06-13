@@ -5,6 +5,7 @@ const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser, GetPopulation 
 const { getFullUsers } = require('../../helpers/inspector');
 const { InspectorCompletionist, AltUser, Databases, InspectorHistoricalScoreRank } = require('../../helpers/db');
 const { Op } = require('sequelize');
+const { default: axios } = require('axios');
 
 let cache = apicache.middleware;
 const router = express.Router();
@@ -228,7 +229,7 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
     WHERE scores.user_id = ${id} AND mode = 0 AND approved IN (1,2,4)
     `;
 
-    const [stats, scoreRankHistory] = await Promise.all([
+    const [stats, scoreRankHistory, top50sData] = await Promise.allSettled([
       Databases.osuAlt.query(query),
       InspectorHistoricalScoreRank.findAll({
         where: {
@@ -240,13 +241,27 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
         order: [
           ['date', 'ASC']
         ]
+      }),
+      axios.post('https://osustats.ppy.sh/api/getScores', {
+        accMax: 100,
+        gamemode: 0,
+        page: 1,
+        rankMax: 50,
+        rankMin: 1,
+        resultType: 1,
+        sortBy: 0,
+        sortOrder: 0,
+        u1: user.username
       })
     ]);
 
     res.json({
       user: user,
-      stats: stats[0][0],
-      scoreRankHistory: scoreRankHistory
+      stats: {
+        ...stats.value?.[0]?.[0] ?? {},
+        top50s: top50sData?.value?.data?.[1] ?? []
+      },
+      scoreRankHistory: scoreRankHistory?.value ?? [],
     });
   } catch (err) {
     console.error(err);

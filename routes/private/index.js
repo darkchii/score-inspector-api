@@ -9,7 +9,7 @@ require('dotenv').config();
 
 let cache = apicache.middleware;
 
-router.get('/proxy/:url', async (req, res) => {
+router.all('/proxy/:url', async (req, res) => {
   try {
     const url = Buffer.from(req.params.url, 'base64').toString('utf-8');
     req.pipe(request(url)).pipe(res);

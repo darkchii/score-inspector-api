@@ -229,7 +229,7 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
     WHERE scores.user_id = ${id} AND mode = 0 AND approved IN (1,2,4)
     `;
 
-    const [stats, scoreRankHistory, top50sData] = await Promise.allSettled([
+    const [stats, scoreRankHistory, top50sData, currentScoreRank] = await Promise.allSettled([
       Databases.osuAlt.query(query),
       InspectorHistoricalScoreRank.findAll({
         where: {
@@ -252,6 +252,9 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
         sortBy: 0,
         sortOrder: 0,
         u1: user.username
+      }),
+      axios.get(`https://score.respektive.pw/u/${id}`, {
+        headers: { "Accept-Encoding": "gzip,deflate,compress" }
       })
     ]);
 
@@ -259,7 +262,8 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
       user: user,
       stats: {
         ...stats.value?.[0]?.[0] ?? {},
-        top50s: top50sData?.value?.data?.[1] ?? []
+        top50s: top50sData?.value?.data?.[1] ?? [],
+        scoreRank: currentScoreRank?.value?.data?.[0]?.rank ?? 0
       },
       scoreRankHistory: scoreRankHistory?.value ?? [],
     });

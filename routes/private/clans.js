@@ -164,6 +164,7 @@ router.post('/create', async (req, res, next) => {
         clan_id: new_clan.id
     });
 
+    await UpdateUser(user_id);
     await UpdateClan(new_clan.id);
 
     res.json({ clan: new_clan, member: new_member, stats: new_stats });

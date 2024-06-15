@@ -186,7 +186,7 @@ router.get('/full/:ids', cache('10 minutes'), async (req, res, next) => {
   if (ids.length === 1 && (req.query.force_array === undefined || req.query.force_array === 'false')) {
     //old way of returning user, we keep it for compatibility so we don't have to change the frontend
     res.json({
-      inspector_user: data[0].inspector_user,
+      inspector_user: data[0]?.inspector_user,
       osu: data[0].osu,
       daily: data[0].daily,
       alt: data[0].alt,

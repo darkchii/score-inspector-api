@@ -119,10 +119,10 @@ router.post('/create', async (req, res, next) => {
         return true;
     }
 
-    if(!validate('name', clan_name, 20)) return;
-    if(!validate('tag', clan_tag, 5)) return;
-    if(!validate('description', req.body.description, 100)) return;
-    if(!validate('color', req.body.color, 6)) return;
+    if (!validate('name', clan_name, 20)) return;
+    if (!validate('tag', clan_tag, 5)) return;
+    if (!validate('description', req.body.description, 100)) return;
+    if (!validate('color', req.body.color, 6)) return;
 
     // if (clan_name.length > 20) {
     //     res.json({ error: "Clan name is too long" });
@@ -206,7 +206,7 @@ router.all('/get/:id', async (req, res, next) => {
     let _members = [];
 
     // members.forEach(m => {
-    for await(const m of members) {
+    for await (const m of members) {
         const user = full_users.find(u => u.osu.id == m.osu_id);
         let _data = {
             user: user,
@@ -236,7 +236,15 @@ router.all('/get/:id', async (req, res, next) => {
             total_score: user?.alt?.total_score ?? 0,
             replays_watched: user?.alt?.replays_watched ?? 0,
             total_hits: user?.alt?.total_hits ?? 0,
-            clears: (user.alt?.ss_count + user?.alt?.s_count + user?.alt?.sh_count + user?.alt?.ssh_count + user?.alt?.a_count + expanded_user?.b_count + expanded_user?.c_count + expanded_user?.d_count) ?? 0,
+            clears: (
+                (user?.alt?.ss_count ?? 0) +
+                (user?.alt?.s_count ?? 0) +
+                (user?.alt?.sh_count ?? 0) +
+                (user?.alt?.ssh_count ?? 0) +
+                (user?.alt?.a_count ?? 0) +
+                (expanded_user?.b_count ?? 0) +
+                (expanded_user?.c_count ?? 0) +
+                (expanded_user?.d_count ?? 0)),
             accuracy: user?.alt?.hit_accuracy ?? 0,
             level: user?.alt?.level ?? 0,
             average_pp: user?.alt?.pp ?? 0, //not really average, but easier to be picked up by the frontend,
@@ -325,11 +333,11 @@ router.post('/update', async (req, res, next) => {
         return true;
     }
 
-    if(!validate('name', req.body.name, 20)) return;
-    if(!validate('tag', req.body.tag, 5)) return;
-    if(!validate('description', req.body.description, 100)) return;
-    if(!validate('color', req.body.color, 6)) return;
-    if(!validate('header_image_url', req.body.header_image_url, 255, true)) return;
+    if (!validate('name', req.body.name, 20)) return;
+    if (!validate('tag', req.body.tag, 5)) return;
+    if (!validate('description', req.body.description, 100)) return;
+    if (!validate('color', req.body.color, 6)) return;
+    if (!validate('header_image_url', req.body.header_image_url, 255, true)) return;
 
     const header_image_url = req.body.header_image_url;
     if (header_image_url && header_image_url.length > 0) {

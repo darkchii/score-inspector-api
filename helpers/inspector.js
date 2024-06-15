@@ -379,7 +379,6 @@ async function VerifyToken(session_token, user_id, refresh = false) {
                 }
             });
         } catch (err) {
-            console.error(err);
         }
 
         if (!check_result || check_result?.data?.id != user_id) {

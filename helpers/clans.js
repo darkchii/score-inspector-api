@@ -70,7 +70,9 @@ async function UpdateClan(id) {
 
     // data.average_pp = temp_sum_pp / members.length;
     data.accuracy = temp_sum_acc / local_users.length;
-    if(data.accuracy === NaN){
+    if(data.accuracy === NaN || data.accuracy === Infinity || data.accuracy === -Infinity || data.accuracy === undefined || data.accuracy === null || data.accuracy === NaN || data.accuracy === 0
+        || isNaN(data.accuracy) || data.accuracy === "NaN" || data.accuracy === "Infinity" || data.accuracy === "-Infinity" || data.accuracy === "undefined" || data.accuracy === "null" || data.accuracy === "NaN" || data.accuracy === "0"
+    ){
         data.accuracy = 0;
     }
 

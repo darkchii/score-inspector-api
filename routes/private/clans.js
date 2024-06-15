@@ -215,6 +215,10 @@ router.all('/get/:id', async (req, res, next) => {
             pending: m.pending
         }
 
+        if(!user){
+            console.warn(`User ${m.osu_id} not found, clan ${clan_id}`);
+        }
+
         const expanded_user = await InspectorOsuUser.findOne({
             where: {
                 user_id: m.osu_id

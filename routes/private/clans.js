@@ -202,21 +202,17 @@ router.all('/get/:id', async (req, res, next) => {
 
     //get full user info for each member
     const ids = members.map(m => m.osu_id);
-    const full_users = await getFullUsers(ids, { daily: true, alt: false, score: false, osu: false });
+    const full_users = await getFullUsers(ids, { daily: true, alt: false, score: false, osu: false }, true);
 
     let _members = [];
 
-    // members.forEach(m => {
     for await (const m of members) {
-        const user = full_users.find(u => u.osu.id == m.osu_id);
+        const user = full_users.find(u => u.osu?.id == m.osu_id || u.alt?.osu_id == m.osu_id || u.inspector_user?.osu_id == m.osu_id);
+
         let _data = {
             user: user,
             join_date: m.join_date,
             pending: m.pending
-        }
-
-        if(!user){
-            console.warn(`User ${m.osu_id} not found, clan ${clan_id}`);
         }
 
         const expanded_user = await InspectorOsuUser.findOne({

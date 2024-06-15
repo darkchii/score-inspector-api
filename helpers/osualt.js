@@ -220,7 +220,6 @@ async function GetAltUsers(id_array, include_sub_data = true) {
 
         data = _rows;
     } catch (err) {
-        console.error(err);
         throw new Error(err.message);
     }
     return data;
@@ -327,7 +326,6 @@ async function FindUser(query, single, requirePriority = true) {
             data = rows;
         }
     } catch (err) {
-        console.error(err);
         throw new Error(err.message);
     }
     return data;
@@ -411,7 +409,6 @@ async function GetBestScores(period, stat, limit, loved = false) {
             }
         }
     } catch (err) {
-        console.error(err);
         throw new Error(err.message);
     }
     return data;

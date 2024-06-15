@@ -28,7 +28,6 @@ router.get('/packs', cache('1 hour'), async (req, res) => {
 
         res.json(result?.[0] ?? []);
     } catch (e) {
-        console.error(e);
         res.json([]);
     }
 });
@@ -41,7 +40,6 @@ router.get('/pack_details', cache('24 hours'), async (req, res) => {
 
         res.json(result?.data ?? []);
     } catch (e) {
-        console.error(e);
         res.json([]);
     }
 });
@@ -54,7 +52,6 @@ router.get('/max_playcount', cache('1 hour'), async (req, res) => {
 
         res.json(result?.[0] ?? []);
     } catch (e) {
-        console.error(e);
         res.json([]);
     }
 });
@@ -72,7 +69,6 @@ router.get('/count', cache('1 hour'), async (req, res) => {
 
         res.json(result[0].amount);
     } catch (e) {
-        console.error(e);
         res.status(500).json([]);
     }
 });
@@ -144,7 +140,6 @@ router.get('/stats', cache('1 hour'), async (req, res) => {
 
         res.json(data);
     } catch (e) {
-        console.error(e);
         res.status(500).json([]);
     }
 });
@@ -154,7 +149,6 @@ router.get('/all', cache('1 hour'), async (req, res) => {
         const result = await GetBeatmaps(req.query);
         res.json(result);
     } catch (e) {
-        console.error(e);
         res.status(500).json([]);
     }
 });
@@ -219,7 +213,6 @@ router.get('/count_periodic', cache('1 hour'), async (req, res) => {
 
         res.json(result);
     } catch (e) {
-        console.error(e);
         res.status(500).json([]);
     }
 });
@@ -250,7 +243,6 @@ router.get('/monthly', cache('1 hour'), async (req, res) => {
         });
         res.json(result);
     } catch (e) {
-        console.error(e);
         res.status(500).json([]);
     }
 });
@@ -280,7 +272,6 @@ router.get('/yearly', cache('1 hour'), async (req, res) => {
 
         res.json(result);
     } catch (e) {
-        console.error(e);
         res.status(500).json([]);
     }
 });
@@ -329,7 +320,6 @@ router.get('/:id', cache('1 hour'), async (req, res) => {
         }
         res.json(result);
     } catch (e) {
-        console.error(e);
         res.json([]);
     }
 });
@@ -347,7 +337,6 @@ router.get('/:id/maxscore', cache('1 hour'), async (req, res) => {
 
         res.json((result !== undefined && result[0] !== undefined) ? result[0].top_score : 0);
     } catch (e) {
-        console.error(e);
         res.json([]);
     }
 });

@@ -43,7 +43,6 @@ async function GetInspectorUser(id) {
         return inspector_user;
 
     } catch (e) {
-        console.error(e);
         return null;
     }
 }
@@ -539,27 +538,23 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
         }).then(users => {
             inspector_users = users;
         }).catch(err => {
-            console.error(err);
         }),
         //osu users
         skippedData.osu ? null : ids.length === 1 ? GetOsuUser(ids[0], 'osu', 'id').then(user => {
             osu_users = [user];
-        }).catch(err => { console.error(err) }) : GetOsuUsers(ids).then(users => {
+        }).catch(err => { }) : GetOsuUsers(ids).then(users => {
             osu_users = users;
         }).catch(err => {
-            console.error(err);
         }),
         //daily users
         skippedData.daily ? null : Promise.all(ids.map(id => GetDailyUser(id, 0, 'id'))).then(users => {
             daily_users = users;
         }).catch(err => {
-            console.error(err);
         }),
         //alt users
         skippedData.alt ? null : GetAltUsers(ids, ids.length === 1 && !skippedData.extras).then(users => {
             alt_users = JSON.parse(JSON.stringify(users));
         }).catch(err => {
-            console.error(err);
         }),
         //score ranks
         skippedData.score || skippedData.osu ? null : axios.get(`https://score.respektive.pw/u/${ids.join(',')}`, {
@@ -567,7 +562,6 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
         }).then(res => {
             score_ranks = res.data;
         }).catch(err => {
-            console.error(err);
         })
     ]);
 
@@ -593,7 +587,6 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
                 let daily_user = daily_users.find(user => user.osu_id == id);
                 user.daily = daily_user;
             } catch (err) {
-
             }
         }
         data.push(user);

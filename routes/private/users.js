@@ -92,7 +92,6 @@ router.get('/osu/completionists', cache('1 hour'), async (req, res) => {
 
     res.json(data);
   } catch (e) {
-    console.error(e);
     res.json({ error: e.message });
   }
 });
@@ -143,7 +142,6 @@ router.get('/alt/find/:query', cache('10 minutes'), async function (req, res, ne
     const users = await FindUser(req.params.query, req.query.single, false);
     res.json(users);
   } catch (e) {
-    console.error(e);
     res.json(e);
   }
 });
@@ -196,7 +194,6 @@ router.get('/full/:ids', cache('10 minutes'), async (req, res, next) => {
       res.json(data);
     }
   }catch(err){
-    console.error(err);
     res.status(500).json({ error: 'Unable to get user', message: err.message });
   }
 });
@@ -273,7 +270,6 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
       scoreRankHistory: scoreRankHistory?.value ?? [],
     });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: 'Unable to get user', message: err.message });
   }
 });

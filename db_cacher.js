@@ -46,7 +46,6 @@ async function QueueProcessor() {
                 console.log(`[CACHER] Running ${job.cacher.name} ...`);
                 await job.cacher.func(job.data);
             } catch (e) {
-                console.error(e);
             }
         }
         await new Promise(r => setTimeout(r, 1000));

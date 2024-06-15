@@ -48,7 +48,6 @@ router.post('/', async (req, res, next) => {
             }
         });
     } catch (err) {
-        console.error(err);
         res.status(401).json({ error: 'Unable to get user data' });
         return;
     }
@@ -98,7 +97,6 @@ router.post('/', async (req, res, next) => {
     try {
         await InspectorRefreshFriends(access_token, user_id);
     } catch (err) {
-        console.error(err);
     }
 
     const login_data = {
@@ -133,7 +131,6 @@ router.post('/validate_token', async (req, res, next) => {
         try {
             data = await GetToken(user_id);
         } catch (err) {
-            console.error(err);
         }
     }
 

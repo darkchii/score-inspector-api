@@ -200,7 +200,7 @@ router.get('/all', cache('1 hour'), async function (req, res, next) {
         const rows = await GetScores(_req);
         res.json(rows);
     } catch (e) {
-        console.error(e);
+        
         res.status(500).json({ error: e });
     }
 });
@@ -211,7 +211,7 @@ router.get('/user/:id', cache('1 minute'), async function (req, res, next) {
         const rows = await GetScores(req);
         res.json(rows);
     } catch (e) {
-        console.error(e);
+        
         res.status(500).json({ error: e });
     }
 });
@@ -225,7 +225,7 @@ router.get('/beatmap/:id', cache('1 hour'), async function (req, res, next) {
         const rows = await GetBeatmapScores(beatmap_id, limit, offset);
         res.json(rows);
     } catch (e) {
-        console.error(e);
+        
         res.status(500).json({ error: e });
     }
 });
@@ -250,7 +250,7 @@ router.get('/completion/:id', cache('1 hour'), async function (req, res, next) {
         const data = getCompletionData(scores, beatmaps);
         res.json(data);
     } catch (e) {
-        console.error(e);
+        
         res.status(500).json({ error: e });
     }
 });
@@ -405,7 +405,7 @@ router.get('/stats', async function (req, res, next) {
         //     data.pp_records = pp_records_filtered ?? [];
         // }
     } catch (e) {
-        console.error(e);
+        
     }
 
     res.json(data);
@@ -433,7 +433,7 @@ router.get('/most_played', cache('1 hour'), async function (req, res, next) {
         // await client.end();
         res.json(rows);
     } catch (e) {
-        console.error(e);
+        
         res.status(500).json({ error: e });
     }
 });
@@ -542,7 +542,7 @@ router.get('/activity', cache('20 minutes'), async function (req, res, next) {
         const [rows] = await Databases.osuAlt.query(query);
         res.json(rows);
     } catch (e) {
-        console.error(e);
+        
         res.status(500).json({ error: e });
     }
 });
@@ -651,7 +651,7 @@ router.get('/today', cache('10 minutes'), async function (req, res, next) {
         console.timeEnd('today_query');
         res.json(categories);
     } catch (e) {
-        console.error(e);
+        
         res.status(500).json({ error: e });
     }
 });
@@ -749,7 +749,7 @@ router.get('/ranking', cache('1 hour'), async function (req, res, next) {
                 });
             }
         } catch (e) {
-            console.error(e);
+            
         }
     }
 
@@ -771,7 +771,7 @@ router.get('/ranking/dates', cache('1 hour'), async function (req, res, next) {
 
         res.json(dates);
     } catch (e) {
-        console.error(e);
+        
 
         res.json([])
     }
@@ -791,7 +791,7 @@ router.get('/ranking/stats', cache('1 hour'), async function (req, res, next) {
             nest: true
         });
     } catch (e) {
-        console.error(e);
+        
     }
 
     res.json({
@@ -890,7 +890,7 @@ router.get('/milestones/stats', cache('5 minutes'), async function (req, res, ne
         });
         users = await InspectorOsuUser.count();
     } catch (err) {
-        console.error(err);
+        
     }
     res.json({
         recorded_milestones: recorded_milestones ?? 0,
@@ -926,7 +926,7 @@ router.get('/monthly_farmers/:data', cache('1 hour'), async function (req, res, 
             row.user.alt = undefined;
         }
     } catch (e) {
-        console.error(e);
+        
     }
     res.json(data);
 });
@@ -974,7 +974,7 @@ router.get('/monthly_farmers/log/:data', cache('1 hour'), async function (req, r
         //     row.user.alt = undefined;
         // }
     } catch (e) {
-        console.error(e);
+        
     }
     res.json(data);
 });

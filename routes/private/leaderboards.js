@@ -401,7 +401,6 @@ router.get('/:stat', cache('1 hour'), async function (req, res, next) {
                     });
                 }
             } catch (e) {
-                console.error(e);
             }
         }
         if (queryInfo[2] === 'beatmaps' || queryInfo[2] === 'beatmapsets') {
@@ -418,7 +417,6 @@ router.get('/:stat', cache('1 hour'), async function (req, res, next) {
                     });
                 }
             } catch (e) {
-                console.error(e);
             }
         }
 
@@ -428,7 +426,6 @@ router.get('/:stat', cache('1 hour'), async function (req, res, next) {
             leaderboard: rows
         });
     } catch (e) {
-        console.error(e);
         res.json({ queryInfo: queryInfo, error: e.message });
     }
 });

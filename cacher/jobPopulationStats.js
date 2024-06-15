@@ -142,7 +142,6 @@ async function UpdatePopulationStats() {
 
             console.log(`[POPULATION STATS] ${country.code} done.`);
         } catch (err) {
-            console.error(err);
             console.log(`[POPULATION STATS] ${country.code} failed`);
         }
     }

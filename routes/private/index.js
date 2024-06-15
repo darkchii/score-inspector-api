@@ -82,7 +82,6 @@ router.get('/roles/:id', cache('1 hour'), async (req, res) => {
     data = users;
   }
   catch (err) {
-    console.error(err);
     res.json({ error: 'Unable to get data', message: err.message });
   }
   if (data !== null) {

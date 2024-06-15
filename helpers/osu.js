@@ -124,7 +124,6 @@ async function GetOsuUsers(id_array, timeout = 5000) {
             let _users = JSON.parse(JSON.stringify(res.data))?.users;
             users = [...users, ..._users];
         } catch (err) {
-            console.error(err);
         }
     }
 
@@ -137,7 +136,6 @@ async function GetDailyUser(user_id, mode = 0, key = 'id', timeout = 1000) {
         const res = await axios.get(`https://osudaily.net/api/user.php?k=${process.env.OSUDAILY_API}&u=${user_id}&m=${mode}&min=0`, { timeout });
         return res.data;
     } catch (err) {
-        console.error(err);
         return null;
     }
 }
@@ -176,7 +174,6 @@ async function GetCountryLeaderboard() {
 
         return merged;
     }catch(err){
-        console.error(err);
         return null;
     }
 

@@ -163,36 +163,41 @@ router.get('/population', cache('1 hour'), async (req, res) => {
 });
 
 router.get('/full/:ids', cache('10 minutes'), async (req, res, next) => {
-  const skippedData = {
-    daily: req.query.skipDailyData === 'true' ? true : false,
-    alt: req.query.skipAltData === 'true' ? true : false,
-    score: req.query.skipScoreRank === 'true' ? true : false,
-    osu: req.query.skipOsuData === 'true' ? true : false,
-    stats: req.query.skipStats === 'true' ? true : false,
-    extras: req.query.skipExtras === 'true' ? true : false,
-  }
-
-  let ids = req.params.ids;
-
-  if (typeof req.params.ids === 'string') {
-    ids = req.params.ids.split(',').map(id => parseInt(id));
-  }
-
-  //remove duplicates
-  ids = [...new Set(ids)];
-
-  const data = await getFullUsers(ids, skippedData);
-
-  if (ids.length === 1 && (req.query.force_array === undefined || req.query.force_array === 'false')) {
-    //old way of returning user, we keep it for compatibility so we don't have to change the frontend
-    res.json({
-      inspector_user: data[0]?.inspector_user,
-      osu: data[0].osu,
-      daily: data[0].daily,
-      alt: data[0].alt,
-    });
-  } else {
-    res.json(data);
+  try{
+    const skippedData = {
+      daily: req.query.skipDailyData === 'true' ? true : false,
+      alt: req.query.skipAltData === 'true' ? true : false,
+      score: req.query.skipScoreRank === 'true' ? true : false,
+      osu: req.query.skipOsuData === 'true' ? true : false,
+      stats: req.query.skipStats === 'true' ? true : false,
+      extras: req.query.skipExtras === 'true' ? true : false,
+    }
+  
+    let ids = req.params.ids;
+  
+    if (typeof req.params.ids === 'string') {
+      ids = req.params.ids.split(',').map(id => parseInt(id));
+    }
+  
+    //remove duplicates
+    ids = [...new Set(ids)];
+  
+    const data = await getFullUsers(ids, skippedData);
+  
+    if (ids.length === 1 && (req.query.force_array === undefined || req.query.force_array === 'false')) {
+      //old way of returning user, we keep it for compatibility so we don't have to change the frontend
+      res.json({
+        inspector_user: data[0]?.inspector_user,
+        osu: data[0].osu,
+        daily: data[0].daily,
+        alt: data[0].alt,
+      });
+    } else {
+      res.json(data);
+    }
+  }catch(err){
+    console.error(err);
+    res.status(500).json({ error: 'Unable to get user', message: err.message });
   }
 });
 

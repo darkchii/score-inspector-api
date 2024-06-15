@@ -221,25 +221,25 @@ router.all('/get/:id', async (req, res, next) => {
         });
 
         _data.user.extra = {
-            total_ss: user.alt?.ss_count ?? 0,
-            total_ssh: user.alt?.ssh_count ?? 0,
-            total_s: user.alt?.s_count ?? 0,
-            total_sh: user.alt?.sh_count ?? 0,
-            total_a: user.alt?.a_count ?? 0,
+            total_ss: user?.alt?.ss_count ?? 0,
+            total_ssh: user?.alt?.ssh_count ?? 0,
+            total_s: user?.alt?.s_count ?? 0,
+            total_sh: user?.alt?.sh_count ?? 0,
+            total_a: user?.alt?.a_count ?? 0,
             total_b: expanded_user?.b_count ?? 0,
             total_c: expanded_user?.c_count ?? 0,
             total_d: expanded_user?.d_count ?? 0,
             total_pp: expanded_user?.total_pp ?? 0,
-            playcount: user.alt?.playcount ?? 0,
-            playtime: user.alt?.playtime ?? 0,
-            ranked_score: user.alt?.ranked_score ?? 0,
-            total_score: user.alt?.total_score ?? 0,
-            replays_watched: user.alt?.replays_watched ?? 0,
-            total_hits: user.alt?.total_hits ?? 0,
-            clears: (user.alt?.ss_count + user.alt?.s_count + user.alt?.sh_count + user.alt?.ssh_count + user.alt?.a_count + expanded_user?.b_count + expanded_user?.c_count + expanded_user?.d_count) ?? 0,
-            accuracy: user.alt?.hit_accuracy ?? 0,
-            level: user.alt?.level ?? 0,
-            average_pp: user.alt?.pp ?? 0, //not really average, but easier to be picked up by the frontend,
+            playcount: user?.alt?.playcount ?? 0,
+            playtime: user?.alt?.playtime ?? 0,
+            ranked_score: user?.alt?.ranked_score ?? 0,
+            total_score: user?.alt?.total_score ?? 0,
+            replays_watched: user?.alt?.replays_watched ?? 0,
+            total_hits: user?.alt?.total_hits ?? 0,
+            clears: (user.alt?.ss_count + user?.alt?.s_count + user?.alt?.sh_count + user?.alt?.ssh_count + user?.alt?.a_count + expanded_user?.b_count + expanded_user?.c_count + expanded_user?.d_count) ?? 0,
+            accuracy: user?.alt?.hit_accuracy ?? 0,
+            level: user?.alt?.level ?? 0,
+            average_pp: user?.alt?.pp ?? 0, //not really average, but easier to be picked up by the frontend,
             join_date: m.join_date
         }
 
@@ -673,7 +673,7 @@ router.post('/leave', async (req, res, next) => {
         return;
     }
 
-    await user.clan_member.destroy();
+    await user?.clan_member.destroy();
 
     await UpdateClan(clan_id);
 

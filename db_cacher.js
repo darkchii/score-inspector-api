@@ -20,7 +20,7 @@ function StartCacher() {
 module.exports = StartCacher;
 
 const Cachers = [
-    { cacher: usersCacher, interval: '0 */1 * * *', data: [], onStart: true }, //every hour
+    { cacher: usersCacher, interval: '0 */12 * * *', data: [], onStart: true }, //every 12 hours
     { cacher: clansCacher, interval: '0 */1 * * *', data: [], onStart: true }, //every hour
     { cacher: performanceDistCacher, interval: '0 * * * *', data: [] },
     { cacher: milestonesCacher, interval: '0 * * * *', data: [], onStart: true },

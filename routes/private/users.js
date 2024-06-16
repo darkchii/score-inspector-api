@@ -161,7 +161,7 @@ router.get('/population', cache('1 hour'), async (req, res) => {
 });
 
 router.get('/full/:ids', cache('10 minutes'), async (req, res, next) => {
-  try{
+  try {
     const skippedData = {
       daily: req.query.skipDailyData === 'true' ? true : false,
       alt: req.query.skipAltData === 'true' ? true : false,
@@ -170,18 +170,18 @@ router.get('/full/:ids', cache('10 minutes'), async (req, res, next) => {
       stats: req.query.skipStats === 'true' ? true : false,
       extras: req.query.skipExtras === 'true' ? true : false,
     }
-  
+
     let ids = req.params.ids;
-  
+
     if (typeof req.params.ids === 'string') {
       ids = req.params.ids.split(',').map(id => parseInt(id));
     }
-  
+
     //remove duplicates
     ids = [...new Set(ids)];
-  
+
     const data = await getFullUsers(ids, skippedData);
-  
+
     if (ids.length === 1 && (req.query.force_array === undefined || req.query.force_array === 'false')) {
       //old way of returning user, we keep it for compatibility so we don't have to change the frontend
       res.json({
@@ -193,7 +193,7 @@ router.get('/full/:ids', cache('10 minutes'), async (req, res, next) => {
     } else {
       res.json(data);
     }
-  }catch(err){
+  } catch (err) {
     res.status(500).json({ error: 'Unable to get user', message: err.message });
   }
 });
@@ -269,6 +269,45 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
       },
       scoreRankHistory: scoreRankHistory?.value ?? [],
     });
+  } catch (err) {
+    res.status(500).json({ error: 'Unable to get user', message: err.message });
+  }
+});
+
+router.get('/stats/completion_percentage/:ids', cache('2 hours'), async (req, res) => {
+  let ids = req.params.ids;
+  if (typeof req.params.ids === 'string') {
+    ids = req.params.ids.split(',').map(id => parseInt(id));
+  }
+
+  if(!ids || ids.length === 0) {
+    res.status(400).json({ error: 'No user ids provided' });
+    return;
+  }
+
+  if(ids.length > 50) {
+    res.status(400).json({ error: 'Too many user ids provided' });
+    return;
+  }
+
+  try {
+    const query = `
+      WITH total_beatmaps AS (
+          SELECT COUNT(*) AS count
+          FROM beatmaps
+          WHERE approved IN (1, 2, 4) AND mode = 0
+      )
+      SELECT u.user_id,
+            (SELECT COUNT(*) FROM scores s WHERE s.user_id = u.user_id)::float / total_beatmaps.count * 100 AS completion
+      FROM users2 u
+      CROSS JOIN total_beatmaps
+      WHERE u.user_id IN (${ids.join(',')})
+      LIMIT 50;
+    `;
+
+    const data = await Databases.osuAlt.query(query);
+
+    res.json(data[0]);
   } catch (err) {
     res.status(500).json({ error: 'Unable to get user', message: err.message });
   }

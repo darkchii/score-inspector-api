@@ -365,6 +365,18 @@ async function VerifyToken(session_token, user_id, refresh = false) {
         return false;
     }
 
+    //check if user is banned
+    const _user = await InspectorUser.findOne({
+        where: {
+            osu_id: user_id,
+        }
+    });
+
+    if (_user?.is_banned) {
+        throw new Error('User is banned');
+        return false;
+    }
+
     //check if created_at + expires_in is greater than current time
     let valid = result !== null && result !== undefined;
     if (valid) {

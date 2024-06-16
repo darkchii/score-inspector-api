@@ -412,6 +412,11 @@ router.post('/update_visitor', async (req, res, next) => {
             return;
         }
 
+        if(user.is_banned){
+            res.status(401).json({ error: 'Visitor is banned' });
+            return;
+        }
+
         //check if token is valid
         if (!(await VerifyToken(token, visitor_id))) {
             res.status(401).json({ error: 'Invalid token' });

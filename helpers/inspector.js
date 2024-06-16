@@ -582,6 +582,9 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
         let user = {};
 
         let inspector_user = inspector_users.find(user => user.osu_id == id);
+
+        if(inspector_user && inspector_user.is_banned) return;
+
         let alt_user = alt_users.find(user => user.user_id == id);
         let osu_user = osu_users.find(user => user.id == id);
         let score_rank = score_ranks.find(user => user.user_id == id);

@@ -6,6 +6,7 @@ const { range, renameKey } = require("./misc");
 const { InspectorBeatmap, Databases, AltBeatmap, InspectorUser, InspectorRole, InspectorOsuUser, InspectorUserAccessToken, InspectorUserFriend, InspectorClan, InspectorClanMember } = require("./db");
 const { Op, Sequelize, where } = require("sequelize");
 const { GetAltUsers } = require("./osualt");
+const moment = require("moment");
 require('dotenv').config();
 
 const connConfig = {
@@ -292,12 +293,20 @@ function getCompletionData(scores, beatmaps) {
         });
     }
 
-    spread = range(new Date().getFullYear() - 2007 + 1, 2007);
+    // spread = range(new Date().getFullYear() - 2007 + 1, 2007);
+    // use moment utc
+    spread = range(moment.utc().year() - 2007 + 1, 2007);
     completion.years = [];
     for (const year of spread) {
+        const moment_year = moment.utc().year(year);
         let perc = 100;
-        let filtered_scores = scores.filter(score => new Date(score.beatmap.approved_date).getFullYear() === year);
-        let filtered_beatmaps = beatmaps.filter(beatmap => new Date(beatmap.approved_date).getFullYear() === year);
+        // use utc, use isSame
+        //string format is YYYY-MM-DDTHH:mm:ss[Z]
+        // let filtered_scores = scores.filter(score => moment(score.beatmap.approved_date).local().isSame(moment_year, 'year'));
+        // let filtered_beatmaps = beatmaps.filter(beatmap => moment(beatmap.approved_date).local().isSame(moment_year, 'year'));
+        let filtered_scores = scores.filter(score => moment(score.beatmap.approved_date).utc().isSame(moment_year, 'year'));
+        let filtered_beatmaps = beatmaps.filter(beatmap => moment(beatmap.approved_date).isSame(moment_year, 'year'));
+
         //console.log(new Date(scores[0].approved_date).getFullYear());
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
         completion.years.push({

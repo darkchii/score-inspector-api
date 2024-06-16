@@ -379,28 +379,44 @@ router.post('/friends/refresh', async (req, res, next) => {
 router.post('/update_visitor', async (req, res, next) => {
     let visitor_id = req.body.visitor;
     let target_id = req.body.target;
-
+    let token = req.body.token;
+    
     //if visitor or target are strings, convert to numbers
     if (visitor_id !== null) visitor_id = Number(visitor_id);
     if (target_id !== null) target_id = Number(target_id);
-
+    
     //if nan, set to null
     if (isNaN(visitor_id)) visitor_id = null;
     if (isNaN(target_id)) target_id = null;
-
+    
     if ((visitor_id !== null && isNaN(visitor_id)) || isNaN(target_id)) {
         res.status(401).json({ error: 'Invalid visitor or target ID' });
         return;
     }
-
+    
     if (visitor_id !== null && Number(visitor_id) === Number(target_id)) {
         res.json({ error: 'Visitor is same as target. Ignoring.' });
         return;
     }
-
+    
     if (target_id == null) {
         res.status(401).json({ error: 'Invalid target ID' });
         return;
+    }
+    
+    //check if visitor_id is valid
+    if (visitor_id !== null) {
+        let user = await InspectorUser.findOne({ where: { osu_id: visitor_id } });
+        if (user == null) {
+            res.status(401).json({ error: 'Invalid visitor ID' });
+            return;
+        }
+
+        //check if token is valid
+        if (!(await VerifyToken(token, visitor_id))) {
+            res.status(401).json({ error: 'Invalid token' });
+            return;
+        }
     }
 
     //check if visitor already visited target

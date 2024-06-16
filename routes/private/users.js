@@ -3,7 +3,7 @@ var apicache = require('apicache');
 const { GetUser: GetOsuUser, GetDailyUser, GetUsers, GetUserBeatmaps } = require('../../helpers/osu');
 const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser, GetPopulation } = require('../../helpers/osualt');
 const { getFullUsers } = require('../../helpers/inspector');
-const { InspectorCompletionist, AltUser, Databases, InspectorHistoricalScoreRank } = require('../../helpers/db');
+const { InspectorCompletionist, AltUser, Databases, InspectorHistoricalScoreRank, AltBeatmap, InspectorOsuUser } = require('../../helpers/db');
 const { Op } = require('sequelize');
 const { default: axios } = require('axios');
 
@@ -290,24 +290,47 @@ router.get('/stats/completion_percentage/:ids', cache('2 hours'), async (req, re
     return;
   }
 
+  const beatmap_count = await AltBeatmap.count({
+    where: {
+      approved: { [Op.in]: [1, 2, 4] },
+      mode: 0
+    }
+  });
+
   try {
-    const query = `
-      WITH total_beatmaps AS (
-          SELECT COUNT(*) AS count
-          FROM beatmaps
-          WHERE approved IN (1, 2, 4) AND mode = 0
-      )
-      SELECT u.user_id,
-            (SELECT COUNT(*) FROM scores s WHERE s.user_id = u.user_id)::float / total_beatmaps.count * 100 AS completion
-      FROM users2 u
-      CROSS JOIN total_beatmaps
-      WHERE u.user_id IN (${ids.join(',')})
-      LIMIT 50;
-    `;
+    // const query = `
+    //   SELECT s.user_id, round((cast(count(*) * 100::float / ${beatmap_count} as numeric)), 3)
+    //   FROM scores s
+    //   WHERE s.user_id IN (${ids.join(',')})
+    //   GROUP BY s.user_id
+    //   LIMIT 50;
+    // `;
+    // const data = await Databases.osuAlt.query(query);
+    const users = await InspectorOsuUser.findAll({
+      where: {
+        user_id: { [Op.in]: ids }
+      }
+    });
 
-    const data = await Databases.osuAlt.query(query);
+    const result = [];
+    for (const user of users) {
+      const clears = user.ssh_count + user.ss_count + user.sh_count + user.s_count + user.a_count + user.b_count + user.c_count + user.d_count;
+      result.push({
+        user_id: user.user_id,
+        completion: (clears / beatmap_count * 100) || 0
+      });
+    }
 
-    res.json(data[0]);
+    //reorder the result to match the order of the input ids
+    const orderedResult = [];
+    for (const id of ids) {
+      const entry = result.find(r => r.user_id === id);
+      if(entry) {
+        orderedResult.push(entry);
+      }
+    }
+
+    res.json(orderedResult);
   } catch (err) {
     res.status(500).json({ error: 'Unable to get user', message: err.message });
   }

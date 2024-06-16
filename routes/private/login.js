@@ -377,11 +377,6 @@ router.post('/friends/refresh', async (req, res, next) => {
 });
 
 router.post('/update_visitor', async (req, res, next) => {
-    res.json({
-        error: 'Visitor updates disabled.'
-    });
-    return;
-    
     let visitor_id = req.body.visitor;
     let target_id = req.body.target;
 
@@ -418,10 +413,14 @@ router.post('/update_visitor', async (req, res, next) => {
         nest: true
     });
     if (result.length > 0) {
+        //check time since last visit
+        let last_visit = new Date(result[0].last_visit);
+        let now = new Date();
+        let diff = now - last_visit;
         //update visit date
         await InspectorVisitor.update({
             last_visit: Sequelize.literal('CURRENT_TIMESTAMP'),
-            count: Sequelize.literal('count + 1')
+            count: Sequelize.literal(`IF(${diff} > 600000, count + 1, count)`)
         },
             {
                 where: {

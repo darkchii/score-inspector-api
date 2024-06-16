@@ -377,6 +377,11 @@ router.post('/friends/refresh', async (req, res, next) => {
 });
 
 router.post('/update_visitor', async (req, res, next) => {
+    res.json({
+        error: 'Visitor updates disabled.'
+    });
+    return;
+    
     let visitor_id = req.body.visitor;
     let target_id = req.body.target;
 

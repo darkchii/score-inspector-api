@@ -20,7 +20,7 @@ function StartCacher() {
 module.exports = StartCacher;
 
 const Cachers = [
-    { cacher: usersCacher, interval: '0 */12 * * *', data: [], onStart: true }, //every 12 hours
+    { cacher: usersCacher, interval: '0 */12 * * *', data: [], onStart: true, runParallel: true }, //every 12 hours
     { cacher: clansCacher, interval: '0 */1 * * *', data: [], onStart: true }, //every hour
     { cacher: performanceDistCacher, interval: '0 * * * *', data: [] },
     { cacher: milestonesCacher, interval: '0 * * * *', data: [], onStart: true },
@@ -43,8 +43,13 @@ async function QueueProcessor() {
             const job = jobQueue.shift();
             try {
                 console.log(`[CACHER] Running ${job.cacher.name} ...`);
-                await job.cacher.func(job.data);
+                if (job.cacher.runParallel) {
+                    job.cacher.func(job.data);
+                } else {
+                    await job.cacher.func(job.data);
+                }
             } catch (e) {
+                // handle error
             }
         }
         await new Promise(r => setTimeout(r, 1000));

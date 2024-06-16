@@ -170,6 +170,29 @@ router.post('/create', async (req, res, next) => {
     res.json({ clan: new_clan, member: new_member, stats: new_stats });
 });
 
+router.get('/user/:id', async (req, res, next) => {
+    //can be one or multiple ids, separated by commas
+    const ids = req.params.id.split(',');
+
+    //we only care about clan info, not user info
+    const members = await InspectorClanMember.findAll({
+        where: {
+            osu_id: ids,
+            pending: false
+        },
+        include: [
+            {
+                model: InspectorClan,
+                as: 'clan'
+            }
+        ]
+    });
+
+    let _members = JSON.parse(JSON.stringify(members));
+
+    res.json(_members);
+});
+
 router.all('/get/:id', async (req, res, next) => {
     const login_user_id = req.body.login_user_id;
     const login_token = req.body.login_user_token;

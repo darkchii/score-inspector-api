@@ -569,7 +569,6 @@ const today_categories = [
 ]
 router.get('/today', cache('10 minutes'), async function (req, res, next) {
     try {
-        console.time('today_query');
         const users_limit = req.query.users_limit || 10;
         const specific_user_id = req.query.user_id || undefined;
 
@@ -648,7 +647,6 @@ router.get('/today', cache('10 minutes'), async function (req, res, next) {
             categories[category.name] = category_data;
         });
 
-        console.timeEnd('today_query');
         res.json(categories);
     } catch (e) {
         

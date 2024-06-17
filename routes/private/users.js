@@ -234,8 +234,11 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
     `;
 
     const [stats, scoreRankHistory, top50sData, currentScoreRank] = await Promise.allSettled([
-      Databases.osuAlt.query(query),
-      InspectorHistoricalScoreRank.findAll({
+      // Databases.osuAlt.query(query),
+      mode === 0 ? InspectorOsuUser.findOne({
+        where: { user_id: id },
+      }) : null,
+      mode === 0 ? InspectorHistoricalScoreRank.findAll({
         where: {
           [Op.and]: [
             { osu_id: id },
@@ -245,7 +248,7 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
         order: [
           ['date', 'ASC']
         ]
-      }),
+      }) : null,
       axios.post('https://osustats.ppy.sh/api/getScores', {
         accMax: "100",
         gamemode: mode,
@@ -257,9 +260,9 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
         sortOrder: "0",
         u1: user?.username ?? username
       }),
-      axios.get(`https://score.respektive.pw/u/${id}`, {
+      mode === 0 ? axios.get(`https://score.respektive.pw/u/${id}`, {
         headers: { "Accept-Encoding": "gzip,deflate,compress" }
-      })
+      }) : null
     ]);
 
     res.json({
@@ -282,12 +285,12 @@ router.get('/stats/completion_percentage/:ids', cache('2 hours'), async (req, re
     ids = req.params.ids.split(',').map(id => parseInt(id));
   }
 
-  if(!ids || ids.length === 0) {
+  if (!ids || ids.length === 0) {
     res.status(400).json({ error: 'No user ids provided' });
     return;
   }
 
-  if(ids.length > 50) {
+  if (ids.length > 50) {
     res.status(400).json({ error: 'Too many user ids provided' });
     return;
   }
@@ -327,7 +330,7 @@ router.get('/stats/completion_percentage/:ids', cache('2 hours'), async (req, re
     const orderedResult = [];
     for (const id of ids) {
       const entry = result.find(r => r.user_id === id);
-      if(entry) {
+      if (entry) {
         orderedResult.push(entry);
       }
     }

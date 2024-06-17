@@ -200,6 +200,7 @@ router.get('/full/:ids', cache('10 minutes'), async (req, res, next) => {
 
 router.get('/stats/:id', cache('1 hour'), async (req, res) => {
   const id = req.params.id;
+  const mode = req.query.mode !== undefined ? req.query.mode : 0;
 
   try {
     const user = await AltUser.findOne({
@@ -246,7 +247,7 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
       }),
       axios.post('https://osustats.ppy.sh/api/getScores', {
         accMax: 100,
-        gamemode: 0,
+        gamemode: mode,
         page: 1,
         rankMax: 50,
         rankMin: 1,

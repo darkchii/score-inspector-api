@@ -235,10 +235,10 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
 
     const [stats, scoreRankHistory, top50sData, currentScoreRank] = await Promise.allSettled([
       // Databases.osuAlt.query(query),
-      mode === 0 ? InspectorOsuUser.findOne({
+      mode == 0 ? InspectorOsuUser.findOne({
         where: { user_id: id },
       }) : null,
-      mode === 0 ? InspectorHistoricalScoreRank.findAll({
+      mode == 0 ? InspectorHistoricalScoreRank.findAll({
         where: {
           [Op.and]: [
             { osu_id: id },
@@ -260,7 +260,7 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
         sortOrder: "0",
         u1: user?.username ?? username
       }),
-      mode === 0 ? axios.get(`https://score.respektive.pw/u/${id}`, {
+      mode == 0 ? axios.get(`https://score.respektive.pw/u/${id}`, {
         headers: { "Accept-Encoding": "gzip,deflate,compress" }
       }) : null
     ]);

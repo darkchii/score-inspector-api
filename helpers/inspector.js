@@ -369,7 +369,7 @@ async function VerifyToken(session_token, user_id, refresh = false) {
         }
     });
 
-    if (result === null) {
+    if (!result) {
         throw new Error('Invalid token');
         return false;
     }

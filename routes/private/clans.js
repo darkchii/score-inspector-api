@@ -530,11 +530,12 @@ router.post('/accept_request', async (req, res, next) => {
     const clan_id = req.body.clan_id;
 
     try {
-        if (!(await VerifyToken(token, user_id))) {
+        if (!(await VerifyToken(token, owner_id))) {
             res.json({ error: "Invalid token" });
             return;
         }
     } catch (error) {
+        console.log(error);
         res.json({ error: "An error occurred" });
         return;
     }
@@ -605,7 +606,7 @@ router.post('/reject_request', async (req, res, next) => {
     const clan_id = req.body.clan_id;
 
     try {
-        if (!(await VerifyToken(token, user_id))) {
+        if (!(await VerifyToken(token, owner_id))) {
             res.json({ error: "Invalid token" });
             return;
         }
@@ -661,7 +662,7 @@ router.post('/remove_member', async (req, res, next) => {
     const clan_id = req.body.clan_id;
 
     try {
-        if (!(await VerifyToken(token, user_id))) {
+        if (!(await VerifyToken(token, owner_id))) {
             res.json({ error: "Invalid token" });
             return;
         }

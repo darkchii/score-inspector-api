@@ -234,10 +234,7 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
     `;
 
     const [stats, scoreRankHistory, top50sData, currentScoreRank] = await Promise.allSettled([
-      // Databases.osuAlt.query(query),
-      mode == 0 ? InspectorOsuUser.findOne({
-        where: { user_id: id },
-      }) : null,
+      mode == 0 ? Databases.osuAlt.query(query) : null,
       mode == 0 ? InspectorHistoricalScoreRank.findAll({
         where: {
           [Op.and]: [

@@ -55,8 +55,13 @@ router.post('/create', async (req, res, next) => {
     const user_id = req.body.user.id;
     const token = req.body.user.token;
 
-    if (!(await VerifyToken(token, user_id))) {
-        res.json({ error: "Invalid token" });
+    try {
+        if (!(await VerifyToken(token, user_id))) {
+            res.json({ error: "Invalid token" });
+            return;
+        }
+    } catch (error) {
+        res.json({ error: "An error occurred" });
         return;
     }
 
@@ -199,8 +204,12 @@ router.all('/get/:id', async (req, res, next) => {
     let allow_pending = false;
 
     if (login_user_id && login_token) {
-        if ((await VerifyToken(login_token, login_user_id))) {
-            allow_pending = true;
+        try{
+            if ((await VerifyToken(login_token, login_user_id))) {
+                allow_pending = true;
+            }
+        }catch(err){
+            allow_pending = false;
         }
     }
 
@@ -311,8 +320,13 @@ router.post('/update', async (req, res, next) => {
     const user_id = req.body.user.id;
     const token = req.body.user.token;
 
-    if (!(await VerifyToken(token, user_id))) {
-        res.json({ error: "Invalid token" });
+    try {
+        if (!(await VerifyToken(token, user_id))) {
+            res.json({ error: "Invalid token" });
+            return;
+        }
+    } catch (error) {
+        res.json({ error: "An error occurred" });
         return;
     }
 
@@ -416,8 +430,13 @@ router.post('/delete', async (req, res, next) => {
     const user_id = req.body.user.id;
     const token = req.body.user.token;
 
-    if (!(await VerifyToken(token, user_id))) {
-        res.json({ error: "Invalid token" });
+    try {
+        if (!(await VerifyToken(token, user_id))) {
+            res.json({ error: "Invalid token" });
+            return;
+        }
+    } catch (error) {
+        res.json({ error: "An error occurred" });
         return;
     }
 
@@ -462,8 +481,13 @@ router.post('/join_request', async (req, res, next) => {
     const token = req.body.token;
     const clan_id = req.body.clan_id;
 
-    if (!(await VerifyToken(token, user_id))) {
-        res.json({ error: "Invalid token" });
+    try {
+        if (!(await VerifyToken(token, user_id))) {
+            res.json({ error: "Invalid token" });
+            return;
+        }
+    } catch (error) {
+        res.json({ error: "An error occurred" });
         return;
     }
 
@@ -505,8 +529,13 @@ router.post('/accept_request', async (req, res, next) => {
     const user_id = req.body.join_request_id;
     const clan_id = req.body.clan_id;
 
-    if (!(await VerifyToken(token, owner_id))) {
-        res.json({ error: "Invalid token" });
+    try {
+        if (!(await VerifyToken(token, user_id))) {
+            res.json({ error: "Invalid token" });
+            return;
+        }
+    } catch (error) {
+        res.json({ error: "An error occurred" });
         return;
     }
 
@@ -575,8 +604,13 @@ router.post('/reject_request', async (req, res, next) => {
     const user_id = req.body.join_request_id;
     const clan_id = req.body.clan_id;
 
-    if (!(await VerifyToken(token, owner_id))) {
-        res.json({ error: "Invalid token" });
+    try {
+        if (!(await VerifyToken(token, user_id))) {
+            res.json({ error: "Invalid token" });
+            return;
+        }
+    } catch (error) {
+        res.json({ error: "An error occurred" });
         return;
     }
 
@@ -626,8 +660,13 @@ router.post('/remove_member', async (req, res, next) => {
     const user_id = req.body.member_id;
     const clan_id = req.body.clan_id;
 
-    if (!(await VerifyToken(token, owner_id))) {
-        res.json({ error: "Invalid token" });
+    try {
+        if (!(await VerifyToken(token, user_id))) {
+            res.json({ error: "Invalid token" });
+            return;
+        }
+    } catch (error) {
+        res.json({ error: "An error occurred" });
         return;
     }
 
@@ -677,8 +716,13 @@ router.post('/leave', async (req, res, next) => {
     const token = req.body.token;
     const clan_id = req.body.clan_id;
 
-    if (!(await VerifyToken(token, user_id))) {
-        res.json({ error: "Invalid token" });
+    try {
+        if (!(await VerifyToken(token, user_id))) {
+            res.json({ error: "Invalid token" });
+            return;
+        }
+    } catch (error) {
+        res.json({ error: "An error occurred" });
         return;
     }
 

@@ -4,7 +4,7 @@ const { GetUser: GetOsuUser, GetDailyUser, GetUsers, GetUserBeatmaps } = require
 const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser, GetPopulation } = require('../../helpers/osualt');
 const { getFullUsers } = require('../../helpers/inspector');
 const { InspectorCompletionist, AltUser, Databases, InspectorHistoricalScoreRank, AltBeatmap, InspectorOsuUser } = require('../../helpers/db');
-const { Op } = require('sequelize');
+const { Op, Sequelize } = require('sequelize');
 const { default: axios } = require('axios');
 
 let cache = apicache.middleware;
@@ -208,33 +208,31 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
       where: { user_id: id },
     });
 
-    const query = `
-    SELECT
-        count(*) as clears,
-        count(case when scores.rank = 'X' then 1 end) as ss,
-        count(case when scores.rank = 'XH' then 1 end) as ssh,
-        count(case when scores.rank = 'S' then 1 end) as s,
-        count(case when scores.rank = 'SH' then 1 end) as sh,
-        count(case when scores.rank = 'A' then 1 end) as a,
-        count(case when scores.rank = 'B' then 1 end) as b,
-        count(case when scores.rank = 'C' then 1 end) as c,
-        count(case when scores.rank = 'D' then 1 end) as d,
-        sum(scores.pp) as total_pp,
-        sum(scores.score) as total_score,
-        sum(scores.count300+scores.count100+scores.count50) as total_hits,
-        sum(beatmaps.length) as total_length,
-        count(case when scores.perfect = '1' then 1 end) as perfect_clears,
-        avg(scores.pp) as avg_pp,
-        avg(scores.accuracy) as avg_acc,
-        count(*)::float / (SELECT count(*) FROM beatmaps WHERE approved IN (1,2,4) AND mode=0) * 100 as completion
-    FROM scores
-    INNER JOIN beatmaps
-    ON beatmaps.beatmap_id = scores.beatmap_id
-    WHERE scores.user_id = ${id} AND mode = 0 AND approved IN (1,2,4)
-    `;
+    const beatmap_count = await AltBeatmap.count({
+      where: {
+        approved: { [Op.in]: [1, 2, 4] },
+        mode: 0
+      }
+    });
 
     const [stats, scoreRankHistory, top50sData, currentScoreRank] = await Promise.allSettled([
-      mode == 0 ? Databases.osuAlt.query(query) : null,
+      mode == 0 ? InspectorOsuUser.findOne({
+        attributes: [
+          'user_id',
+          ['ss_count', 'ss'],
+          ['ssh_count', 'ssh'],
+          ['s_count', 's'],
+          ['sh_count', 'sh'],
+          ['a_count', 'a'],
+          ['b_count', 'b'],
+          ['c_count', 'c'],
+          ['d_count', 'd'],
+          'total_pp',
+          [Sequelize.literal('ss_count + ssh_count + s_count + sh_count + a_count + b_count + c_count + d_count'), 'clears'],
+          [Sequelize.literal('(ss_count + ssh_count + s_count + sh_count + a_count + b_count + c_count + d_count) / ' + beatmap_count + ' * 100'), 'completion'],
+        ],
+        where: { user_id: id },
+      }) : null,
       mode == 0 ? InspectorHistoricalScoreRank.findAll({
         where: {
           [Op.and]: [
@@ -265,7 +263,7 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
     res.json({
       user: user,
       stats: {
-        ...stats.value?.[0]?.[0] ?? {},
+        ...stats?.value?.dataValues ?? {},
         top50s: top50sData?.value?.data?.[1] ?? [],
         scoreRank: currentScoreRank?.value?.data?.[0]?.rank ?? 0
       },

@@ -201,6 +201,7 @@ router.get('/full/:ids', cache('10 minutes'), async (req, res, next) => {
 router.get('/stats/:id', cache('1 hour'), async (req, res) => {
   const id = req.params.id;
   const mode = req.query.mode !== undefined ? req.query.mode : 0;
+  const username = req.query.username !== undefined ? req.query.username : null;
 
   try {
     const user = await AltUser.findOne({
@@ -246,15 +247,15 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
         ]
       }),
       axios.post('https://osustats.ppy.sh/api/getScores', {
-        accMax: 100,
+        accMax: "100",
         gamemode: mode,
-        page: 1,
-        rankMax: 50,
-        rankMin: 1,
-        resultType: 1,
-        sortBy: 0,
-        sortOrder: 0,
-        u1: user.username
+        page: "1",
+        rankMax: "50",
+        rankMin: "1",
+        resultType: "1",
+        sortBy: "0",
+        sortOrder: "0",
+        u1: user?.username ?? username
       }),
       axios.get(`https://score.respektive.pw/u/${id}`, {
         headers: { "Accept-Encoding": "gzip,deflate,compress" }

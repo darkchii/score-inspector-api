@@ -22,7 +22,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
     "express": "*",
-    "express-rate-limit": "^6.7.0",
+    "express-rate-limit": "^6.11.2",
     "fast-json-parse": "^1.0.3",
     "http-errors": "*",
     "jade": "^1.11.0",

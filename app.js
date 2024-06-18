@@ -9,8 +9,22 @@ var cors = require('cors');
 const compression = require('compression');
 const StartCacher = require('./db_cacher');
 const { ApplyRoutes } = require('./routes');
+const { rateLimit } = require('express-rate-limit');
 
 var app = express();
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 500,
+  standardHeaders: 'draft-7',
+  message: {
+    status: 429,
+    message: 'Too many requests, please try again later.',
+    error: 'RateLimitError'
+  }
+});
+
+app.use(limiter);
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));

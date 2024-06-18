@@ -16,8 +16,7 @@ function StartCacher() {
 module.exports = StartCacher;
 
 const Cachers = [
-    { cacher: performanceDistCacher, interval: '0 * * * *', data: [] },
-    { cacher: performanceRecordsCacher, interval: '0 * * * *', data: [] },
+    // { cacher: performanceRecordsCacher, interval: '0 * * * *', data: [] },
     { cacher: scoreStatCacher, interval: '0 * * * *', data: ['24h', '7d', 'all'], onStart: true },
     { cacher: scoreStatCacher, interval: '*/30 * * * *', data: ['30min'], onStart: true },
     { cacher: scoreRankCacher, interval: '1 0 * * *', data: [] },

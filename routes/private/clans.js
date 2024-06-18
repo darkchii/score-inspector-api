@@ -244,7 +244,7 @@ router.all('/get/:id', async (req, res, next) => {
         let missing_users = await getFullUsers(missing_ids, { daily: true, alt: true, score: false, osu: false }, true);
 
         full_users = full_users.map(u => {
-            const missing_user = missing_users.find(mu => mu.osu.id == u.inspector_user.osu_id);
+            const missing_user = missing_users.find(mu => mu.osu?.id == u.inspector_user.osu_id);
             if (missing_user) {
                 u.osu = missing_user.osu;
             }

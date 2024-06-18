@@ -13,6 +13,8 @@ const OSU_CLIENT_SECRET = process.env.NODE_ENV === 'production' ? process.env.OS
 module.exports.OSU_CLIENT_ID = OSU_CLIENT_ID;
 module.exports.OSU_CLIENT_SECRET = OSU_CLIENT_SECRET;
 
+module.exports.MODE_SLUGS = ['osu', 'taiko', 'fruits', 'mania'];
+
 async function Login(client_id, client_secret) {
     const data = {
         client_id,

@@ -3,11 +3,11 @@ var apicache = require('apicache');
 var router = express.Router();
 const { GetBestScores, GetBeatmapScores } = require('../../helpers/osualt');
 const { getBeatmaps, getCompletionData, DefaultInspectorUser } = require('../../helpers/inspector');
-const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorScoreStat, Databases, AltTopScore, InspectorHistoricalScoreRank, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, AltUser, InspectorClanMember, InspectorClan } = require('../../helpers/db');
+const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorScoreStat, Databases, AltTopScore, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, AltUser, InspectorClanMember, InspectorClan, GetHistoricalScoreRankModel } = require('../../helpers/db');
 const { Op, Sequelize } = require('sequelize');
 const { CorrectedSqlScoreMods, db_now, all_mods_short } = require('../../helpers/misc');
 const request = require("supertest");
-const { GetOsuUsers } = require('../../helpers/osu');
+const { GetOsuUsers, MODE_SLUGS } = require('../../helpers/osu');
 var _ = require('lodash');
 
 require('dotenv').config();
@@ -658,6 +658,11 @@ router.get('/ranking', cache('1 hour'), async function (req, res, next) {
     let user_id, date, rank = undefined;
     let limit = 100;
     let page = 0;
+    let mode = req.query.mode || 0;
+    if(!MODE_SLUGS[mode]) {
+        res.status(400).json({ "error": "Invalid mode" });
+        return;
+    }
     let sort = 'rank'
     try {
         user_id = req.query.user_id || undefined;
@@ -689,7 +694,7 @@ router.get('/ranking', cache('1 hour'), async function (req, res, next) {
             break;
     }
 
-    const data = await InspectorHistoricalScoreRank.findAll({
+    const data = await (GetHistoricalScoreRankModel(MODE_SLUGS[mode])).findAll({
         where: where_clause,
         order: Sequelize.literal(sort_clause),
         limit: limit,
@@ -755,8 +760,13 @@ router.get('/ranking', cache('1 hour'), async function (req, res, next) {
 });
 
 router.get('/ranking/dates', cache('1 hour'), async function (req, res, next) {
+    let mode = req.query.mode || 0;
+    if(!MODE_SLUGS[mode]) {
+        res.status(400).json({ "error": "Invalid mode" });
+        return;
+    }
     try {
-        const data = await InspectorHistoricalScoreRank.findAll({
+        const data = await (GetHistoricalScoreRankModel(MODE_SLUGS[mode])).findAll({
             attributes: [[Sequelize.fn('DISTINCT', Sequelize.col('date')), 'date']],
             raw: true,
             nest: true
@@ -777,9 +787,14 @@ router.get('/ranking/dates', cache('1 hour'), async function (req, res, next) {
 
 router.get('/ranking/stats', cache('1 hour'), async function (req, res, next) {
     let daily_total_ranked_score;
+    let mode = req.query.mode || 0;
+    if(!MODE_SLUGS[mode]) {
+        res.status(400).json({ "error": "Invalid mode" });
+        return;
+    }
     try {
         //get the total ranked score of each unique day
-        daily_total_ranked_score = await InspectorHistoricalScoreRank.findAll({
+        daily_total_ranked_score = await (GetHistoricalScoreRankModel(MODE_SLUGS[mode])).findAll({
             attributes: [
                 'date',
                 [Sequelize.fn('SUM', Sequelize.col('ranked_score')), 'total_ranked_score']

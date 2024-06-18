@@ -1,11 +1,6 @@
 //this script is to store some data in the local database, like overall score statistics.
 //mainly to circumvent extremely slow sql queries that don't need to be live
 const schedule = require('node-schedule');
-const scoreStatCacher = require("./cacher/jobScoreStatistics.js");
-const scoreRankCacher = require("./cacher/jobScoreRanks.js");
-const performanceDistCacher = require("./cacher/jobPerformanceDistribution.js");
-const performanceRecordsCacher = require("./cacher/jobPerformanceRecords.js");
-const monthlyFarmersCacher = require("./cacher/jobMonthlyFarmers.js");
 const populationStatsCacher = require("./cacher/jobPopulationStats.js");
 const systemStatsCacher = require("./cacher/jobSystemStats.js");
 require('dotenv').config();
@@ -17,7 +12,7 @@ module.exports = StartCacher;
 
 const Cachers = [
     // { cacher: performanceRecordsCacher, interval: '0 * * * *', data: [] },
-    { cacher: scoreRankCacher, interval: '1 0 * * *', data: [] },
+    // { cacher: scoreRankCacher, interval: '1 0 * * *', data: [] },
     // { cacher: monthlyFarmersCacher, interval: '0 * * * *', data: 'score' },
     // { cacher: monthlyFarmersCacher, interval: '0 * * * *', data: 'ss' },
     // { cacher: monthlyFarmersCacher, interval: '0 * * * *', data: 'pp' },

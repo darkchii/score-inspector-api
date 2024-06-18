@@ -49,7 +49,10 @@ const InspectorVisitor = InspectorVisitorModel(databases.inspector);
 const InspectorScoreStat = InspectorScoreStatModel(databases.inspector);
 const InspectorMedal = InspectorMedalModel(databases.inspector);
 const InspectorUserRole = InspectorUserRoleModel(databases.inspector);
-const InspectorHistoricalScoreRank = InspectorHistoricalScoreRankModel(databases.inspector);
+const InspectorHistoricalScoreRankOsu = InspectorHistoricalScoreRankModel(databases.inspector, 'osu');
+const InspectorHistoricalScoreRankTaiko = InspectorHistoricalScoreRankModel(databases.inspector, 'taiko');
+const InspectorHistoricalScoreRankFruits = InspectorHistoricalScoreRankModel(databases.inspector, 'fruits');
+const InspectorHistoricalScoreRankMania = InspectorHistoricalScoreRankModel(databases.inspector, 'mania');
 const InspectorUserMilestone = InspectorUserMilestoneModel(databases.inspector);
 const InspectorPerformanceRecord = InspectorPerformanceRecordModel(databases.inspector);
 const InspectorCountryStat = InspectorCountryStatModel(databases.inspector);
@@ -137,7 +140,10 @@ module.exports.InspectorComment = InspectorComment;
 module.exports.InspectorVisitor = InspectorVisitor;
 module.exports.InspectorScoreStat = InspectorScoreStat;
 module.exports.InspectorMedal = InspectorMedal;
-module.exports.InspectorHistoricalScoreRank = InspectorHistoricalScoreRank;
+module.exports.InspectorHistoricalScoreRankOsu = InspectorHistoricalScoreRankOsu;
+module.exports.InspectorHistoricalScoreRankTaiko = InspectorHistoricalScoreRankTaiko;
+module.exports.InspectorHistoricalScoreRankFruits = InspectorHistoricalScoreRankFruits;
+module.exports.InspectorHistoricalScoreRankMania = InspectorHistoricalScoreRankMania;
 module.exports.InspectorOsuUser = InspectorOsuUser;
 module.exports.InspectorUserMilestone = InspectorUserMilestone;
 module.exports.InspectorPerformanceRecord = InspectorPerformanceRecord;
@@ -174,4 +180,19 @@ function CloseConnections(options, exitCode) {
         databases[key].close();
     });
     console.log('Closed all connections');
+}
+
+module.exports.GetHistoricalScoreRankModel = (mode) => {
+    switch (mode) {
+        case 'osu':
+            return InspectorHistoricalScoreRankOsu;
+        case 'taiko':
+            return InspectorHistoricalScoreRankTaiko;
+        case 'mania':
+            return InspectorHistoricalScoreRankMania;
+        case 'fruits':
+            return InspectorHistoricalScoreRankFruits;
+        default:
+            return null;
+    }
 }

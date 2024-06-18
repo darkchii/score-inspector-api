@@ -1,9 +1,9 @@
 const express = require('express');
 var apicache = require('apicache');
-const { GetUser: GetOsuUser, GetDailyUser, GetUsers, GetUserBeatmaps } = require('../../helpers/osu');
+const { GetUser: GetOsuUser, GetDailyUser, GetUsers, GetUserBeatmaps, MODE_SLUGS } = require('../../helpers/osu');
 const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser, GetPopulation } = require('../../helpers/osualt');
 const { getFullUsers } = require('../../helpers/inspector');
-const { InspectorCompletionist, AltUser, Databases, InspectorHistoricalScoreRank, AltBeatmap, InspectorOsuUser } = require('../../helpers/db');
+const { InspectorCompletionist, AltUser, Databases, AltBeatmap, InspectorOsuUser, GetHistoricalScoreRankModel } = require('../../helpers/db');
 const { Op, Sequelize } = require('sequelize');
 const { default: axios } = require('axios');
 
@@ -233,7 +233,7 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
         ],
         where: { user_id: id },
       }) : null,
-      mode == 0 ? InspectorHistoricalScoreRank.findAll({
+      (GetHistoricalScoreRankModel(MODE_SLUGS[mode])).findAll({
         where: {
           [Op.and]: [
             { osu_id: id },
@@ -243,7 +243,7 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
         order: [
           ['date', 'ASC']
         ]
-      }) : null,
+      }),
       axios.post('https://osustats.ppy.sh/api/getScores', {
         accMax: "100",
         gamemode: mode,

@@ -2,9 +2,7 @@ const express = require('express');
 const { VerifyToken, getFullUsers, GetInspectorUser } = require('../../helpers/inspector');
 const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser } = require('../../helpers/db');
 const { Op } = require('sequelize');
-const { UpdateClan, IsUserClanOwner } = require('../../helpers/clans');
-const { includes } = require('lodash');
-const { UpdateUser } = require('../../helpers/osualt');
+const { IsUserClanOwner } = require('../../helpers/clans');
 const router = express.Router();
 require('dotenv').config();
 
@@ -167,9 +165,6 @@ router.post('/create', async (req, res, next) => {
     const new_stats = await InspectorClanStats.create({
         clan_id: new_clan.id
     });
-
-    await UpdateUser(user_id);
-    await UpdateClan(new_clan.id);
 
     res.json({ clan: new_clan, member: new_member, stats: new_stats });
 });
@@ -435,8 +430,6 @@ router.post('/update', async (req, res, next) => {
 
     await clan.save();
 
-    await UpdateClan(clan_id);
-
     res.json({ clan: clan });
 });
 
@@ -607,9 +600,6 @@ router.post('/accept_request', async (req, res, next) => {
 
     await member.save();
 
-    await UpdateUser(user_id);
-    await UpdateClan(clan_id);
-
     res.json({ success: true });
 });
 
@@ -721,8 +711,6 @@ router.post('/remove_member', async (req, res, next) => {
 
     await member.destroy();
 
-    await UpdateClan(clan_id);
-
     res.json({ success: true });
 });
 
@@ -763,8 +751,6 @@ router.post('/leave', async (req, res, next) => {
     }
 
     await user?.clan_member.destroy();
-
-    await UpdateClan(clan_id);
 
     res.json({ success: true });
 });

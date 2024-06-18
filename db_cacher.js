@@ -4,14 +4,10 @@ const schedule = require('node-schedule');
 const scoreStatCacher = require("./cacher/jobScoreStatistics.js");
 const scoreRankCacher = require("./cacher/jobScoreRanks.js");
 const performanceDistCacher = require("./cacher/jobPerformanceDistribution.js");
-const milestonesCacher = require("./cacher/jobMilestones.js");
 const performanceRecordsCacher = require("./cacher/jobPerformanceRecords.js");
 const monthlyFarmersCacher = require("./cacher/jobMonthlyFarmers.js");
 const populationStatsCacher = require("./cacher/jobPopulationStats.js");
 const systemStatsCacher = require("./cacher/jobSystemStats.js");
-const mapPollCacher = require("./cacher/jobMapPoll.js");
-const clansCacher = require("./cacher/jobClans.js");
-const usersCacher = require("./cacher/jobUsers.js");
 require('dotenv').config();
 
 function StartCacher() {
@@ -20,7 +16,6 @@ function StartCacher() {
 module.exports = StartCacher;
 
 const Cachers = [
-    { cacher: clansCacher, interval: '0 */1 * * *', data: [], onStart: true }, //every hour
     { cacher: performanceDistCacher, interval: '0 * * * *', data: [] },
     { cacher: performanceRecordsCacher, interval: '0 * * * *', data: [] },
     { cacher: scoreStatCacher, interval: '0 * * * *', data: ['24h', '7d', 'all'], onStart: true },

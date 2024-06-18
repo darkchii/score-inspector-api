@@ -24,7 +24,6 @@ const limiter = rateLimit({
   }
 });
 
-app.use(limiter);
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));

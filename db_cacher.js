@@ -16,7 +16,7 @@ const Cachers = [
     // { cacher: monthlyFarmersCacher, interval: '0 * * * *', data: 'score' },
     // { cacher: monthlyFarmersCacher, interval: '0 * * * *', data: 'ss' },
     // { cacher: monthlyFarmersCacher, interval: '0 * * * *', data: 'pp' },
-    { cacher: populationStatsCacher, interval: '0 * * * *', data: [] },
+    // { cacher: populationStatsCacher, interval: '0 * * * *', data: [] },
     { cacher: systemStatsCacher, interval: '*/15 * * * *', data: [] }
 ]
 

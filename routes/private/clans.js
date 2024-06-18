@@ -30,7 +30,6 @@ const stat_rankings = [
 ]
 
 router.get('/list', async (req, res, next) => {
-    const order = req.query.order || 'average_pp';
     const clans = await InspectorClan.findAll({
         include: [
             {
@@ -204,11 +203,11 @@ router.all('/get/:id', async (req, res, next) => {
     let allow_pending = false;
 
     if (login_user_id && login_token) {
-        try{
+        try {
             if ((await VerifyToken(login_token, login_user_id))) {
                 allow_pending = true;
             }
-        }catch(err){
+        } catch (err) {
             allow_pending = false;
         }
     }
@@ -234,12 +233,27 @@ router.all('/get/:id', async (req, res, next) => {
 
     //get full user info for each member
     const ids = members.map(m => m.osu_id);
-    const full_users = await getFullUsers(ids, { daily: true, alt: false, score: false, osu: false }, true);
+    let full_users = await getFullUsers(ids, { daily: true, alt: false, score: false, osu: true }, true);
+
+    //for those missing "alt" data, we need to fetch it separately with osu: false
+    //use "ids" to get the missing users, then merge them with the full_users array
+    const missing_ids = ids.filter(id => !full_users.find(u => u.alt?.user_id == id));
+    if (missing_ids.length > 0) {
+        let missing_users = await getFullUsers(missing_ids, { daily: true, alt: true, score: false, osu: false }, true);
+
+        full_users = full_users.map(u => {
+            const missing_user = missing_users.find(mu => mu.osu.id == u.inspector_user.osu_id);
+            if (missing_user) {
+                u.osu = missing_user.osu;
+            }
+            return u;
+        });
+    }
 
     let _members = [];
 
     for await (const m of members) {
-        const user = full_users.find(u => u.osu?.id == m.osu_id || u.alt?.osu_id == m.osu_id || u.inspector_user?.osu_id == m.osu_id);
+        const user = full_users.find(u => u.osu?.id == m.osu_id || u.alt?.user_id == m.osu_id || u.inspector_user?.osu_id == m.osu_id);
 
         let _data = {
             user: user,
@@ -290,7 +304,7 @@ router.all('/get/:id', async (req, res, next) => {
     const pending_members = _members.filter(m => m.pending == true);
     const full_members = _members.filter(m => m.pending == false);
 
-    const owner = full_members.find(m => m.user?.osu?.id == clan.owner) || null;
+    const owner = full_members.find(m => (m.user?.osu?.id ?? m.user?.alt?.user_id) == clan.owner) || null;
 
     const stats = await InspectorClanStats.findOne({
         where: {

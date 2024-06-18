@@ -586,6 +586,17 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
         })
     ]);
 
+    if(allowFallback && skippedData.osu && !skippedData.alt) {
+        //find users with missing alt data and get osu data instead
+        let missingAltIds = ids.filter(id => !alt_users.find(user => user.user_id == id));
+        //unique
+        missingAltIds = [...new Set(missingAltIds)];
+        let missingAltUsers = await GetOsuUsers(missingAltIds);
+
+        //merge the data
+        osu_users = osu_users.concat(missingAltUsers);
+    }
+
     //we merge the data together
     ids.forEach(id => {
         let user = {};
@@ -598,14 +609,16 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
         let osu_user = osu_users.find(user => user.id == id);
         let score_rank = score_ranks.find(user => user.user_id == id);
 
-        let username = skippedData.osu ? alt_user?.username : osu_user?.username;
+        let username = !osu_user ? alt_user?.username : osu_user?.username;
         if (!username && !allowFallback) return;
         if (!username && allowFallback) {
             username = inspector_user?.known_username;
         }
 
-        if (!skippedData.alt) { user.alt = alt_user; }
-        if (!skippedData.osu) { user.osu = { ...osu_user, score_rank }; }
+        // if (!skippedData.alt) { user.alt = alt_user; }
+        // if (!skippedData.osu) { user.osu = { ...osu_user, score_rank }; }
+        user.alt = alt_user || null;
+        user.osu = osu_user ? { ...osu_user, score_rank } : null;
 
         user.inspector_user = DefaultInspectorUser(inspector_user, username, parseInt(id));
 

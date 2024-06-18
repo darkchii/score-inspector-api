@@ -171,7 +171,14 @@ router.post('/create', async (req, res, next) => {
 
 router.get('/user/:id', async (req, res, next) => {
     //can be one or multiple ids, separated by commas
-    const ids = req.params.id.split(',');
+    let ids = req.params.id.split(',');
+    //only numbers are allowed
+    ids = ids.filter(id => !isNaN(id));
+
+    if(ids.length == 0) {
+        res.status(400).json({ error: "Invalid user id" });
+        return;
+    }
 
     //we only care about clan info, not user info
     const members = await InspectorClanMember.findAll({

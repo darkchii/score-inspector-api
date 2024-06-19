@@ -25,6 +25,7 @@ const OsuUserModel = (db) => db.define('OsuUser', {
     c_count: { type: Sequelize.INTEGER, allowNull: false, },
     d_count: { type: Sequelize.INTEGER, allowNull: false, },
     total_pp: { type: Sequelize.FLOAT, allowNull: false, },
+    cover_url: { type: Sequelize.STRING, allowNull: false, },
 }, {
     tableName: 'osu_users',
     timestamps: false

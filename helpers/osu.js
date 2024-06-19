@@ -1,5 +1,5 @@
 const { Sequelize } = require('sequelize');
-const { AltUser, AltScore, Raw, InspectorCountryStat } = require('./db');
+const { AltUser, AltScore, Raw, InspectorCountryStat, InspectorOsuUser } = require('./db');
 
 require('dotenv').config();
 const axios = require('axios').default;
@@ -126,6 +126,20 @@ async function GetOsuUsers(id_array, timeout = 5000) {
             let _users = JSON.parse(JSON.stringify(res.data))?.users;
             users = [...users, ..._users];
         } catch (err) {
+        }
+    }
+
+    //update cover_url in inspector db
+    if(users?.length > 0){
+        //bulk update
+        try{
+            for await(const user of users){
+                const cover_url = user?.cover?.custom_url ?? user?.cover?.url ?? null;
+                if(cover_url){
+                    InspectorOsuUser.update({cover_url: cover_url}, {where: {user_id: user.id}});
+                }
+            }
+        }catch(err){
         }
     }
 

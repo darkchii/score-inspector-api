@@ -7,7 +7,6 @@ var cache = require('persistent-cache');
 var cors = require('cors');
 
 const compression = require('compression');
-const StartCacher = require('./db_cacher');
 const { ApplyRoutes } = require('./routes');
 const { rateLimit } = require('express-rate-limit');
 
@@ -81,10 +80,3 @@ app.use(function (err, req, res, next) {
 });
 
 module.exports = app;
-
-//if production
-
-if (process.env.NODE_ENV === 'production') {
-  StartCacher();
-}
-

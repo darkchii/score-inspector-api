@@ -6,7 +6,7 @@ const { IsUserClanOwner } = require('../../helpers/clans');
 const router = express.Router();
 require('dotenv').config();
 
-const CLAN_MEMBER_LIMIT = 50;
+const CLAN_MEMBER_LIMIT = 100;
 
 const stat_rankings = [
     { key: 'clears', query: 'clears' },

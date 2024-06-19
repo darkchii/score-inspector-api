@@ -1,7 +1,6 @@
 //this script is to store some data in the local database, like overall score statistics.
 //mainly to circumvent extremely slow sql queries that don't need to be live
 const schedule = require('node-schedule');
-const populationStatsCacher = require("./cacher/jobPopulationStats.js");
 const systemStatsCacher = require("./cacher/jobSystemStats.js");
 require('dotenv').config();
 

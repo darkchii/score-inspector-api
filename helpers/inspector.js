@@ -1,20 +1,12 @@
 const { Client } = require("pg");
 const { GetDailyUser, GetOsuUser, GetOsuUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET } = require("./osu");
-const mysql = require('mysql-await');
 const { default: axios } = require("axios");
-const { range, renameKey } = require("./misc");
-const { InspectorBeatmap, Databases, AltBeatmap, InspectorUser, InspectorRole, InspectorOsuUser, InspectorUserAccessToken, InspectorUserFriend, InspectorClan, InspectorClanMember } = require("./db");
-const { Op, Sequelize, where } = require("sequelize");
+const { range } = require("./misc");
+const { InspectorBeatmap, Databases, InspectorUser, InspectorRole, InspectorUserAccessToken, InspectorClan, InspectorClanMember } = require("./db");
+const { Sequelize } = require("sequelize");
 const { GetAltUsers } = require("./osualt");
 const moment = require("moment");
 require('dotenv').config();
-
-const connConfig = {
-    host: process.env.MYSQL_HOST,
-    user: process.env.MYSQL_USER,
-    database: process.env.MYSQL_DB,
-    password: process.env.MYSQL_PASS,
-};
 
 module.exports.GetInspectorUser = GetInspectorUser;
 async function GetInspectorUser(id) {
@@ -425,7 +417,7 @@ async function VerifyToken(session_token, user_id, refresh = false) {
                 client_secret: OSU_CLIENT_SECRET,
                 grant_type: 'refresh_token',
                 refresh_token: refresh_token,
-                scope: 'identify public friends.read',
+                scope: `identify public`,
             });
         } catch (err) {
             throw new Error('Unable to refresh token, please relogin');
@@ -473,49 +465,6 @@ function DefaultInspectorUser(inspector_user, username, osu_id) {
         }
     }
     return _inspector_user;
-}
-
-module.exports.InspectorRefreshFriends = InspectorRefreshFriends;
-async function InspectorRefreshFriends(access_token, osu_id) {
-    if (!osu_id || !access_token) {
-        throw new Error('Missing parameters');
-        return;
-    }
-
-    const isTokenValid = await VerifyToken(access_token, osu_id, true);
-
-    if (!isTokenValid) {
-        throw new Error('Invalid token');
-        return;
-    }
-
-    const friends_response = await axios.get('https://osu.ppy.sh/api/v2/friends', {
-        headers: {
-            "Accept-Encoding": "gzip,deflate,compress",
-            "Authorization": `Bearer ${access_token}`
-        }
-    });
-
-    let friend_array = [];
-
-    if (friends_response?.data?.length > 0) {
-        //clear old friends
-        await InspectorUserFriend.destroy({
-            where: {
-                primary_osu_id: osu_id
-            }
-        });
-
-        for (const friend of friends_response.data) {
-            friend_array.push({
-                primary_osu_id: osu_id,
-                friend_osu_id: friend.id,
-                friend_username: friend.username,
-            });
-        }
-
-        await InspectorUserFriend.bulkCreate(friend_array);
-    }
 }
 
 module.exports.getFullUsers = async function (user_ids, skippedData = { daily: false, alt: false, score: false, osu: false, extras: false }, allowFallback = false) {
@@ -586,7 +535,7 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
         })
     ]);
 
-    if(allowFallback && skippedData.osu && !skippedData.alt) {
+    if (allowFallback && skippedData.osu && !skippedData.alt) {
         //find users with missing alt data and get osu data instead
         let missingAltIds = ids.filter(id => !alt_users.find(user => user.user_id == id));
         //unique
@@ -603,7 +552,7 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
 
         let inspector_user = inspector_users.find(user => user.osu_id == id);
 
-        if(inspector_user && inspector_user.is_banned) return;
+        if (inspector_user && inspector_user.is_banned) return;
 
         let alt_user = alt_users.find(user => user.user_id == id);
         let osu_user = osu_users.find(user => user.id == id);

@@ -23,7 +23,6 @@ const { InspectorHistoricalScoreRankModel } = require('./models/InspectorHistori
 const { OsuUserModel } = require('./models/OsuUser');
 const { InspectorUserMilestoneModel } = require('./models/InspectorMilestone');
 const { InspectorUserAccessTokenModel } = require('./models/InspectorUserAccessToken');
-const { InspectorUserFriendModel } = require('./models/InspectorUserFriend');
 const { InspectorPerformanceRecordModel } = require('./models/InspectorPerformanceRecord.js');
 const { InspectorCountryStatModel } = require('./models/InspectorCountryStat.js');
 const { InspectorMapPollModel } = require('./models/InspectorMapPoll.js');
@@ -65,7 +64,6 @@ module.exports.Databases = databases;
 
 const InspectorUser = InspectorUserModel(databases.inspector);
 const InspectorUserAccessToken = InspectorUserAccessTokenModel(databases.inspector);
-const InspectorUserFriend = InspectorUserFriendModel(databases.inspector);
 const InspectorRole = InspectorRoleModel(databases.inspector);
 const InspectorComment = InspectorCommentModel(databases.inspector);
 const InspectorVisitor = InspectorVisitorModel(databases.inspector);
@@ -156,7 +154,6 @@ AltUserAchievement.belongsTo(AltUser, { as: 'medals', foreignKey: 'user_id', tar
 
 module.exports.InspectorUser = InspectorUser;
 module.exports.InspectorUserAccessToken = InspectorUserAccessToken;
-module.exports.InspectorUserFriend = InspectorUserFriend;
 module.exports.InspectorRole = InspectorRole;
 module.exports.InspectorUserRole = InspectorUserRole;
 module.exports.InspectorComment = InspectorComment;

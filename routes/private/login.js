@@ -3,10 +3,10 @@ const express = require('express');
 const router = express.Router();
 const crypto = require("crypto");
 require('dotenv').config();
-const { InspectorUser, InspectorComment, InspectorToken, Raw, InspectorVisitor, AltUser, Databases, InspectorRole, InspectorUserAccessToken, InspectorUserFriend, InspectorClanMember, InspectorClan } = require('../../helpers/db');
-const { Sequelize, Op } = require('sequelize');
-const { VerifyToken, GetInspectorUser, InspectorRefreshFriends, getFullUsers, GetToken } = require('../../helpers/inspector');
-const { GetUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET, GetOsuUsers } = require('../../helpers/osu');
+const { InspectorUser, InspectorComment, InspectorVisitor, AltUser, InspectorUserAccessToken, InspectorClanMember, InspectorClan } = require('../../helpers/db');
+const { Sequelize } = require('sequelize');
+const { VerifyToken, GetInspectorUser, getFullUsers, GetToken } = require('../../helpers/inspector');
+const { OSU_CLIENT_ID, OSU_CLIENT_SECRET, GetOsuUsers } = require('../../helpers/osu');
 
 // const SESSION_LENGTH = 60 * 60 * 24 * 3;
 const SESSION_DAYS = 3;
@@ -93,11 +93,6 @@ router.post('/', async (req, res, next) => {
             expires_in: expires_in,
             created_at: new Date(),
         });
-
-    try {
-        await InspectorRefreshFriends(access_token, user_id);
-    } catch (err) {
-    }
 
     const login_data = {
         user_id: user_id,
@@ -314,66 +309,6 @@ router.all('/visitors/get/:id', async (req, res, next) => {
     }
 
     res.json(result);
-});
-
-router.get('/friends/:id', async (req, res, next) => {
-    //check if user exists and allows public friends listing
-    const user_id = req.params.id;
-    const user = await InspectorUser.findOne({
-        where: { osu_id: user_id },
-        include: [
-            {
-                model: InspectorClanMember,
-                attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
-                as: 'clan_member',
-                include: [{
-                    model: InspectorClan,
-                    attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
-                    as: 'clan',
-                }]
-            }
-        ]
-    });
-
-    if (user == null) {
-        res.status(401).json({ error: 'Invalid user' });
-        return;
-    }
-
-    if (!user.is_friends_public) {
-        res.status(401).json({ error: 'Friends list is private' });
-        return;
-    }
-
-    //get friends
-    const friends = (await InspectorUserFriend.findAll({
-        attributes: ['friend_osu_id'],
-        where: { primary_osu_id: user_id },
-        raw: true,
-        nest: true
-    }))?.map((row) => row.friend_osu_id);
-
-    let full_users = [];
-    if (friends.length > 0) {
-        full_users = await getFullUsers(friends, { daily: true, alt: true, score: true });
-    }
-
-    res.json(full_users);
-});
-
-router.post('/friends/refresh', async (req, res, next) => {
-    const user_id = req.body.user_id;
-    const token = req.body.token;
-
-    //refresh friends
-    try {
-        await InspectorRefreshFriends(token, user_id);
-    } catch (err) {
-        res.status(401).json({ error: 'Invalid token' });
-        return;
-    }
-
-    res.json({});
 });
 
 router.post('/update_visitor', async (req, res, next) => {

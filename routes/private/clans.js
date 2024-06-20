@@ -194,9 +194,7 @@ router.get('/user/:id', async (req, res, next) => {
         ]
     });
 
-    let _members = JSON.parse(JSON.stringify(members));
-
-    res.json(_members);
+    res.json(members);
 });
 
 router.all('/get/:id', async (req, res, next) => {
@@ -235,13 +233,13 @@ router.all('/get/:id', async (req, res, next) => {
 
     //get full user info for each member
     const ids = members.map(m => m.osu_id);
-    let full_users = await getFullUsers(ids, { daily: true, alt: false, score: false, osu: true }, true);
+    let full_users = await getFullUsers(ids, { daily: true, alt: false, score: true, osu: true }, true);
 
     //for those missing "alt" data, we need to fetch it separately with osu: false
     //use "ids" to get the missing users, then merge them with the full_users array
     const missing_ids = ids.filter(id => !full_users.find(u => u.alt?.user_id == id));
     if (missing_ids.length > 0) {
-        let missing_users = await getFullUsers(missing_ids, { daily: true, alt: true, score: false, osu: false }, true);
+        let missing_users = await getFullUsers(missing_ids, { daily: true, alt: true, score: true, osu: false }, true);
 
         full_users = full_users.map(u => {
             const missing_user = missing_users.find(mu => mu.osu?.id == u.inspector_user.osu_id);

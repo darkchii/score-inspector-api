@@ -114,10 +114,9 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
                     required: false,
                 }] : [])
         ],
+        raw: true,
         nest: true
     });
-
-    scores = JSON.parse(JSON.stringify(scores));
 
     if (!req.params.id) {
         //add user data after the fact, since we don't need it in the massive query
@@ -136,17 +135,13 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
                 }
             ]
         });
-        // scores.forEach(score => {
-        //     // score.inspector_user = inspectorUsers.find(user => user.osu_id === score.user_id) ?? DefaultInspectorUser();
-        //     score.inspector_user = DefaultInspectorUser(inspectorUsers.find(user => user.osu_id === score.user_id), score.user.username, score.user_id);
-        // });
+
         for (let i = 0; i < scores.length; i++) {
             scores[i].inspector_user = DefaultInspectorUser(inspectorUsers.find(user => user.osu_id === scores[i].user_id), scores[i].user.username, scores[i].user_id);
         }
     }
 
     if (req.query.include_packs !== 'false') {
-        scores = JSON.parse(JSON.stringify(scores));
         let beatmap_set_ids = scores.map(score => score.beatmap.set_id);
         let beatmap_ids = scores.map(score => score.beatmap.beatmap_id);
         //remove duplicates and nulls
@@ -211,7 +206,7 @@ router.get('/user/:id', cache('1 minute'), async function (req, res, next) {
         const rows = await GetScores(req);
         res.json(rows);
     } catch (e) {
-        
+        console.error(e);
         res.status(500).json({ error: e });
     }
 });

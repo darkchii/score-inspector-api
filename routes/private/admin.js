@@ -4,7 +4,6 @@ const router = express.Router();
 require('dotenv').config();
 const { InspectorUser, InspectorRole, InspectorOsuUser, InspectorClanMember, InspectorClan } = require('../../helpers/db');
 const { VerifyToken, GetInspectorUser } = require('../../helpers/inspector');
-const { orderBy } = require('lodash');
 
 async function HasAdminAccess(user_id, session_token) {
     if (session_token == null || user_id == null) {

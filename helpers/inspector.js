@@ -523,7 +523,7 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
         }),
         //alt users
         skippedData.alt ? null : GetAltUsers(ids, ids.length === 1 && !skippedData.extras).then(users => {
-            alt_users = JSON.parse(JSON.stringify(users));
+            alt_users = users;
         }).catch(err => {
         }),
         //score ranks

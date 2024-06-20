@@ -8,9 +8,6 @@ const { Sequelize } = require('sequelize');
 const { VerifyToken, GetInspectorUser, getFullUsers, GetToken } = require('../../helpers/inspector');
 const { OSU_CLIENT_ID, OSU_CLIENT_SECRET, GetOsuUsers } = require('../../helpers/osu');
 
-// const SESSION_LENGTH = 60 * 60 * 24 * 3;
-const SESSION_DAYS = 3;
-
 router.post('/', async (req, res, next) => {
     let authResponse = null;
     const auth_code = req.body.code;
@@ -430,82 +427,6 @@ router.post('/update_profile', async (req, res, next) => {
     //update user
     await InspectorUser.update(data, { where: { osu_id: user_id } });
 
-    res.json({});
-});
-
-router.post('/comments/send', async (req, res, next) => {
-    const token = req.body.token;
-    const sender = req.body.sender;
-    const recipient = req.body.recipient;
-    const comment = req.body.comment;
-    const reply_to = req.body.reply_to || -1;
-
-    if (sender == null || recipient == null || token == null || comment == null) {
-        res.status(401).json({ error: 'Invalid data' });
-        return;
-    }
-
-    if (!(await VerifyToken(token, sender))) {
-        res.status(401).json({ error: 'Invalid token' });
-        return;
-    }
-
-    // create comment
-    try {
-        // await connection.awaitQuery(`INSERT INTO inspector_comments (commentor_id, target_id, date_created, reply_to, comment) VALUES (?,?,?,?,?)`, [sender, recipient, new Date(), reply_to, comment]);
-        await InspectorComment.create({ commentor_id: sender, target_id: recipient, date_created: Sequelize.literal('CURRENT_TIMESTAMP'), reply_to: reply_to, comment: comment });
-    } catch (err) {
-        res.status(401).json({ error: 'Unknown failure' });
-        return;
-    }
-
-    res.json({});
-});
-
-router.get('/comments/get/:id', async (req, res, next) => {
-    const user_id = req.params.id;
-
-    if (user_id == null) {
-        res.status(401).json({ error: 'Invalid user ID' });
-        return;
-    }
-
-    const comments = await InspectorComment.findAll({
-        where: { target_id: user_id },
-        include: [{
-            model: InspectorUser,
-            as: 'commentor',
-            required: true,
-        }],
-        order: [
-            ['date_created', 'DESC'],
-        ],
-    });
-    res.json(comments);
-});
-
-router.post('/comments/delete', async (req, res, next) => {
-    const id = req.body.comment_id;
-    const token = req.body.token;
-    const user_id = req.body.deleter_id;
-
-    if (user_id == null || token == null || id == null) {
-        res.status(401).json({ error: 'Invalid data' });
-        return;
-    }
-
-    //check if token is valid
-    if (!(await VerifyToken(token, user_id))) {
-        res.status(401).json({ error: 'Invalid token' });
-        return;
-    }
-
-    const data = InspectorComment.destroy({
-        where: {
-            id: id,
-            commentor_id: user_id,
-        }
-    });
     res.json({});
 });
 

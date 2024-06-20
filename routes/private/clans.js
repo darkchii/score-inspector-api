@@ -27,7 +27,20 @@ const stat_rankings = [
     { key: 'accuracy', query: 'accuracy' }
 ]
 
+const CLANS_PER_PAGE = 50;
 router.get('/list', async (req, res, next) => {
+    const page = req.query.page || null;
+    let limit = req.query.limit || 10;
+    let sort = req.query.sort || 'clan_id';
+    let order = req.query.order || 'ASC';
+    if(!page){
+        limit = 1000;
+    }
+
+    limit = parseInt(limit);
+    limit = Math.min(limit, 1000);
+    limit = Math.max(limit, 1);
+
     const clans = await InspectorClan.findAll({
         include: [
             {
@@ -42,6 +55,14 @@ router.get('/list', async (req, res, next) => {
                 }
             }
         ],
+        limit: limit,
+        //only if page is defined
+        offset: page ? (page - 1) * CLANS_PER_PAGE : 0,
+        // order: [[sort, order]]
+        //order by clan_stats key
+        order: [
+            [{ model: InspectorClanStats, as: 'clan_stats' }, sort, order]
+        ]
     });
 
     res.json({ clans: clans });

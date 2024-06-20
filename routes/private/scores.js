@@ -406,33 +406,6 @@ router.get('/stats', async function (req, res, next) {
     res.json(data);
 });
 
-router.get('/most_played', cache('1 hour'), async function (req, res, next) {
-    try {
-        const limit = req.params.limit || 10;
-        const offset = req.params.offset || 0;
-
-        const query = `
-        SELECT t.* FROM 
-        (
-            SELECT count(*), beatmaps.* 
-            FROM scores LEFT JOIN beatmaps ON scores.beatmap_id = beatmaps.beatmap_id 
-            WHERE (beatmaps.approved = 1 OR beatmaps.approved = 2 OR beatmaps.approved = 4) 
-            GROUP BY beatmaps.beatmap_id 
-            ORDER BY count(*) DESC
-        ) as t 
-        LIMIT ${limit} 
-        OFFSET ${offset}`;
-
-        // const { rows } = await client.query(query);
-        const [rows] = await Databases.osuAlt.query(query);
-        // await client.end();
-        res.json(rows);
-    } catch (e) {
-        
-        res.status(500).json({ error: e });
-    }
-});
-
 router.get('/activity', cache('20 minutes'), async function (req, res, next) {
     try {
         const interval = req.query.period_amount || 24;

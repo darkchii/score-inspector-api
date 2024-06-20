@@ -4,12 +4,10 @@ var privateAdminRoute = require('./private/admin');
 var privateBeatmapsRoute = require('./private/beatmaps');
 var privateLeaderboardsRoute = require('./private/leaderboards');
 var privateLoginRoute = require('./private/login');
-var privateMedalsRoute = require('./private/medals');
 var privateScoresRoute = require('./private/scores');
 var privateSystemRoute = require('./private/system');
 var privateUsersRoute = require('./private/users');
 var privateIndexRoute = require('./private/index');
-var privatePollRoute = require('./private/mappoll');
 var privateClansRoute = require('./private/clans');
 
 var publicAltRoute = require('./public/alt');
@@ -30,9 +28,6 @@ let privateRoutes = [
         path: '/login',
         route: privateLoginRoute
     }, {
-        path: '/medals',
-        route: privateMedalsRoute
-    }, {
         path: '/scores',
         route: privateScoresRoute
     }, {
@@ -44,9 +39,6 @@ let privateRoutes = [
     }, {
         path: '/',
         route: privateIndexRoute
-    }, {
-        path: '/poll',
-        route: privatePollRoute
     }, {
         path: '/clans',
         route: privateClansRoute

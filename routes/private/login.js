@@ -353,7 +353,12 @@ router.post('/update_visitor', async (req, res, next) => {
         }
 
         //check if token is valid
-        if (!(await VerifyToken(token, visitor_id))) {
+        try{
+            if (!(await VerifyToken(token, visitor_id))) {
+                res.status(401).json({ error: 'Invalid token' });
+                return;
+            }
+        }catch(err){
             res.status(401).json({ error: 'Invalid token' });
             return;
         }

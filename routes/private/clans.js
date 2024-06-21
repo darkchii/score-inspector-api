@@ -105,12 +105,21 @@ router.post('/create', async (req, res, next) => {
     const clan_name = req.body.name;
     const clan_tag = req.body.tag;
 
+    //check if the clan name or tag is already taken
+    const tag_taken = await InspectorClan.findOne({
+        where: {
+            tag: req.body.tag,
+        }
+    });
+
+    if (tag_taken) {
+        res.json({ error: "Clan tag is already taken" });
+        return;
+    }
+
     const clan_name_taken = await InspectorClan.findOne({
         where: {
-            [Op.or]: [
-                { name: clan_name },
-                { tag: clan_tag }
-            ]
+            name: req.body.name,
         }
     });
 
@@ -442,6 +451,31 @@ router.post('/update', async (req, res, next) => {
             res.json({ error: err.message });
             return;
         }
+    }
+
+    //check if the clan name or tag is already taken
+    const tag_taken = await InspectorClan.findOne({
+        where: {
+            tag: req.body.tag,
+            id: { [Op.ne]: clan_id }
+        }
+    });
+
+    if (tag_taken) {
+        res.json({ error: "Clan tag is already taken" });
+        return;
+    }
+
+    const clan_name_taken = await InspectorClan.findOne({
+        where: {
+            name: req.body.name,
+            id: { [Op.ne]: clan_id }
+        }
+    });
+
+    if (clan_name_taken) {
+        res.json({ error: "Clan name or tag is already taken" });
+        return;
     }
 
     const new_data = {

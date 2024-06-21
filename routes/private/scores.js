@@ -51,11 +51,7 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
             ...req.query.grades ? { rank: { [Op.in]: req.query.grades.split(',') } } : {},
             ...req.query.min_played_date || req.query.max_played_date ? { date_played: { [Op.between]: [req.query.min_played_date ?? '2000-01-01', req.query.max_played_date ?? '2100-01-01'] } } : {},
         },
-        order: [
-            //order by pp desc default
-            ...(req.query.order ? [[req.query.order, req.query.order_dir ?? 'DESC']] : []),
-            ['pp', 'DESC']
-        ],
+        order: req.query.orde ? [[req.query.order, req.query.order_dir ?? 'DESC']] : undefined,
         limit: req.query.limit ?? undefined,
         offset: req.query.offset ?? undefined,
         include: [
@@ -195,13 +191,13 @@ router.get('/all', cache('1 hour'), async function (req, res, next) {
         const rows = await GetScores(_req);
         res.json(rows);
     } catch (e) {
-        
+
         res.status(500).json({ error: e });
     }
 });
 
 /* Get the entire list of scores of a user */
-router.get('/user/:id', cache('1 minute'), async function (req, res, next) {
+router.get('/user/:id', cache('1 hour'), async function (req, res) {
     try {
         const rows = await GetScores(req);
         res.json(rows);
@@ -245,7 +241,7 @@ router.get('/completion/:id', cache('1 hour'), async function (req, res, next) {
         const data = getCompletionData(scores, beatmaps);
         res.json(data);
     } catch (e) {
-        
+
         res.status(500).json({ error: e });
     }
 });
@@ -634,7 +630,7 @@ router.get('/ranking', cache('1 hour'), async function (req, res, next) {
     let limit = 100;
     let page = 0;
     let mode = req.query.mode || 0;
-    if(!MODE_SLUGS[mode]) {
+    if (!MODE_SLUGS[mode]) {
         res.status(400).json({ "error": "Invalid mode" });
         return;
     }
@@ -736,7 +732,7 @@ router.get('/ranking', cache('1 hour'), async function (req, res, next) {
 
 router.get('/ranking/dates', cache('1 hour'), async function (req, res, next) {
     let mode = req.query.mode || 0;
-    if(!MODE_SLUGS[mode]) {
+    if (!MODE_SLUGS[mode]) {
         res.status(400).json({ "error": "Invalid mode" });
         return;
     }
@@ -754,7 +750,7 @@ router.get('/ranking/dates', cache('1 hour'), async function (req, res, next) {
 
         res.json(dates);
     } catch (e) {
-        
+
 
         res.json([])
     }
@@ -763,7 +759,7 @@ router.get('/ranking/dates', cache('1 hour'), async function (req, res, next) {
 router.get('/ranking/stats', cache('1 hour'), async function (req, res, next) {
     let daily_total_ranked_score;
     let mode = req.query.mode || 0;
-    if(!MODE_SLUGS[mode]) {
+    if (!MODE_SLUGS[mode]) {
         res.status(400).json({ "error": "Invalid mode" });
         return;
     }
@@ -779,7 +775,7 @@ router.get('/ranking/stats', cache('1 hour'), async function (req, res, next) {
             nest: true
         });
     } catch (e) {
-        
+
     }
 
     res.json({
@@ -878,7 +874,7 @@ router.get('/milestones/stats', cache('5 minutes'), async function (req, res, ne
         });
         users = await InspectorOsuUser.count();
     } catch (err) {
-        
+
     }
     res.json({
         recorded_milestones: recorded_milestones ?? 0,
@@ -914,7 +910,7 @@ router.get('/monthly_farmers/:data', cache('1 hour'), async function (req, res, 
             row.user.alt = undefined;
         }
     } catch (e) {
-        
+
     }
     res.json(data);
 });
@@ -962,7 +958,7 @@ router.get('/monthly_farmers/log/:data', cache('1 hour'), async function (req, r
         //     row.user.alt = undefined;
         // }
     } catch (e) {
-        
+
     }
     res.json(data);
 });

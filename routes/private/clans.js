@@ -33,7 +33,7 @@ router.get('/list', async (req, res, next) => {
     let limit = req.query.limit || 10;
     let sort = req.query.sort || 'clan_id';
     let order = req.query.order || 'ASC';
-    if(!page){
+    if (!page) {
         limit = 1000;
     }
 
@@ -56,14 +56,16 @@ router.get('/list', async (req, res, next) => {
             }
         ],
         limit: limit,
-        //only if page is defined
         offset: page ? (page - 1) * CLANS_PER_PAGE : 0,
-        // order: [[sort, order]]
-        //order by clan_stats key
         order: [
             [{ model: InspectorClanStats, as: 'clan_stats' }, sort, order]
-        ]
+        ],
     });
+
+    for (let i = 0; i < clans.length; i++) {
+        clans[i].clan_stats.set('members', clans[i].clan_members.length, { raw: true });
+        clans[i].set('clan_members', undefined, { raw: true });
+    }
 
     res.json({ clans: clans });
 });
@@ -196,7 +198,7 @@ router.get('/user/:id', async (req, res, next) => {
     //only numbers are allowed
     ids = ids.filter(id => !isNaN(id));
 
-    if(ids.length == 0) {
+    if (ids.length == 0) {
         res.status(400).json({ error: "Invalid user id" });
         return;
     }

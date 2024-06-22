@@ -158,32 +158,13 @@ router.post('/create', async (req, res, next) => {
     if (!validate('description', req.body.description, 100)) return;
     if (!validate('color', req.body.color, 6)) return;
 
-    // if (clan_name.length > 20) {
-    //     res.json({ error: "Clan name is too long" });
-    //     return;
-    // }
-
-    // if (clan_tag.length > 5) {
-    //     res.json({ error: "Clan tag is too long" });
-    //     return;
-    // }
-
-    // if (req.body.description.length > 100) {
-    //     res.json({ error: "Clan description is too long" });
-    //     return;
-    // }
-
-    // if (req.body.color.length > 6) {
-    //     res.json({ error: "Clan color string is too long" });
-    //     return;
-    // }
-
     const new_clan = await InspectorClan.create({
         name: clan_name,
         tag: clan_tag,
         owner: user_id,
         description: req.body.description,
         color: req.body.color,
+        disable_requests: false,
         creation_date: new Date()
     });
 
@@ -421,6 +402,12 @@ router.post('/update', async (req, res, next) => {
     if (!validate('color', req.body.color, 6)) return;
     if (!validate('header_image_url', req.body.header_image_url, 255, true)) return;
 
+    //check if req.body.enable_requests is a boolean
+    if (typeof req.body.disable_requests !== "boolean") {
+        res.json({ error: "Invalid disable_requests value" });
+        return;
+    }
+
     const header_image_url = req.body.header_image_url;
     if (header_image_url && header_image_url.length > 0) {
         try {
@@ -483,7 +470,8 @@ router.post('/update', async (req, res, next) => {
         tag: req.body.tag,
         description: req.body.description,
         color: req.body.color,
-        header_image_url: req.body.header_image_url
+        header_image_url: req.body.header_image_url,
+        disable_requests: req.body.disable_requests
     };
 
     for (const key in new_data) {
@@ -579,6 +567,11 @@ router.post('/join_request', async (req, res, next) => {
 
     if (!clan) {
         res.json({ error: "Clan not found" });
+        return;
+    }
+
+    if(clan.disable_requests) {
+        res.json({ error: "Clan does not accept join requests" });
         return;
     }
 

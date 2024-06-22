@@ -27,7 +27,11 @@ const OsuUserModel = (db) => db.define('OsuUser', {
     total_pp: { type: Sequelize.FLOAT, allowNull: false, },
     cover_url: { type: Sequelize.STRING, allowNull: false, },
     country_ss_rank: { type: Sequelize.INTEGER, allowNull: false, },
+    country_ss_rank_highest: { type: Sequelize.INTEGER, allowNull: false, },
+    country_ss_rank_highest_date: { type: Sequelize.DATE, allowNull: false, },
     global_ss_rank: { type: Sequelize.INTEGER, allowNull: false, },
+    global_ss_rank_highest: { type: Sequelize.INTEGER, allowNull: false, },
+    global_ss_rank_highest_date: { type: Sequelize.DATE, allowNull: false, },
     country_code: { type: Sequelize.STRING, allowNull: false, },
     country_name: { type: Sequelize.STRING, allowNull: false, },
 }, {

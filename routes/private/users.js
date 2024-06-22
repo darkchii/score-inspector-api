@@ -230,7 +230,8 @@ router.get('/stats/:id', cache('1 hour'), async (req, res) => {
           'total_pp',
           [Sequelize.literal('ss_count + ssh_count + s_count + sh_count + a_count + b_count + c_count + d_count'), 'clears'],
           [Sequelize.literal('(ss_count + ssh_count + s_count + sh_count + a_count + b_count + c_count + d_count) / ' + beatmap_count + ' * 100'), 'completion'],
-
+          'global_ss_rank',
+          'country_ss_rank',
         ],
         where: { user_id: id },
       }) : null,

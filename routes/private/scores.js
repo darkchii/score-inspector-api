@@ -404,6 +404,8 @@ router.get('/stats', async function (req, res, next) {
 
 router.get('/activity', cache('20 minutes'), async function (req, res, next) {
     try {
+        const interval = req.query.period_amount || 24;
+
         //validate-check interval to prevent sql injection
         if (isNaN(interval) || interval < -1 || interval > 1000) {
             res.status(400).json({ "error": "Invalid interval" });

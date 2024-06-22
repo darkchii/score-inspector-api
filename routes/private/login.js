@@ -119,7 +119,7 @@ router.post('/validate_token', async (req, res, next) => {
     }
 
     let data;
-    if(error === ""){
+    if (error === "") {
         try {
             data = await GetToken(user_id);
         } catch (err) {
@@ -312,30 +312,30 @@ router.post('/update_visitor', async (req, res, next) => {
     let visitor_id = req.body.visitor;
     let target_id = req.body.target;
     let token = req.body.token;
-    
+
     //if visitor or target are strings, convert to numbers
     if (visitor_id !== null) visitor_id = Number(visitor_id);
     if (target_id !== null) target_id = Number(target_id);
-    
+
     //if nan, set to null
     if (isNaN(visitor_id)) visitor_id = null;
     if (isNaN(target_id)) target_id = null;
-    
+
     if ((visitor_id !== null && isNaN(visitor_id)) || isNaN(target_id)) {
         res.status(401).json({ error: 'Invalid visitor or target ID' });
         return;
     }
-    
+
     if (visitor_id !== null && Number(visitor_id) === Number(target_id)) {
         res.json({ error: 'Visitor is same as target. Ignoring.' });
         return;
     }
-    
+
     if (target_id == null) {
         res.status(401).json({ error: 'Invalid target ID' });
         return;
     }
-    
+
     //check if visitor_id is valid
     if (visitor_id !== null) {
         let user = await InspectorUser.findOne({ where: { osu_id: visitor_id } });
@@ -344,18 +344,18 @@ router.post('/update_visitor', async (req, res, next) => {
             return;
         }
 
-        if(user.is_banned){
+        if (user.is_banned) {
             res.status(401).json({ error: 'Visitor is banned' });
             return;
         }
 
         //check if token is valid
-        try{
+        try {
             if (!(await VerifyToken(token, visitor_id))) {
                 res.status(401).json({ error: 'Invalid token' });
                 return;
             }
-        }catch(err){
+        } catch (err) {
             res.status(401).json({ error: 'Invalid token' });
             return;
         }
@@ -423,6 +423,31 @@ router.post('/update_profile', async (req, res, next) => {
     if (data.id !== undefined) { data.id = undefined; }
     if (data.known_username !== undefined) { data.known_username = undefined; }
     if (data.roles !== undefined) { data.roles = undefined; }
+
+    const validate = (key, value, max_length, is_url = false) => {
+        //check for max length
+        if (value.length > max_length) {
+            res.status(401).json({ error: `${key} is too long: ${value}` });
+            return false;
+        }
+
+        //check for invalid characters (unicode)
+        if (!/^[\x00-\x7F]*$/.test(value)) {
+            res.status(401).json({ error: `Invalid characters in ${key}` });
+            return false;
+        }
+
+        //check for invalid characters (special, if not url)
+        if (!/^[\w\s]*$/.test(value) && !is_url) {
+            // res.json({ error: `Invalid characters in ${key}` });
+            res.status(401).json({ error: `Invalid characters in ${key}` });
+            return false;
+        }
+
+        return true;
+    }
+
+    if (!validate('background_image', data.background_image, 255, true)) return;
 
     //update user
     await InspectorUser.update(data, { where: { osu_id: user_id } });

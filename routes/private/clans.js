@@ -182,13 +182,49 @@ router.post('/create', async (req, res, next) => {
     res.json({ clan: new_clan, member: new_member, stats: new_stats });
 });
 
-router.get('/user/:id', async (req, res, next) => {
+//this is a temporary cache for user data
+//it will be used to reduce the amount of requests to the database
+//max 1 hour
+const user_local_cache = {};
+const USER_CACHE_TIME = 900000; //10 minutes
+router.all('/user/:id?', async (req, res, next) => {
     //can be one or multiple ids, separated by commas
-    let ids = req.params.id.split(',');
+    // let ids = req.params.id.split(',');
+    let ids = [];
+
+    if(req.params.id){
+        ids = req.params.id.split(',');
+    }else if(req.body.ids){
+        ids = req.body.ids;
+    }else{
+        res.status(400).json({ error: "Invalid user id" });
+        return;
+    }
+
+    //check cache
+    const now = new Date();
+    let fetched_cached_data = [];
+    //grab cached data for each id if its still valid and exists
+    for (const id of ids) {
+        if (user_local_cache[id] && user_local_cache[id].expires > now) {
+            fetched_cached_data.push(user_local_cache[id].data);
+        }
+    }
+
+    //clean up cache for expired data
+    for(const data of Object.keys(user_local_cache)){
+        if(user_local_cache[data].expires < now){
+            delete user_local_cache[data];
+        }
+    }        
+
     //only numbers are allowed
     ids = ids.filter(id => !isNaN(id));
 
-    if (ids.length == 0) {
+    //dont fetch users that are in fetched_cached_data (fetched_cached_data.data.osu_id)
+    ids = ids.filter(id => !fetched_cached_data.find(d => d.osu_id == id));
+
+    if (ids.length == 0 && fetched_cached_data.length == 0) {
         res.status(400).json({ error: "Invalid user id" });
         return;
     }
@@ -207,7 +243,24 @@ router.get('/user/:id', async (req, res, next) => {
         ]
     });
 
-    res.json(members);
+    //put the data in the cache if it doesn't exist
+    for (const member of members) {
+        if (!user_local_cache[member.osu_id]) {
+            user_local_cache[member.osu_id] = {
+                data: member,
+                expires: new Date(now.getTime() + USER_CACHE_TIME)
+            };
+        }
+    }
+
+    const merged_data = fetched_cached_data.concat(members || []);
+
+    if(merged_data.length == 0){
+        res.status(404).json({ error: "No data found" });
+        return;
+    }
+
+    res.json(merged_data);
 });
 
 router.all('/get/:id', async (req, res, next) => {

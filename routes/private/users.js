@@ -349,5 +349,33 @@ router.get('/stats/completion_percentage/:ids', cache('2 hours'), async (req, re
   }
 });
 
+const SS_RANK_PAGE_SIZE = 50;
+router.get('/ss_rank/:page', cache('1 hour'), async (req, res) => {
+  const page = req.params.page;
+
+  if(isNaN(page)) {
+    res.status(400).json({ error: 'Invalid page number' });
+    return;
+  }
+
+  try {
+    const users = await InspectorOsuUser.findAll({
+      where: {
+        [Op.and]: [
+          { global_ss_rank: { [Op.gt]: 0 } },
+        ]
+      },
+      order: [
+        ['global_ss_rank', 'ASC']
+      ],
+      limit: SS_RANK_PAGE_SIZE,
+      offset: (page - 1) * SS_RANK_PAGE_SIZE
+    });
+
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: 'Unable to get users', message: err.message });
+  }
+});
 
 module.exports = router;

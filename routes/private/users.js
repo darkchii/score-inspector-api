@@ -1,6 +1,6 @@
 const express = require('express');
 var apicache = require('apicache');
-const { GetUser: GetOsuUser, GetDailyUser, GetUsers, GetUserBeatmaps, MODE_SLUGS } = require('../../helpers/osu');
+const { GetDailyUser, GetUsers, GetUserBeatmaps, MODE_SLUGS, GetOsuUser } = require('../../helpers/osu');
 const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser, GetPopulation } = require('../../helpers/osualt');
 const { getFullUsers } = require('../../helpers/inspector');
 const { InspectorCompletionist, AltUser, Databases, AltBeatmap, InspectorOsuUser, GetHistoricalScoreRankModel } = require('../../helpers/db');

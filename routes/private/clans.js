@@ -67,7 +67,18 @@ router.get('/list', async (req, res, next) => {
         clans[i].set('clan_members', undefined, { raw: true });
     }
 
-    res.json({ clans: clans });
+    const total_clans = await InspectorClan.count();
+    const total_members = await InspectorClanMember.count({
+        where: {
+            pending: false
+        }
+    });
+
+    res.json({ 
+        clans: clans,
+        total_clans: total_clans,
+        total_members: total_members
+     });
 });
 
 router.post('/create', async (req, res, next) => {

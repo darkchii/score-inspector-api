@@ -29,8 +29,8 @@ const stat_rankings = [
 ]
 
 router.get('/list', async (req, res, next) => {
-    const page = req.query.page || null;
-    let limit = req.query.limit || 10;
+    const page = req.query.page || 1;
+    let limit = req.query.limit || 1000;
     let sort = req.query.sort || 'clan_id';
     let order = req.query.order || 'DESC';
     let search = req.query.search || null;
@@ -58,7 +58,7 @@ router.get('/list', async (req, res, next) => {
 
     let offset = (page - 1) * limit;
 
-    let search_query = {};
+    let search_query = undefined;
     if (search) {
         search = search.replace(/[^a-zA-Z0-9\s]/g, '');
         search_query = {

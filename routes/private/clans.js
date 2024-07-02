@@ -1,6 +1,6 @@
 const express = require('express');
 const { VerifyToken, getFullUsers, GetInspectorUser } = require('../../helpers/inspector');
-const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser } = require('../../helpers/db');
+const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser, InspectorUser } = require('../../helpers/db');
 const { Op } = require('sequelize');
 const { IsUserClanOwner } = require('../../helpers/clans');
 const router = express.Router();
@@ -24,24 +24,57 @@ const stat_rankings = [
     { key: 'total_hits', query: 'total_hits' },
     { key: 'average_pp', query: 'average_pp' },
     { key: 'total_pp', query: 'total_pp' },
-    { key: 'accuracy', query: 'accuracy' }
+    { key: 'accuracy', query: 'accuracy' },
+    { key: 'members', query: 'members' }
 ]
 
-const CLANS_PER_PAGE = 50;
 router.get('/list', async (req, res, next) => {
     const page = req.query.page || null;
     let limit = req.query.limit || 10;
     let sort = req.query.sort || 'clan_id';
-    let order = req.query.order || 'ASC';
+    let order = req.query.order || 'DESC';
+    let search = req.query.search || null;
     if (!page) {
         limit = 1000;
     }
 
-    limit = parseInt(limit);
+    limit = parseInt(limit)
     limit = Math.min(limit, 1000);
     limit = Math.max(limit, 1);
 
+    switch (sort) {
+        case 'level':
+            sort = 'total_score';
+            break;
+        case 'total_ss':
+            sort = 'total_ss_both';
+            break;
+        case 'total_s':
+            sort = 'total_s_both';
+            break;
+        default:
+            break;
+    }
+
+    let offset = (page - 1) * limit;
+
+    let search_query = {};
+    if (search) {
+        search = search.replace(/[^a-zA-Z0-9\s]/g, '');
+        search_query = {
+            [Op.or]: [
+                { name: { [Op.like]: `%${search}%` } },
+                { tag: { [Op.like]: `%${search}%` } },
+                { description: { [Op.like]: `%${search}%` } },
+            ]
+        }
+    }
+
     const clans = await InspectorClan.findAll({
+        where: search_query,
+        order: [
+            [{ model: InspectorClanStats, as: 'clan_stats' }, sort, order]
+        ],
         include: [
             {
                 model: InspectorClanStats,
@@ -54,18 +87,10 @@ router.get('/list', async (req, res, next) => {
                     pending: false
                 }
             }
-        ],
-        limit: limit,
-        offset: page ? (page - 1) * CLANS_PER_PAGE : 0,
-        order: [
-            [{ model: InspectorClanStats, as: 'clan_stats' }, sort, order]
-        ],
+        ]
     });
 
-    for (let i = 0; i < clans.length; i++) {
-        clans[i].clan_stats.set('members', clans[i].clan_members.length, { raw: true });
-        clans[i].set('clan_members', undefined, { raw: true });
-    }
+    let sliced_clans = clans.slice(offset, offset + limit);
 
     const total_clans = await InspectorClan.count();
     const total_members = await InspectorClanMember.count({
@@ -74,11 +99,12 @@ router.get('/list', async (req, res, next) => {
         }
     });
 
-    res.json({ 
-        clans: clans,
+    res.json({
+        clans: sliced_clans,
+        query_clans: clans.length,
         total_clans: total_clans,
         total_members: total_members
-     });
+    });
 });
 
 router.post('/create', async (req, res, next) => {
@@ -203,11 +229,11 @@ router.all('/user/:id?', async (req, res, next) => {
     // let ids = req.params.id.split(',');
     let ids = [];
 
-    if(req.params.id){
+    if (req.params.id) {
         ids = req.params.id.split(',');
-    }else if(req.body.ids){
+    } else if (req.body.ids) {
         ids = req.body.ids;
-    }else{
+    } else {
         res.status(400).json({ error: "Invalid user id" });
         return;
     }
@@ -223,11 +249,11 @@ router.all('/user/:id?', async (req, res, next) => {
     }
 
     //clean up cache for expired data
-    for(const data of Object.keys(user_local_cache)){
-        if(user_local_cache[data].expires < now){
+    for (const data of Object.keys(user_local_cache)) {
+        if (user_local_cache[data].expires < now) {
             delete user_local_cache[data];
         }
-    }        
+    }
 
     //only numbers are allowed
     ids = ids.filter(id => !isNaN(id));
@@ -266,7 +292,7 @@ router.all('/user/:id?', async (req, res, next) => {
 
     const merged_data = fetched_cached_data.concat(members || []);
 
-    if(merged_data.length == 0){
+    if (merged_data.length == 0) {
         res.status(404).json({ error: "No data found" });
         return;
     }
@@ -634,7 +660,7 @@ router.post('/join_request', async (req, res, next) => {
         return;
     }
 
-    if(clan.disable_requests) {
+    if (clan.disable_requests) {
         res.json({ error: "Clan does not accept join requests" });
         return;
     }

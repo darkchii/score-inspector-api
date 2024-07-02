@@ -4,8 +4,10 @@ const InspectorClanStatsModel = (db) => db.define('InspectorClanStats', {
     clan_id: { type: Sequelize.INTEGER, primaryKey: true, allowNull: false, },
     total_ss: { type: Sequelize.INTEGER, allowNull: true, },
     total_ssh: { type: Sequelize.INTEGER, allowNull: true, },
+    total_ss_both: { type: Sequelize.INTEGER, allowNull: true, },
     total_s: { type: Sequelize.INTEGER, allowNull: true, },
     total_sh: { type: Sequelize.INTEGER, allowNull: true, },
+    total_s_both: { type: Sequelize.INTEGER, allowNull: true, },
     total_a: { type: Sequelize.INTEGER, allowNull: true, },
     total_b: { type: Sequelize.INTEGER, allowNull: true, },
     total_c: { type: Sequelize.INTEGER, allowNull: true, },
@@ -20,6 +22,7 @@ const InspectorClanStatsModel = (db) => db.define('InspectorClanStats', {
     total_pp: { type: Sequelize.FLOAT, allowNull: true, },
     accuracy: { type: Sequelize.FLOAT, allowNull: true, },
     clears: { type: Sequelize.INTEGER, allowNull: true, },
+    members: { type: Sequelize.INTEGER, allowNull: true, },
 }, {
     tableName: 'inspector_clan_stats',
     timestamps: false

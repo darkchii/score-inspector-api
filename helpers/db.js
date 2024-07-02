@@ -101,6 +101,7 @@ InspectorUser.hasOne(InspectorClanMember, { as: 'clan_member', foreignKey: 'osu_
 InspectorClanMember.hasOne(InspectorClan, { as: 'clan', foreignKey: 'id', sourceKey: 'clan_id' });
 InspectorClan.hasOne(InspectorClanStats, { as: 'clan_stats', foreignKey: 'clan_id', sourceKey: 'id' });
 InspectorClan.hasMany(InspectorClanMember, { as: 'clan_members', foreignKey: 'clan_id' });
+InspectorClanMember.hasOne(InspectorUser, { as: 'user', foreignKey: 'osu_id', sourceKey: 'osu_id' });
 
 // InspectorPerformanceRecord.belongsTo(InspectorOsuUser, { as: 'user', foreignKey: 'user_id', targetKey: 'user_id' });
 // InspectorPerformanceRecord.belongsTo(InspectorBeatmap, { as: 'beatmap', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });

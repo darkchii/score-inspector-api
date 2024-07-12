@@ -11,7 +11,9 @@ const CLAN_MEMBER_LIMIT = 100;
 const stat_rankings = [
     { key: 'clears', query: 'clears' },
     { key: 'total_ss', query: 'total_ssh+total_ss' },
+    { key: 'total_ss_both', query: 'total_ss_both' },
     { key: 'total_s', query: 'total_sh+total_s' },
+    { key: 'total_s_both', query: 'total_s_both' },
     { key: 'total_a', query: 'total_a' },
     { key: 'total_b', query: 'total_b' },
     { key: 'total_c', query: 'total_c' },

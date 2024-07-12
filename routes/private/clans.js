@@ -27,7 +27,9 @@ const stat_rankings = [
     { key: 'average_pp', query: 'average_pp' },
     { key: 'total_pp', query: 'total_pp' },
     { key: 'accuracy', query: 'accuracy' },
-    { key: 'members', query: 'members' }
+    { key: 'members', query: 'members' },
+    { key: 'medals', query: 'medals' },
+    { key: 'badges', query: 'badges' }
 ]
 
 router.get('/list', async (req, res, next) => {

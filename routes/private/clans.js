@@ -3,6 +3,7 @@ const { VerifyToken, getFullUsers, GetInspectorUser } = require('../../helpers/i
 const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser, InspectorUser } = require('../../helpers/db');
 const { Op } = require('sequelize');
 const { IsUserClanOwner } = require('../../helpers/clans');
+const { validateString } = require('../../helpers/misc');
 const router = express.Router();
 require('dotenv').config();
 
@@ -169,35 +170,15 @@ router.post('/create', async (req, res, next) => {
         return;
     }
 
-    //if everything is good, we create the clan
-    //we also add the user to the clan
-
-    const validate = (key, value, max_length, is_url = false) => {
-        //check for max length
-        if (value.length > max_length) {
-            res.json({ error: `${key} is too long: ${value}` });
-            return false;
-        }
-
-        //check for invalid characters (unicode)
-        if (!/^[\x00-\x7F]*$/.test(value)) {
-            res.json({ error: `Invalid characters in ${key}: ${value}` });
-            return false;
-        }
-
-        //check for invalid characters (special, if not url)
-        if (!/^[\w\s]*$/.test(value) && !is_url) {
-            res.json({ error: `Invalid characters in ${key}: ${value}` });
-            return false;
-        }
-
-        return true;
+    try{
+        validateString('name', clan_name, 20);
+        validateString('tag', clan_tag, 5);
+        validateString('description', req.body.description, 100);
+        validateString('color', req.body.color, 6);
+    }catch(err){
+        res.json({ error: err.message });
+        return;
     }
-
-    if (!validate('name', clan_name, 20)) return;
-    if (!validate('tag', clan_tag, 5)) return;
-    if (!validate('description', req.body.description, 100)) return;
-    if (!validate('color', req.body.color, 6)) return;
 
     const new_clan = await InspectorClan.create({
         name: clan_name,
@@ -468,33 +449,16 @@ router.post('/update', async (req, res, next) => {
         return;
     }
 
-    const validate = (key, value, max_length, is_url = false) => {
-        //check for max length
-        if (value.length > max_length) {
-            res.json({ error: `${key} is too long: ${value}` });
-            return false;
-        }
-
-        //check for invalid characters (unicode)
-        if (!/^[\x00-\x7F]*$/.test(value)) {
-            res.json({ error: `Invalid characters in ${key}: ${value}` });
-            return false;
-        }
-
-        //check for invalid characters (special, if not url)
-        if (!/^[\w\s]*$/.test(value) && !is_url) {
-            res.json({ error: `Invalid characters in ${key}: ${value}` });
-            return false;
-        }
-
-        return true;
+    try{
+        validateString('name', req.body.name, 20);
+        validateString('tag', req.body.tag, 5);
+        validateString('description', req.body.description, 100);
+        validateString('color', req.body.color, 6);
+        validateString('header_image_url', req.body.header_image_url, 255, true);
+    }catch(err){
+        res.json({ error: err.message });
+        return;
     }
-
-    if (!validate('name', req.body.name, 20)) return;
-    if (!validate('tag', req.body.tag, 5)) return;
-    if (!validate('description', req.body.description, 100)) return;
-    if (!validate('color', req.body.color, 6)) return;
-    if (!validate('header_image_url', req.body.header_image_url, 255, true)) return;
 
     //check if req.body.enable_requests is a boolean
     if (typeof req.body.disable_requests !== "boolean") {

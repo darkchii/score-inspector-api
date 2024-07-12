@@ -1,4 +1,5 @@
 var cors = require('cors');
+var validator = require('validator');
 
 module.exports.parse = parse;
 function parse(str) {
@@ -148,10 +149,30 @@ module.exports.sleep = function (ms) {
 }
 
 module.exports.renameKey = function (obj, curKey, newKey) {
-    if(curKey !== newKey){
+    if (curKey !== newKey) {
         obj[newKey] = obj[curKey];
         delete obj[curKey];
     }
 
     return obj;
+}
+
+module.exports.validateString = function (key, value, max_length = 255, is_url = false) {
+    if (typeof value !== 'string') {
+        throw new Error(`Invalid type for ${key}: ${value}`);
+    }
+
+    if (value.length > max_length) {
+        throw new Error(`${key} is too long: ${value}`);
+    }
+
+    if(!validator.isAscii(value)){
+        throw new Error(`Invalid characters in ${key}: ${value}`);
+    }
+
+    if(is_url && !validator.isURL(value)){
+        throw new Error(`Invalid URL in ${key}: ${value}`);
+    }
+
+    return true;
 }

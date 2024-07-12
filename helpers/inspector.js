@@ -232,56 +232,68 @@ module.exports.getCompletionData = getCompletionData;
 function getCompletionData(scores, beatmaps) {
     // cs
     const completion = {};
-    let spread = ["0-1", "1-2", "2-3", "3-4", "4-5", "5-6", "6-7", "7-8", "8-9", "9-10"];
+    let spread = ["0-1", "1-2", "2-3", "3-4", "4-5", "5-6", "6-7", "7-8", "8-9", "9-10", "10-11"];
     completion.cs = [];
     for (const range of spread) {
+        const is_last = range === spread[spread.length - 1];
         let perc = 100;
         let min = parseInt(range.split("-")[0]);
         let max = parseInt(range.split("-")[1]);
-        let filtered_scores = scores.filter(score => score.beatmap.cs >= min && score.beatmap.cs < max);
-        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.cs >= min && beatmap.cs < max);
+        let range_output = `${min}-${max}`;
+        if(is_last) range_output = `${min}+`;
+        let filtered_scores = scores.filter(score => score.beatmap.cs >= min && (is_last ? true : score.beatmap.cs < max));
+        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.cs >= min && (is_last ? true : beatmap.cs < max));
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
         completion.cs.push({
-            range, min, max, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length
+            range: range_output, min, max, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length
         });
     }
 
     completion.ar = [];
     for (const range of spread) {
+        const is_last = range === spread[spread.length - 1];
         let perc = 100;
         let min = parseInt(range.split("-")[0]);
         let max = parseInt(range.split("-")[1]);
-        let filtered_scores = scores.filter(score => score.beatmap.ar >= min && score.beatmap.ar < max);
-        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.ar >= min && beatmap.ar < max);
+        let range_output = `${min}-${max}`;
+        if(is_last) range_output = `${min}+`;
+        let filtered_scores = scores.filter(score => score.beatmap.ar >= min && (is_last ? true : score.beatmap.ar < max));
+        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.ar >= min && (is_last ? true : beatmap.ar < max));
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
         completion.ar.push({
-            range, min, max, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length
+            range: range_output, min, max, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length
         });
     }
 
     completion.od = [];
     for (const range of spread) {
+        const is_last = range === spread[spread.length - 1];
         let perc = 100;
         let min = parseInt(range.split("-")[0]);
         let max = parseInt(range.split("-")[1]);
-        let filtered_scores = scores.filter(score => score.beatmap.od >= min && score.beatmap.od < max);
-        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.od >= min && beatmap.od < max);
+        let range_output = `${min}-${max}`;
+        if(is_last) range_output = `${min}+`;
+        let filtered_scores = scores.filter(score => score.beatmap.od >= min && (is_last ? true : score.beatmap.od < max));
+        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.od >= min && (is_last ? true : beatmap.od < max));
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
         completion.od.push({
-            range, min, max, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length
+            range: range_output, min, max, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length
         });
     }
 
     completion.hp = [];
     for (const range of spread) {
+        const is_last = range === spread[spread.length - 1];
         let perc = 100;
         let min = parseInt(range.split("-")[0]);
         let max = parseInt(range.split("-")[1]);
-        let filtered_scores = scores.filter(score => score.beatmap.hp >= min && score.beatmap.hp < max);
-        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.hp >= min && beatmap.hp < max);
+        let range_output = `${min}-${max}`;
+        if(is_last) range_output = `${min}+`;
+        let filtered_scores = scores.filter(score => score.beatmap.hp >= min && (is_last ? true : score.beatmap.hp < max));
+        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.hp >= min && (is_last ? true : beatmap.hp < max));
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
         completion.hp.push({
-            range, min, max, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length
+            range: range_output, min, max, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length
         });
     }
 
@@ -309,11 +321,12 @@ function getCompletionData(scores, beatmaps) {
     spread = ["0-1", "1-2", "2-3", "3-4", "4-5", "5-6", "6-7", "7-8", "8-9", "9-10", "10-20"];
     completion.stars = [];
     for (const range of spread) {
+        const is_last = range === spread[spread.length - 1];
         let perc = 100;
         let min = parseInt(range.split('-')[0]);
         let max = parseInt(range.split('-')[1]);
-        let filtered_scores = scores.filter(score => score.beatmap.stars >= min && score.beatmap.stars < max);
-        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.stars >= min && beatmap.stars < max);
+        let filtered_scores = scores.filter(score => score.beatmap.stars >= min && (is_last ? true : score.beatmap.stars < max));
+        let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.stars >= min && (is_last ? true : beatmap.stars < max));
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
         completion.stars.push({
             range: (max < 20 ? `${range}*` : (range.split('-')[0] + '*+')), min, max, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length

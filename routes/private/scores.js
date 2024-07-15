@@ -216,7 +216,7 @@ router.get('/beatmap/:id', cache('1 hour'), async function (req, res, next) {
         const rows = await GetBeatmapScores(beatmap_id, limit, offset);
         res.json(rows);
     } catch (e) {
-        
+
         res.status(500).json({ error: e });
     }
 });
@@ -396,7 +396,7 @@ router.get('/stats', async function (req, res, next) {
         //     data.pp_records = pp_records_filtered ?? [];
         // }
     } catch (e) {
-        
+
     }
 
     res.json(data);
@@ -513,7 +513,7 @@ router.get('/activity', cache('20 minutes'), async function (req, res, next) {
         const [rows] = await Databases.osuAlt.query(query);
         res.json(rows);
     } catch (e) {
-        
+
         res.status(500).json({ error: e });
     }
 });
@@ -548,17 +548,19 @@ router.get('/today', cache('10 minutes'), async function (req, res, next) {
         today_categories.forEach((category, index) => {
             const base_query = `
                 SELECT
-                user_id, 
+                scores.user_id, 
                 ${category.round ? `ROUND(${category.query})` : category.query} AS value, 
                 ${category.formatter ? `'${category.formatter}'` : `'{value}'`} AS value_formatter,
                 '${category.name}' AS category,
                 RANK() OVER (ORDER BY ${category.query} DESC) AS rank
-                FROM scores`;
+                FROM scores
+                INNER JOIN users2 ON scores.user_id = users2.user_id
+                `;
 
             const top_query = `
                 ${base_query}
                 WHERE date_played >= date_trunc('day',${db_now})
-                GROUP BY user_id
+                GROUP BY scores.user_id
                 ORDER BY value DESC `;
 
             const user_specific_query = `
@@ -620,7 +622,6 @@ router.get('/today', cache('10 minutes'), async function (req, res, next) {
 
         res.json(categories);
     } catch (e) {
-        
         res.status(500).json({ error: e });
     }
 });
@@ -723,7 +724,7 @@ router.get('/ranking', cache('1 hour'), async function (req, res, next) {
                 });
             }
         } catch (e) {
-            
+
         }
     }
 

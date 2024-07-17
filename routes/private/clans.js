@@ -321,13 +321,13 @@ router.all('/get/:id', async (req, res, next) => {
 
     //get full user info for each member
     const ids = members.map(m => m.osu_id);
-    let full_users = await getFullUsers(ids, { daily: true, alt: false, score: true, osu: true }, true);
+    let full_users = await getFullUsers(ids, { daily: true, alt: false, score: true, osu: true }, true, true);
 
     //for those missing "alt" data, we need to fetch it separately with osu: false
     //use "ids" to get the missing users, then merge them with the full_users array
     const missing_ids = ids.filter(id => !full_users.find(u => u.alt?.user_id == id));
     if (missing_ids.length > 0) {
-        let missing_users = await getFullUsers(missing_ids, { daily: true, alt: true, score: true, osu: false }, true);
+        let missing_users = await getFullUsers(missing_ids, { daily: true, alt: true, score: true, osu: false }, true, true);
 
         full_users = full_users.map(u => {
             const missing_user = missing_users.find(mu => mu.osu?.id == u.inspector_user.osu_id);
@@ -383,7 +383,9 @@ router.all('/get/:id', async (req, res, next) => {
             accuracy: user?.alt?.hit_accuracy ?? 0,
             level: user?.alt?.level ?? 0,
             average_pp: user?.alt?.pp ?? 0, //not really average, but easier to be picked up by the frontend,
-            join_date: m.join_date
+            join_date: m.join_date,
+            medals: user?.alt?.medals ?? 0,
+            badges: user?.alt?.badges ?? 0
         }
 
         _members.push(_data);

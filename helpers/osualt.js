@@ -186,21 +186,22 @@ async function GetUser(id) {
 }
 
 module.exports.GetAltUsers = GetAltUsers;
-async function GetAltUsers(id_array, include_sub_data = true) {
+async function GetAltUsers(id_array, include_sub_data = true, forceLocalAlt = false) {
     let data;
     try {
         let _id_array = id_array;
         if (!Array.isArray(id_array)) _id_array = id_array.split(',');
-        const rows = await AltUser.findAll({
+        const fetch = {
             where: { user_id: _id_array },
-            include: include_sub_data ? [
+            include: (include_sub_data && !forceLocalAlt) ? [
                 { model: AltUniqueSS, as: 'unique_ss', attributes: ['beatmap_id'], required: false },
                 { model: AltUniqueFC, as: 'unique_fc', attributes: ['beatmap_id'], required: false },
                 { model: AltUniqueDTFC, as: 'unique_dt_fc', attributes: ['beatmap_id'], required: false },
                 // { model: AltUserAchievement, as: 'medals', attributes: ['achievement_id', 'achieved_at'], required: false }
             ]
                 : [],
-        });
+        }
+        const rows = await (forceLocalAlt ? InspectorOsuUser : AltUser).findAll(fetch);
 
         //do achievements separately, for some reason nodejs crashes when trying to include it in the query
         const _rows = JSON.parse(JSON.stringify(rows));
@@ -220,6 +221,7 @@ async function GetAltUsers(id_array, include_sub_data = true) {
 
         data = _rows;
     } catch (err) {
+        console.log(err);
         throw new Error(err.message);
     }
     return data;

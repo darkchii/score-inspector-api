@@ -480,7 +480,7 @@ function DefaultInspectorUser(inspector_user, username, osu_id) {
     return _inspector_user;
 }
 
-module.exports.getFullUsers = async function (user_ids, skippedData = { daily: false, alt: false, score: false, osu: false, extras: false }, allowFallback = false) {
+module.exports.getFullUsers = async function (user_ids, skippedData = { daily: false, alt: false, score: false, osu: false, extras: false }, allowFallback = false, forceLocalAlt = false) {
     //split ids in array of integers
     let ids = user_ids;
 
@@ -535,7 +535,7 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
         }).catch(err => {
         }),
         //alt users
-        skippedData.alt ? null : GetAltUsers(ids, ids.length === 1 && !skippedData.extras).then(users => {
+        skippedData.alt ? null : GetAltUsers(ids, ids.length === 1 && !skippedData.extras, forceLocalAlt).then(users => {
             alt_users = users;
         }).catch(err => {
         }),

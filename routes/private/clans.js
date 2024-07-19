@@ -358,8 +358,10 @@ router.all('/get/:id', async (req, res, next) => {
         _data.user.extra = {
             total_ss: user?.alt?.ss_count ?? 0,
             total_ssh: user?.alt?.ssh_count ?? 0,
+            total_ss_both: (user?.alt?.ss_count ?? 0) + (user?.alt?.ssh_count ?? 0),
             total_s: user?.alt?.s_count ?? 0,
             total_sh: user?.alt?.sh_count ?? 0,
+            total_s_both: (user?.alt?.s_count ?? 0) + (user?.alt?.sh_count ?? 0),
             total_a: user?.alt?.a_count ?? 0,
             total_b: expanded_user?.b_count ?? 0,
             total_c: expanded_user?.c_count ?? 0,

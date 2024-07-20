@@ -6,6 +6,7 @@ const { getFullUsers } = require('../../helpers/inspector');
 const { InspectorCompletionist, AltUser, Databases, AltBeatmap, InspectorOsuUser, GetHistoricalScoreRankModel } = require('../../helpers/db');
 const { Op, Sequelize } = require('sequelize');
 const { default: axios } = require('axios');
+const { validateString } = require('../../helpers/misc');
 
 let cache = apicache.middleware;
 const router = express.Router();
@@ -174,13 +175,35 @@ router.get('/full/:ids', cache('10 minutes'), async (req, res, next) => {
     let ids = req.params.ids;
 
     if (typeof req.params.ids === 'string') {
-      ids = req.params.ids.split(',').map(id => parseInt(id));
+      // ids = req.params.ids.split(',').map(id => parseInt(id));
+      ids = req.params.ids.split(',');
     }
 
     //remove duplicates
     ids = [...new Set(ids)];
 
-    const data = await getFullUsers(ids, skippedData);
+    //if the ids are usernames, we need to get the ids first
+    if (ids.some(id => isNaN(id))) {
+      //safe check names
+      ids.forEach(id => {
+        const res = validateString('username', id, 15, false);
+        if (res.error) {
+          res.status(400).json({ error: res.error });
+          return;
+        }
+      });
+
+      const users = await InspectorOsuUser.findAll({
+        where: {
+          //case insensitive search
+          username: { [Op.in]: ids.map(id => id.toLowerCase()) }
+        }
+      });
+
+      ids = users.map(u => u.user_id);
+    }
+
+    const data = await getFullUsers(ids, skippedData, false, req.query.force_alt_data === 'true');
 
     if (ids.length === 1 && (req.query.force_array === undefined || req.query.force_array === 'false')) {
       //old way of returning user, we keep it for compatibility so we don't have to change the frontend

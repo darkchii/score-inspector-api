@@ -112,7 +112,7 @@ router.get('/rank/:stat/:page/:country?', cache('1 hour'), async (req, res) => {
 //max 1 hour
 const user_local_cache = {};
 const USER_CACHE_TIME = 900000; //10 minutes
-router.post('/clans/users', cache('10 minutes'), async (req, res, next) => {
+router.post('/clans/users', async (req, res, next) => {
     //can be one or multiple ids, separated by commas
     // let ids = req.params.id.split(',');
     let ids = [];
@@ -192,7 +192,7 @@ let beatmap_count_cache = -1;
 //minimum 1 hour
 let beatmap_count_cache_last_updated = null;
 
-router.post('/profile', cache('10 minutes'), async (req, res, next) => {
+router.post('/profile', async (req, res, next) => {
     try {
         const id = req.body.user_id;
         const username = req.body.username;

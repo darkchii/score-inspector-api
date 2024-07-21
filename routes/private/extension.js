@@ -192,6 +192,7 @@ let beatmap_count_cache = -1;
 //minimum 1 hour
 let beatmap_count_cache_last_updated = null;
 
+let profile_cache = {};
 router.post('/profile', async (req, res, next) => {
     try {
         const id = req.body.user_id;
@@ -199,6 +200,12 @@ router.post('/profile', async (req, res, next) => {
         const mode = req.body.mode !== undefined ? req.body.mode : 0;
         if (!id || isNaN(id)) {
             res.status(400).json({ error: "Invalid user id" });
+            return;
+        }
+
+        //check cache
+        if (profile_cache[id] && profile_cache[id].expires > new Date()) {
+            res.json(profile_cache[id].data);
             return;
         }
 
@@ -262,7 +269,7 @@ router.post('/profile', async (req, res, next) => {
             })
         ]);
 
-        res.json({
+        const _data = {
             user: user?.value ? {
                 ...user.value,
                 completion: (100 / beatmap_count_cache) * (user.value.alt_ssh_count + user.value.alt_ss_count + user.value.alt_sh_count + user.value.alt_s_count + user.value.alt_a_count + user.value.b_count + user.value.c_count + user.value.d_count)
@@ -274,7 +281,21 @@ router.post('/profile', async (req, res, next) => {
             scoreRankHistory: scoreRankHistory?.value ?? [],
             completion: completion?.value ?? [],
             clan: clan?.value ?? null
-        });
+        };
+
+        //remove all expired cache
+        for (const data of Object.keys(profile_cache)) {
+            if (profile_cache[data].expires < new Date()) {
+                delete profile_cache[data];
+            }
+        }
+
+        profile_cache[id] = {
+            data: _data,
+            expires: new Date(new Date().getTime() + USER_CACHE_TIME)
+        };
+
+        res.json(_data);
     } catch (err) {
         res.status(500).json({ error: 'Unable to get user', message: err.message });
     }

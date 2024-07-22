@@ -204,8 +204,8 @@ router.post('/profile', async (req, res, next) => {
         }
 
         //check cache
-        if (profile_cache[id] && profile_cache[id].expires > new Date()) {
-            res.json(profile_cache[id].data);
+        if (profile_cache[`${id}_${mode}`] && profile_cache[`${id}_${mode}`].expires > new Date()) {
+            res.json(profile_cache[`${id}_${mode}`].data);
             return;
         }
 
@@ -290,7 +290,7 @@ router.post('/profile', async (req, res, next) => {
             }
         }
 
-        profile_cache[id] = {
+        profile_cache[`${id}_${mode}`] = {
             data: _data,
             expires: new Date(new Date().getTime() + USER_CACHE_TIME)
         };

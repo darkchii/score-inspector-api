@@ -301,4 +301,39 @@ router.post('/profile', async (req, res, next) => {
     }
 });
 
+let coe_attendees_cache = {
+    data: [],
+    expires: null
+};
+
+router.get('/coe/:id', cache('1 hour'), async (req, res) => {
+    try{
+        let coe_attendees = [];
+    
+        if(coe_attendees_cache.expires && coe_attendees_cache.expires > new Date()) {
+            coe_attendees = coe_attendees_cache.data;
+        } else {
+            const _data = await axios.get('https://cavoeboy.com/api/attendees');
+            coe_attendees = _data.data;
+    
+            coe_attendees_cache = {
+                data: coe_attendees,
+                //cache for 1 hour
+                expires: new Date(new Date().getTime() + 3600000)
+            };
+        }
+
+        let user = coe_attendees.find(u => u.user.osuUser?.id == req.params.id);
+        if(!user) {
+            res.status(404).json({ error: 'User not found' });
+            return;
+        }
+
+        res.json(user);
+    }catch(err){
+        console.error(err);
+        res.status(500).json({ error: 'Unable to get data', message: err.message });
+    }
+});
+
 module.exports = router;

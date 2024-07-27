@@ -204,10 +204,10 @@ router.post('/profile', async (req, res, next) => {
         }
 
         //check cache
-        // if (profile_cache[`${id}_${mode}`] && profile_cache[`${id}_${mode}`].expires > new Date()) {
-        //     res.json(profile_cache[`${id}_${mode}`].data);
-        //     return;
-        // }
+        if (profile_cache[`${id}_${mode}`] && profile_cache[`${id}_${mode}`].expires > new Date()) {
+            res.json(profile_cache[`${id}_${mode}`].data);
+            return;
+        }
 
         if(beatmap_count_cache == -1 || (new Date() - beatmap_count_cache_last_updated) > 3600000) {
             const c = await InspectorScoreStat.findOne({

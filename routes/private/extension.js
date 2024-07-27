@@ -1,7 +1,7 @@
 const express = require('express');
 var apicache = require('apicache');
 const { VerifyToken, getFullUsers, GetInspectorUser } = require('../../helpers/inspector');
-const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser, InspectorCompletionist, AltUser, GetHistoricalScoreRankModel, AltBeatmap } = require('../../helpers/db');
+const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser, InspectorCompletionist, AltUser, GetHistoricalScoreRankModel, AltBeatmap, InspectorScoreStat } = require('../../helpers/db');
 const { Op, Sequelize } = require('sequelize');
 const { IsUserClanOwner } = require('../../helpers/clans');
 const { MODE_SLUGS } = require('../../helpers/osu');
@@ -204,22 +204,19 @@ router.post('/profile', async (req, res, next) => {
         }
 
         //check cache
-        if (profile_cache[`${id}_${mode}`] && profile_cache[`${id}_${mode}`].expires > new Date()) {
-            res.json(profile_cache[`${id}_${mode}`].data);
-            return;
-        }
+        // if (profile_cache[`${id}_${mode}`] && profile_cache[`${id}_${mode}`].expires > new Date()) {
+        //     res.json(profile_cache[`${id}_${mode}`].data);
+        //     return;
+        // }
 
         if(beatmap_count_cache == -1 || (new Date() - beatmap_count_cache_last_updated) > 3600000) {
-            const c = await AltBeatmap.count({
+            const c = await InspectorScoreStat.findOne({
                 where: {
-                    mode: 0,
-                    //approved in 1,2,4
-                    approved: {
-                        [Op.in]: [1, 2, 4]
-                    }
+                    key: 'system_info'
                 }
-            });
-            beatmap_count_cache = c;
+            })
+            const _c = JSON.parse(c?.value);
+            beatmap_count_cache = _c?.beatmap_count ?? 120000; //placeholder value, extremely inaccurate
             beatmap_count_cache_last_updated = new Date();
         }
 
@@ -247,9 +244,9 @@ router.post('/profile', async (req, res, next) => {
                 sortOrder: "0",
                 u1: username
             }),
-            mode == 0 ? axios.get(`https://score.respektive.pw/u/${id}`, {
+            axios.get(`https://score.respektive.pw/u/${id}?m=${mode}`, {
                 headers: { "Accept-Encoding": "gzip,deflate,compress" }
-            }) : null,
+            }),
             InspectorCompletionist.findAll({
                 where: {
                     osu_id: id

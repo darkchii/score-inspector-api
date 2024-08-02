@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const crypto = require("crypto");
 require('dotenv').config();
-const { InspectorUser, InspectorComment, InspectorVisitor, AltUser, InspectorUserAccessToken, InspectorClanMember, InspectorClan } = require('../../helpers/db');
+const { InspectorUser, InspectorComment, InspectorVisitor, AltUser, InspectorUserAccessToken, InspectorClanMember, InspectorClan, Databases, CheckConnection } = require('../../helpers/db');
 const { Sequelize } = require('sequelize');
 const { VerifyToken, GetInspectorUser, getFullUsers, GetToken } = require('../../helpers/inspector');
 const { OSU_CLIENT_ID, OSU_CLIENT_SECRET, GetOsuUsers } = require('../../helpers/osu');
@@ -152,69 +152,78 @@ router.get('/get/:id', async (req, res, next) => {
 
 const allowed_visitor_order_by = ['count', 'last_visit'];
 router.get('/visitors/get', async (req, res, next) => {
-    const order_by = req.query.order_by || 'count';
-    const limit = Number(req.query.limit || 10);
-
-    if (!allowed_visitor_order_by.includes(order_by)) {
-        res.status(401).json({ error: 'Invalid order_by' });
-        return;
-    }
-
-    let visitor_lbs = await InspectorVisitor.findAll({
-        attributes: [
-            'target_id',
-            [Sequelize.fn('sum', Sequelize.col('count')), 'count'],
-            [Sequelize.fn('max', Sequelize.col('last_visit')), 'last_visit'],
-        ],
-        group: ['target_id'],
-        order: [[Sequelize.literal(order_by), 'DESC']],
-        limit: limit,
-        // include: [{
-        //     model: InspectorUser,
-        //     as: 'target_user',
-        //     required: false,
-        //     include: [{
-        //         model: InspectorRole,
-        //         through: { attributes: [] },
-        //         as: 'roles',
-        //         required: false,
-        //     }]
-        // }],
-        raw: true,
-    });
-
-    //get inspector users
-    for await (const visitor of visitor_lbs) {
-        visitor.target_user = await GetInspectorUser(visitor.target_id);
-    }
-    // //attempt to get usernames for each user
-    let user_ids = visitor_lbs.map((row) => row.target_id);
-    let data;
     try {
-        const rows = await AltUser.findAll({ attributes: ['user_id', 'username'], where: { user_id: user_ids, }, raw: true, });
-        data = rows;
-    } catch (err) {
-        res.json({
-            message: 'Unable to get usernames',
-            error: err,
+        await CheckConnection(Databases.osuAlt);
+
+        const order_by = req.query.order_by || 'count';
+        const limit = Number(req.query.limit || 10);
+
+        if (!allowed_visitor_order_by.includes(order_by)) {
+            res.status(401).json({ error: 'Invalid order_by' });
+            return;
+        }
+
+        let visitor_lbs = await InspectorVisitor.findAll({
+            attributes: [
+                'target_id',
+                [Sequelize.fn('sum', Sequelize.col('count')), 'count'],
+                [Sequelize.fn('max', Sequelize.col('last_visit')), 'last_visit'],
+            ],
+            group: ['target_id'],
+            order: [[Sequelize.literal(order_by), 'DESC']],
+            limit: limit,
+            // include: [{
+            //     model: InspectorUser,
+            //     as: 'target_user',
+            //     required: false,
+            //     include: [{
+            //         model: InspectorRole,
+            //         through: { attributes: [] },
+            //         as: 'roles',
+            //         required: false,
+            //     }]
+            // }],
+            raw: true,
         });
-        return;
-    }
 
-    // // //merge the two arrays
-    for (let i = 0; i < visitor_lbs.length; i++) {
-        if (visitor_lbs[i].target_user == null) {
-            visitor_lbs[i].target_user = {}
-        };
+        //get inspector users
+        for await (const visitor of visitor_lbs) {
+            visitor.target_user = await GetInspectorUser(visitor.target_id);
+        }
+        // //attempt to get usernames for each user
+        let user_ids = visitor_lbs.map((row) => row.target_id);
+        let data;
+        try {
+            const rows = await AltUser.findAll({ attributes: ['user_id', 'username'], where: { user_id: user_ids, }, raw: true, });
+            data = rows;
+        } catch (err) {
+            res.json({
+                message: 'Unable to get usernames',
+                error: err,
+            });
+            return;
+        }
 
-        for (let j = 0; j < data.length; j++) {
-            if (visitor_lbs[i].target_id == data[j].user_id) {
-                visitor_lbs[i].target_user.osu_id = data[j].user_id;
-                visitor_lbs[i].target_user.known_username = data[j].username;
+        // // //merge the two arrays
+        for (let i = 0; i < visitor_lbs.length; i++) {
+            if (visitor_lbs[i].target_user == null) {
+                visitor_lbs[i].target_user = {}
+            };
+
+            for (let j = 0; j < data.length; j++) {
+                if (visitor_lbs[i].target_id == data[j].user_id) {
+                    visitor_lbs[i].target_user.osu_id = data[j].user_id;
+                    visitor_lbs[i].target_user.known_username = data[j].username;
+                }
             }
         }
+        res.json(visitor_lbs);
+    } catch (err) {
+        res.json({
+            message: 'Unable to get visitor data at this time',
+            error: err,
+        });
     }
-    res.json(visitor_lbs);
 });
 
 router.all('/visitors/get/:id', async (req, res, next) => {

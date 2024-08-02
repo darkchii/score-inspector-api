@@ -31,21 +31,8 @@ router.get('/', async (req, res, next) => {
 
 router.get('/status/', cache('1 hour'), async (req, res) => {
     const status = {};
-
-    await Promise.all([
-        IsReachable('osualt'),
-        IsReachable('osuv2'),
-        IsReachable('beatmaps'),
-        IsReachable('scorerank'),
-        IsReachable('osudaily')
-    ]).then((values) => {
-        status.osualt = values[0];
-        status.osuv2 = values[1];
-        status.beatmaps = values[2];
-        status.scorerank = values[3];
-        status.osudaily = values[4];
-    });
-
+    status.osualt = await IsReachable('osualt');
+    status.osuv2 = await IsReachable('osuv2');
     res.json(status);
 });
 

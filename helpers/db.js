@@ -62,6 +62,29 @@ let databases = {
 };
 module.exports.Databases = databases;
 
+async function CheckConnection(database, timeout = 10000) {
+    //just race between database.authenticate and a timeout
+
+    let success = false;
+    
+    await Promise.race([
+        database.authenticate().then(() => {
+            success = true;
+        }),
+        new Promise((resolve, reject) => {
+            setTimeout(() => {
+                reject(new Error('Connection timeout'));
+            }, timeout);
+        })
+    ]);
+
+    if(!success){
+        throw new Error('Connection failed');
+    }
+
+    return success;
+}
+
 const InspectorUser = InspectorUserModel(databases.inspector);
 const InspectorUserAccessToken = InspectorUserAccessTokenModel(databases.inspector);
 const InspectorRole = InspectorRoleModel(databases.inspector);
@@ -217,3 +240,5 @@ module.exports.GetHistoricalScoreRankModel = (mode) => {
             return null;
     }
 }
+
+module.exports.CheckConnection = CheckConnection;

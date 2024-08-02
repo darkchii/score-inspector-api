@@ -166,37 +166,22 @@ module.exports.IsReachable = IsReachable;
 async function IsReachable(endpoint) {
     let reachable = false;
 
+    const timeoutPromise = new Promise((resolve) => {
+        setTimeout(() => {
+            resolve(false);
+        }, 2000);
+    });
+
     switch (endpoint) {
-        case 'osudaily':
-            try {
-                const data = await GetDailyUser(10153735, 0, 'id', 1000);
-                if (data?.osu_id == 10153735) reachable = true;
-            } catch (e) { }
-            break;
-        case 'scorerank':
-            try {
-                const data = await axios.get('https://score.respektive.pw/u/10153735', {
-                    timeout: 1000,
-                    headers: { "Accept-Encoding": "gzip,deflate,compress" }
-                });
-                if (data?.data?.[0] !== null) reachable = true;
-            } catch (e) { }
-            break;
-        case 'beatmaps':
-            try {
-                const result = await InspectorBeatmap.count();
-                if (result > 0) reachable = true;
-            } catch (e) { }
-            break;
         case 'osuv2':
             try {
-                const test_user = await GetOsuUser('peppy', 'osu', 'username', 1000);
+                const test_user = await Promise.race([GetOsuUser('peppy', 'osu', 'username', 1000), timeoutPromise]);
                 if (test_user?.id == 2) reachable = true;
             } catch (e) { }
             break;
         case 'osualt':
             try {
-                await Databases.osuAlt.authenticate();
+                await Promise.race([Databases.osuAlt.authenticate(), timeoutPromise]);
                 reachable = true;
             } catch (err) {
                 reachable = false;
@@ -240,7 +225,7 @@ function getCompletionData(scores, beatmaps) {
         let min = parseInt(range.split("-")[0]);
         let max = parseInt(range.split("-")[1]);
         let range_output = `${min}-${max}`;
-        if(is_last) range_output = `${min}+`;
+        if (is_last) range_output = `${min}+`;
         let filtered_scores = scores.filter(score => score.beatmap.cs >= min && (is_last ? true : score.beatmap.cs < max));
         let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.cs >= min && (is_last ? true : beatmap.cs < max));
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
@@ -256,7 +241,7 @@ function getCompletionData(scores, beatmaps) {
         let min = parseInt(range.split("-")[0]);
         let max = parseInt(range.split("-")[1]);
         let range_output = `${min}-${max}`;
-        if(is_last) range_output = `${min}+`;
+        if (is_last) range_output = `${min}+`;
         let filtered_scores = scores.filter(score => score.beatmap.ar >= min && (is_last ? true : score.beatmap.ar < max));
         let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.ar >= min && (is_last ? true : beatmap.ar < max));
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
@@ -272,7 +257,7 @@ function getCompletionData(scores, beatmaps) {
         let min = parseInt(range.split("-")[0]);
         let max = parseInt(range.split("-")[1]);
         let range_output = `${min}-${max}`;
-        if(is_last) range_output = `${min}+`;
+        if (is_last) range_output = `${min}+`;
         let filtered_scores = scores.filter(score => score.beatmap.od >= min && (is_last ? true : score.beatmap.od < max));
         let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.od >= min && (is_last ? true : beatmap.od < max));
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
@@ -288,7 +273,7 @@ function getCompletionData(scores, beatmaps) {
         let min = parseInt(range.split("-")[0]);
         let max = parseInt(range.split("-")[1]);
         let range_output = `${min}-${max}`;
-        if(is_last) range_output = `${min}+`;
+        if (is_last) range_output = `${min}+`;
         let filtered_scores = scores.filter(score => score.beatmap.hp >= min && (is_last ? true : score.beatmap.hp < max));
         let filtered_beatmaps = beatmaps.filter(beatmap => beatmap.hp >= min && (is_last ? true : beatmap.hp < max));
         perc = filtered_scores.length / filtered_beatmaps.length * 100;

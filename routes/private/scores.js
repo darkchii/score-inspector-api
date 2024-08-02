@@ -3,7 +3,7 @@ var apicache = require('apicache');
 var router = express.Router();
 const { GetBestScores, GetBeatmapScores } = require('../../helpers/osualt');
 const { getBeatmaps, getCompletionData, DefaultInspectorUser } = require('../../helpers/inspector');
-const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorScoreStat, Databases, AltTopScore, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, AltUser, InspectorClanMember, InspectorClan, GetHistoricalScoreRankModel } = require('../../helpers/db');
+const { AltScore, AltBeatmap, AltModdedStars, AltBeatmapPack, InspectorScoreStat, Databases, AltTopScore, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, AltUser, InspectorClanMember, InspectorClan, GetHistoricalScoreRankModel, CheckConnection } = require('../../helpers/db');
 const { Op, Sequelize } = require('sequelize');
 const { CorrectedSqlScoreMods, db_now, all_mods_short } = require('../../helpers/misc');
 const request = require("supertest");
@@ -404,6 +404,9 @@ router.get('/stats', async function (req, res, next) {
 
 router.get('/activity', cache('20 minutes'), async function (req, res, next) {
     try {
+        //authenticate db connection first
+        await CheckConnection(Databases.osuAlt);
+
         const interval = req.query.period_amount || 24;
 
         //validate-check interval to prevent sql injection
@@ -513,7 +516,7 @@ router.get('/activity', cache('20 minutes'), async function (req, res, next) {
         const [rows] = await Databases.osuAlt.query(query);
         res.json(rows);
     } catch (e) {
-
+        console.error(e);
         res.status(500).json({ error: e });
     }
 });
@@ -540,6 +543,9 @@ const today_categories = [
 ]
 router.get('/today', cache('10 minutes'), async function (req, res, next) {
     try {
+        // await Databases.osuAlt.authenticate();
+        await CheckConnection(Databases.osuAlt);
+
         const users_limit = req.query.users_limit || 10;
         const specific_user_id = req.query.user_id || undefined;
 

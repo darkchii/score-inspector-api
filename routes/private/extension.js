@@ -333,4 +333,41 @@ router.get('/coe/:id', cache('1 hour'), async (req, res) => {
     }
 });
 
+router.post('/score_rank_history/:mode', async (req, res) => {
+    try {
+        const mode = req.params.mode;
+        const ids = req.body.ids;
+
+        //for each ID, get the oldest date, max 30 days old
+        const scoreRankHistory = await GetHistoricalScoreRankModel(MODE_SLUGS[mode]).findAll({
+            where: {
+                [Op.and]: [
+                    { osu_id: ids },
+                    { date: { [Op.gte]: new Date(new Date() - 30 * 24 * 60 * 60 * 1000) } }
+                ]
+            },
+            order: [
+                ['date', 'ASC']
+            ],
+        });
+
+        //for each user, get the oldest date entry only
+        const _scoreRankHistory = scoreRankHistory.reduce((acc, current) => {
+            if (!acc[current.osu_id]) {
+                acc[current.osu_id] = current;
+            } else if (current.date < acc[current.osu_id].date) {
+                acc[current.osu_id] = current;
+            }
+            return acc;
+        }, {});
+
+        //convert to array, we dont need the keys
+        const _scoreRankHistoryArray = Object.values(_scoreRankHistory);
+
+        res.json(_scoreRankHistoryArray);
+    } catch (err) {
+        res.status(500).json({ error: 'Unable to get data', message: err.message });
+    }
+});
+
 module.exports = router;

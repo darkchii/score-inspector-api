@@ -325,23 +325,15 @@ router.get('/stats/completion_percentage/:ids', cache('2 hours'), async (req, re
     res.status(400).json({ error: 'Too many user ids provided' });
     return;
   }
-
-  const beatmap_count = await AltBeatmap.count({
-    where: {
-      approved: { [Op.in]: [1, 2, 4] },
-      mode: 0
-    }
-  });
-
+  
   try {
-    // const query = `
-    //   SELECT s.user_id, round((cast(count(*) * 100::float / ${beatmap_count} as numeric)), 3)
-    //   FROM scores s
-    //   WHERE s.user_id IN (${ids.join(',')})
-    //   GROUP BY s.user_id
-    //   LIMIT 50;
-    // `;
-    // const data = await Databases.osuAlt.query(query);
+    const beatmap_count = await AltBeatmap.count({
+      where: {
+        approved: { [Op.in]: [1, 2, 4] },
+        mode: 0
+      }
+    });
+    
     const users = await InspectorOsuUser.findAll({
       where: {
         user_id: { [Op.in]: ids }

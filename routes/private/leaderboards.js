@@ -59,9 +59,8 @@ async function checkTables(stat, tableType, fullFilter = null, isBeatmapResult =
             ${tableType === 'array_table' ? (beatmapQuery !== null ? beatmapQuery : 'count(*)') : stat} as stat
         ${!isBeatmapResult && tableType === 'scores' ? `
             FROM scores 
-            INNER JOIN mods ON scores.enabled_mods = mods.enum 
+            INNER JOIN mods ON CAST(mods.enum AS INTEGER) = ${CorrectedSqlScoreMods_2} 
             INNER JOIN beatmaps ON scores.beatmap_id = beatmaps.beatmap_id 
-            INNER JOIN moddedsr on beatmaps.beatmap_id = moddedsr.beatmap_id AND moddedsr.mods_enum = ${CorrectedSqlScoreMods_2}
             INNER JOIN users2 ON scores.user_id = users2.user_id` : ``}
         ${!isBeatmapResult && tableType === 'user' ? `
             FROM users2

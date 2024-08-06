@@ -312,6 +312,10 @@ router.all('/get/:id', async (req, res, next) => {
         return;
     }
 
+    if(allow_pending){
+        allow_pending = clan.owner == login_user_id;
+    }
+
     const members = await InspectorClanMember.findAll({
         where: {
             clan_id: clan_id,

@@ -15,14 +15,12 @@
   "dependencies": {
     "apicache": "^1.6.3",
     "axios": "^1.2.1",
-    "axios-retry": "^3.6.0",
     "bparser-js": "^1.0.2",
     "compression": "^1.7.4",
     "cookie-parser": "~1.4.4",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
     "express": "*",
-    "express-rate-limit": "^6.11.2",
     "fast-json-parse": "^1.0.3",
     "http-errors": "*",
     "jade": "^1.11.0",
@@ -41,6 +39,6 @@
     "validator": "^13.12.0"
   },
   "devDependencies": {
-    "supertest": "^6.3.3"
+    "supertest": "^7.0.0"
   }
 }

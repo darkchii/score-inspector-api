@@ -1,6 +1,6 @@
 const express = require('express');
 const { VerifyToken, getFullUsers, GetInspectorUser } = require('../../helpers/inspector');
-const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser, InspectorUser } = require('../../helpers/db');
+const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser, InspectorUser, InspectorUserRole } = require('../../helpers/db');
 const { Op } = require('sequelize');
 const { IsUserClanOwner } = require('../../helpers/clans');
 const { validateString } = require('../../helpers/misc');
@@ -8,6 +8,7 @@ const router = express.Router();
 require('dotenv').config();
 
 const CLAN_MEMBER_LIMIT = 100;
+const CLAN_MEMBER_LIMIT_PREMIUM = 150;
 
 const stat_rankings = [
     { key: 'clears', query: 'clears' },
@@ -698,11 +699,23 @@ router.post('/accept_request', async (req, res, next) => {
         }
     });
 
-    if (member_count >= CLAN_MEMBER_LIMIT) {
-        res.json({ error: `Clan member limit reached: ${CLAN_MEMBER_LIMIT}` });
+    const is_owner_premium = (await InspectorUserRole.findOne({
+        where: {
+            user_id: user.id,
+            role_id: 4
+        }
+    }))?.dataValues.user_id === user.id;
+
+    if (member_count >= (is_owner_premium ? CLAN_MEMBER_LIMIT_PREMIUM : CLAN_MEMBER_LIMIT)) {
+        // res.json({ error: `Clan member limit reached: ${is_owner_premium ? CLAN_MEMBER_LIMIT_PREMIUM : CLAN_MEMBER_LIMIT}` });
+        if(!is_owner_premium){
+            res.json({ error: `Clan member limit reached: ${CLAN_MEMBER_LIMIT}, donator owners has a limit of ${CLAN_MEMBER_LIMIT_PREMIUM}` });
+        }else{
+            res.json({ error: `Clan member limit reached: ${CLAN_MEMBER_LIMIT_PREMIUM}` });
+        }
         return;
     }
-
+    
     const member = await InspectorClanMember.findOne({
         where: {
             osu_id: user_id,

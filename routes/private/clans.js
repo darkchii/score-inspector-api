@@ -676,7 +676,13 @@ router.post('/accept_request', async (req, res, next) => {
 
     const user = await GetInspectorUser(user_id);
     if (!user) {
-        res.json({ error: "User not found" });
+        res.json({ error: "User not found, this is most likely a bug." });
+        return;
+    }
+
+    const owner = await GetInspectorUser(owner_id);
+    if(!owner){
+        res.json({ error: "Owner not found, this is most likely a bug." });
         return;
     }
 
@@ -701,10 +707,10 @@ router.post('/accept_request', async (req, res, next) => {
 
     const is_owner_premium = (await InspectorUserRole.findOne({
         where: {
-            user_id: user.id,
+            user_id: owner.id,
             role_id: 4
         }
-    }))?.dataValues.user_id === user.id;
+    }))?.dataValues?.user_id === owner.id;
 
     if (member_count >= (is_owner_premium ? CLAN_MEMBER_LIMIT_PREMIUM : CLAN_MEMBER_LIMIT)) {
         // res.json({ error: `Clan member limit reached: ${is_owner_premium ? CLAN_MEMBER_LIMIT_PREMIUM : CLAN_MEMBER_LIMIT}` });

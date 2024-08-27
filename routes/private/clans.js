@@ -854,6 +854,75 @@ router.post('/remove_member', async (req, res, next) => {
     res.json({ success: true });
 });
 
+router.post('/transfer_owner', async (req, res, next) => {
+    const owner_id = req.body.owner_id;
+    const token = req.body.token;
+    const user_id = req.body.member_id;
+    const clan_id = req.body.clan_id;
+
+    try {
+        if (!(await VerifyToken(token, owner_id))) {
+            res.json({ error: "Invalid token" });
+            return;
+        }
+    } catch (error) {
+        res.json({ error: "An error occurred" });
+        return;
+    }
+
+    if (!(await IsUserClanOwner(owner_id, clan_id))) {
+        res.json({ error: "You are not the owner of this clan" });
+        return;
+    }
+
+    const user = await GetInspectorUser(user_id);
+    if (!user) {
+        res.json({ error: "User not found" });
+        return;
+    }
+
+    const clan = await InspectorClan.findOne({
+        where: {
+            id: clan_id
+        }
+    });
+
+    if (!clan) {
+        res.json({ error: "Clan not found" });
+        return;
+    }
+
+    const member = await InspectorClanMember.findOne({
+        where: {
+            osu_id: user_id,
+            clan_id: clan_id
+        }
+    });
+
+    if (!member) {
+        res.json({ error: "User is not in this clan" });
+        return;
+    }
+
+    if (clan.last_owner_change) {
+        const last_change = new Date(clan.last_owner_change);
+        const now = new Date();
+
+        if (last_change.getTime() + 2592000000 > now.getTime()) {
+            const valid_date = new Date(last_change.getTime() + 2592000000);
+            const valid_date_pretty = valid_date.toUTCString();
+            res.json({error: `Clan owner transfer cooldown is active, wait until: ${valid_date_pretty}`});
+            return;
+        }
+    }
+
+    clan.owner = user_id;
+    clan.last_owner_change = new Date();
+    await clan.save();
+
+    res.json({ success: true });
+});
+
 router.post('/leave', async (req, res, next) => {
     const user_id = req.body.user_id;
     const token = req.body.token;

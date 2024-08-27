@@ -10,6 +10,7 @@ const InspectorClanModel = (db) => db.define('InspectorClan', {
     owner: { type: Sequelize.INTEGER, allowNull: false, },
     header_image_url: { type: Sequelize.STRING, allowNull: true, },
     disable_requests: { type: Sequelize.BOOLEAN, allowNull: false, },
+    last_owner_change: { type: Sequelize.DATE, allowNull: true, },
 }, {
     tableName: 'inspector_clans',
     timestamps: false

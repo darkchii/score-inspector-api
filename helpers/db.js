@@ -31,6 +31,7 @@ const { InspectorCompletionistModel } = require('./models/InspectorCompletionist
 const { InspectorClanModel } = require('./models/InspectorClan.js');
 const { InspectorClanMemberModel } = require('./models/InspectorClanMember.js');
 const { InspectorClanStatsModel } = require('./models/InspectorClanStats.js');
+const { InspectorClanLogsModel } = require('./models/InspectorClanLogs.js');
 require('dotenv').config();
 
 let databases = {
@@ -106,6 +107,7 @@ const InspectorCompletionist = InspectorCompletionistModel(databases.inspector);
 const InspectorClan = InspectorClanModel(databases.inspector);
 const InspectorClanMember = InspectorClanMemberModel(databases.inspector);
 const InspectorClanStats = InspectorClanStatsModel(databases.inspector);
+const InspectorClanLogs = InspectorClanLogsModel(databases.inspector);
 
 const InspectorOsuUser = OsuUserModel(databases.inspector);
 
@@ -125,6 +127,7 @@ InspectorClanMember.hasOne(InspectorClan, { as: 'clan', foreignKey: 'id', source
 InspectorClan.hasOne(InspectorClanStats, { as: 'clan_stats', foreignKey: 'clan_id', sourceKey: 'id' });
 InspectorClan.hasMany(InspectorClanMember, { as: 'clan_members', foreignKey: 'clan_id' });
 InspectorClanMember.hasOne(InspectorUser, { as: 'user', foreignKey: 'osu_id', sourceKey: 'osu_id' });
+InspectorClan.hasMany(InspectorClanLogs, { as: 'logs', foreignKey: 'clan_id' });
 
 // InspectorPerformanceRecord.belongsTo(InspectorOsuUser, { as: 'user', foreignKey: 'user_id', targetKey: 'user_id' });
 // InspectorPerformanceRecord.belongsTo(InspectorBeatmap, { as: 'beatmap', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
@@ -212,6 +215,7 @@ module.exports.AltUserAchievement = AltUserAchievement;
 module.exports.InspectorClan = InspectorClan;
 module.exports.InspectorClanMember = InspectorClanMember;
 module.exports.InspectorClanStats = InspectorClanStats;
+module.exports.InspectorClanLogs = InspectorClanLogs;
 
 module.exports.Raw = Raw;
 async function Raw(query, db = 'inspector') {

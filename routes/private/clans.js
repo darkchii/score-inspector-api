@@ -1,6 +1,6 @@
 const express = require('express');
 const { VerifyToken, getFullUsers, GetInspectorUser } = require('../../helpers/inspector');
-const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser, InspectorUser, InspectorUserRole } = require('../../helpers/db');
+const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser, InspectorUser, InspectorUserRole, InspectorClanLogs } = require('../../helpers/db');
 const { Op } = require('sequelize');
 const { IsUserClanOwner } = require('../../helpers/clans');
 const { validateString } = require('../../helpers/misc');
@@ -171,12 +171,12 @@ router.post('/create', async (req, res, next) => {
         return;
     }
 
-    try{
+    try {
         validateString('name', clan_name, 20);
         validateString('tag', clan_tag, 5);
         validateString('description', req.body.description, 100);
         validateString('color', req.body.color, 6);
-    }catch(err){
+    } catch (err) {
         res.json({ error: err.message });
         return;
     }
@@ -201,6 +201,18 @@ router.post('/create', async (req, res, next) => {
     const new_stats = await InspectorClanStats.create({
         clan_id: new_clan.id
     });
+
+    try {
+        InspectorClanLogs.create({
+            clan_id: new_clan.id,
+            created_at: new Date(),
+            data: JSON.stringify({
+                type: 'clan_create',
+            })
+        });
+    } catch (err) {
+        //do nothing, this isnt critical to work
+    }
 
     res.json({ clan: new_clan, member: new_member, stats: new_stats });
 });
@@ -313,7 +325,7 @@ router.all('/get/:id', async (req, res, next) => {
         return;
     }
 
-    if(allow_pending){
+    if (allow_pending) {
         allow_pending = clan.owner == login_user_id;
     }
 
@@ -424,7 +436,38 @@ router.all('/get/:id', async (req, res, next) => {
         rankings[rank.key] = index + 1;
     }
 
-    res.json({ clan: clan, stats: stats, members: full_members, owner: owner, ranking: rankings, pending_members: pending_members });
+    const logs = await InspectorClanLogs.findAll({
+        where: {
+            clan_id: clan_id
+        },
+        order: [
+            ['created_at', 'DESC']
+        ],
+        limit: 50
+    });
+
+    //find every possible user_id in the logs, we need to fetch their data
+    let log_ids = [];
+    for (const log of logs) {
+        const data = JSON.parse(log.data);
+        if (data.user_id) { log_ids.push(data.user_id); }
+        if (data.owner_id) { log_ids.push(data.owner_id); }
+        if (data.new_owner) { log_ids.push(data.new_owner); }
+        if (data.member_id) { log_ids.push(data.member_id); }
+        if (data.old_owner) { log_ids.push(data.old_owner); }
+    }
+
+    //remove duplicates
+    log_ids = [...new Set(log_ids)];
+
+    //only need inspector user data for them, no need for full user data
+    const log_users = await InspectorUser.findAll({
+        where: {
+            osu_id: log_ids
+        }
+    });
+
+    res.json({ clan: clan, stats: stats, members: full_members, owner: owner, ranking: rankings, pending_members: pending_members, logs: logs, logs_user_data: log_users });
 });
 
 router.post('/update', async (req, res, next) => {
@@ -458,13 +501,13 @@ router.post('/update', async (req, res, next) => {
         return;
     }
 
-    try{
+    try {
         validateString('name', req.body.name, 20);
         validateString('tag', req.body.tag, 5);
         validateString('description', req.body.description, 100);
         validateString('color', req.body.color, 6);
         validateString('header_image_url', req.body.header_image_url, 255, true);
-    }catch(err){
+    } catch (err) {
         res.json({ error: err.message });
         return;
     }
@@ -532,6 +575,8 @@ router.post('/update', async (req, res, next) => {
         return;
     }
 
+    const old_data = JSON.stringify(clan.dataValues);
+
     const new_data = {
         name: req.body.name,
         tag: req.body.tag,
@@ -546,6 +591,20 @@ router.post('/update', async (req, res, next) => {
     }
 
     await clan.save();
+
+    try {
+        await InspectorClanLogs.create({
+            clan_id: clan_id,
+            created_at: new Date(),
+            data: JSON.stringify({
+                type: 'clan_update',
+                old_data: old_data,
+                new_data: JSON.stringify(new_data)
+            })
+        });
+    } catch (err) {
+        //do nothing, this isnt critical to work
+    }
 
     res.json({ clan: clan });
 });
@@ -681,7 +740,7 @@ router.post('/accept_request', async (req, res, next) => {
     }
 
     const owner = await GetInspectorUser(owner_id);
-    if(!owner){
+    if (!owner) {
         res.json({ error: "Owner not found, this is most likely a bug." });
         return;
     }
@@ -714,14 +773,14 @@ router.post('/accept_request', async (req, res, next) => {
 
     if (member_count >= (is_owner_premium ? CLAN_MEMBER_LIMIT_PREMIUM : CLAN_MEMBER_LIMIT)) {
         // res.json({ error: `Clan member limit reached: ${is_owner_premium ? CLAN_MEMBER_LIMIT_PREMIUM : CLAN_MEMBER_LIMIT}` });
-        if(!is_owner_premium){
+        if (!is_owner_premium) {
             res.json({ error: `Clan member limit reached: ${CLAN_MEMBER_LIMIT}, donator owners has a limit of ${CLAN_MEMBER_LIMIT_PREMIUM}` });
-        }else{
+        } else {
             res.json({ error: `Clan member limit reached: ${CLAN_MEMBER_LIMIT_PREMIUM}` });
         }
         return;
     }
-    
+
     const member = await InspectorClanMember.findOne({
         where: {
             osu_id: user_id,
@@ -739,6 +798,19 @@ router.post('/accept_request', async (req, res, next) => {
     member.join_date = new Date();
 
     await member.save();
+
+    try {
+        await InspectorClanLogs.create({
+            clan_id: clan_id,
+            created_at: new Date(),
+            data: JSON.stringify({
+                type: 'member_join',
+                user_id: user_id
+            })
+        });
+    } catch (err) {
+        //do nothing, this isnt critical to work
+    }
 
     res.json({ success: true });
 });
@@ -851,6 +923,21 @@ router.post('/remove_member', async (req, res, next) => {
 
     await member.destroy();
 
+    try {
+
+        await InspectorClanLogs.create({
+            clan_id: clan_id,
+            created_at: new Date(),
+            data: JSON.stringify({
+                type: 'member_remove',
+                owner_id: owner_id,
+                user_id: user_id
+            })
+        });
+    } catch (err) {
+        //do nothing, this isnt critical to work
+    }
+
     res.json({ success: true });
 });
 
@@ -911,7 +998,7 @@ router.post('/transfer_owner', async (req, res, next) => {
         if (last_change.getTime() + 2592000000 > now.getTime()) {
             const valid_date = new Date(last_change.getTime() + 2592000000);
             const valid_date_pretty = valid_date.toUTCString();
-            res.json({error: `Clan owner transfer cooldown is active, wait until: ${valid_date_pretty}`});
+            res.json({ error: `Clan owner transfer cooldown is active, wait until: ${valid_date_pretty}` });
             return;
         }
     }
@@ -919,6 +1006,20 @@ router.post('/transfer_owner', async (req, res, next) => {
     clan.owner = user_id;
     clan.last_owner_change = new Date();
     await clan.save();
+
+    try {
+        await InspectorClanLogs.create({
+            clan_id: clan_id,
+            created_at: new Date(),
+            data: JSON.stringify({
+                type: 'owner_transfer',
+                old_owner: owner_id,
+                new_owner: user_id
+            })
+        });
+    } catch (err) {
+        //do nothing, this isnt critical to work
+    }
 
     res.json({ success: true });
 });

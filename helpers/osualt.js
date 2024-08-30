@@ -362,11 +362,13 @@ async function GetBestScores(period, stat, limit, loved = false) {
                 FROM scores
                 WHERE ${stat} > 0 AND ${stat} IS NOT NULL AND ${stat} <> 'NaN'::NUMERIC
                 ${period_check !== null ? `AND date_played > NOW() - INTERVAL '${period_check} days'` : ''}
+                AND user_id in (select user_id from users2)
             )
             SELECT * FROM filtered_scores
             ORDER BY ${stat} DESC
-            LIMIT ${limit}
+            LIMIT ${(limit+5)}
         `;
+        //+5 limit to account for cheaters.
 
         const rows = await Databases.osuAlt.query(query);
 
@@ -390,18 +392,8 @@ async function GetBestScores(period, stat, limit, loved = false) {
                 if (score.beatmap.modded_sr !== undefined) {
                     score.beatmap.modded_sr['live'] = JSON.parse(JSON.stringify(modded_sr_rows[0]?.[0]));
                 }
-                console.table({
-                    beatmap_id: score.beatmap.beatmap_id,
-                    title: score.beatmap.title,
-                    creator: score.beatmap.creator,
-                    mods: score.enabled_mods,
-                    corrected_mods: CorrectedSqlScoreModsCustom(score.enabled_mods),
-                    stars: score.beatmap.stars,
-                    modded_sr: score.beatmap.modded_sr ? score.beatmap.modded_sr.star_rating : null
-                })
             }
 
-            // add the user data
             if (users) {
                 users.forEach(osu_user => {
                     if (osu_user.id == score.user_id) {
@@ -410,6 +402,12 @@ async function GetBestScores(period, stat, limit, loved = false) {
                 });
             }
         }
+
+        //remove scores that dont have a user
+        data = data.filter(x => x.user);
+
+        //limit to the requested amount
+        data = data.slice(0, limit);
     } catch (err) {
         throw new Error(err.message);
     }

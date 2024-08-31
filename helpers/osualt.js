@@ -205,7 +205,7 @@ async function GetAltUsers(id_array, include_sub_data = true, forceLocalAlt = fa
 
         //do achievements separately, for some reason nodejs crashes when trying to include it in the query
         const _rows = JSON.parse(JSON.stringify(rows));
-        
+
         if (include_sub_data) {
             const achievements = await AltUserAchievement.findAll({
                 where: { user_id: _id_array },
@@ -357,16 +357,13 @@ async function GetBestScores(period, stat, limit, loved = false) {
         }
         //create a subquery which orders and limits the scores, then afterwards join the users and beatmaps
         const query = `
-            WITH filtered_scores AS (
-                SELECT *
-                FROM scores
-                WHERE ${stat} > 0 AND ${stat} IS NOT NULL AND ${stat} <> 'NaN'::NUMERIC
-                ${period_check !== null ? `AND date_played > NOW() - INTERVAL '${period_check} days'` : ''}
-                AND user_id in (select user_id from users2)
-            )
-            SELECT * FROM filtered_scores
+            SELECT *
+            FROM scores
+            WHERE ${stat} > 0 AND ${stat} IS NOT NULL AND ${stat} <> 'NaN'::NUMERIC
+            ${period_check !== null ? `AND date_played > NOW() - INTERVAL '${period_check} days'` : ''}
+            AND user_id in (select user_id from users2)
             ORDER BY ${stat} DESC
-            LIMIT ${(limit+5)}
+            LIMIT ${limit+5}
         `;
         //+5 limit to account for cheaters.
 

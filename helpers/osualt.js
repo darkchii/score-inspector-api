@@ -337,30 +337,56 @@ module.exports.GetBestScores = GetBestScores;
 async function GetBestScores(period, stat, limit, loved = false) {
     let data;
     try {
-        let period_check = null;
-        switch (period) {
+        let period_check_query = null;
+        // switch (period) {
+        //     case 'day':
+        //         period_check = 1;
+        //         break;
+        //     case 'week':
+        //         period_check = 7;
+        //         break;
+        //     case 'month':
+        //         period_check = 31;
+        //         break;
+        //     case 'year':
+        //         period_check = 365;
+        //         break;
+        //     case 'all':
+        //         period_check = null;
+        //         break;
+        // }
+
+        //date_played is now based on the day/week/month/year of the score, not current - interval
+        // (0 utc)
+
+        switch(period){
             case 'day':
-                period_check = 1;
+                //scores set since 0 utc today
+                period_check_query = `date_played >= date_trunc('day', now()::date) AND date_played < date_trunc('day', now()::date) + interval '1 day'`;
                 break;
             case 'week':
-                period_check = 7;
+                //scores set since 0 utc today
+                period_check_query = `date_played >= date_trunc('week', now()::date) AND date_played < date_trunc('week', now()::date) + interval '1 week'`;
                 break;
             case 'month':
-                period_check = 31;
+                //scores set since 0 utc today
+                period_check_query = `date_played >= date_trunc('month', now()::date) AND date_played < date_trunc('month', now()::date) + interval '1 month'`;
                 break;
             case 'year':
-                period_check = 365;
+                //scores set since 0 utc today
+                period_check_query = `date_played >= date_trunc('year', now()::date) AND date_played < date_trunc('year', now()::date) + interval '1 year'`;
                 break;
             case 'all':
-                period_check = null;
                 break;
         }
+
+
         //create a subquery which orders and limits the scores, then afterwards join the users and beatmaps
         const query = `
             SELECT *
             FROM scores
             WHERE ${stat} > 0 AND ${stat} IS NOT NULL AND ${stat} <> 'NaN'::NUMERIC
-            ${period_check !== null ? `AND date_played > NOW() - INTERVAL '${period_check} days'` : ''}
+            ${period_check_query ? `AND ${period_check_query}` : ''}
             AND user_id in (select user_id from users2)
             ORDER BY ${stat} DESC
             LIMIT ${limit+5}

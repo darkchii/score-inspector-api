@@ -1,6 +1,6 @@
 const express = require('express');
 const { VerifyToken, getFullUsers, GetInspectorUser } = require('../../helpers/inspector');
-const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser, InspectorUser, InspectorUserRole, InspectorClanLogs } = require('../../helpers/db');
+const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser, InspectorUser, InspectorUserRole, InspectorClanLogs, InspectorClanRanking } = require('../../helpers/db');
 const { Op } = require('sequelize');
 const { IsUserClanOwner } = require('../../helpers/clans');
 const { validateString } = require('../../helpers/misc');
@@ -1063,6 +1063,42 @@ router.post('/leave', async (req, res, next) => {
     await user?.clan_member.destroy();
 
     res.json({ success: true });
+});
+
+router.get('/rankings/:date?', async (req, res, next) => {
+    //month is month or current month (utc)
+    try{
+        let _date = req.params.date;
+        if(!_date){
+            const __date = new Date();
+            let month = __date.getUTCMonth() + 1;
+            if(month < 10){
+                month = `0${month}`;
+            }
+            _date = `${__date.getUTCFullYear()}-${month}`;
+        }
+
+        console.log(_date);
+
+        const data = await InspectorClanRanking.findOne({
+            where: {
+                date: _date
+            }
+        });
+
+        if (!data) {
+            res.json({ error: "Data not found" });
+            return;
+        }
+
+        res.json({ 
+            data: JSON.parse(data.data),
+            date: data.date
+        });
+    }catch(err){
+        res.json({ error: err.message });
+        return
+    }
 });
 
 module.exports = router;

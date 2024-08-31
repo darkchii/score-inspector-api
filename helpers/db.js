@@ -32,6 +32,7 @@ const { InspectorClanModel } = require('./models/InspectorClan.js');
 const { InspectorClanMemberModel } = require('./models/InspectorClanMember.js');
 const { InspectorClanStatsModel } = require('./models/InspectorClanStats.js');
 const { InspectorClanLogsModel } = require('./models/InspectorClanLogs.js');
+const { InspectorClanRankingModel } = require('./models/InspectorClanRanking.js');
 require('dotenv').config();
 
 let databases = {
@@ -108,6 +109,7 @@ const InspectorClan = InspectorClanModel(databases.inspector);
 const InspectorClanMember = InspectorClanMemberModel(databases.inspector);
 const InspectorClanStats = InspectorClanStatsModel(databases.inspector);
 const InspectorClanLogs = InspectorClanLogsModel(databases.inspector);
+const InspectorClanRanking = InspectorClanRankingModel(databases.inspector);
 
 const InspectorOsuUser = OsuUserModel(databases.inspector);
 
@@ -216,6 +218,7 @@ module.exports.InspectorClan = InspectorClan;
 module.exports.InspectorClanMember = InspectorClanMember;
 module.exports.InspectorClanStats = InspectorClanStats;
 module.exports.InspectorClanLogs = InspectorClanLogs;
+module.exports.InspectorClanRanking = InspectorClanRanking;
 
 module.exports.Raw = Raw;
 async function Raw(query, db = 'inspector') {

@@ -1067,12 +1067,12 @@ router.post('/leave', async (req, res, next) => {
 
 router.get('/rankings/:date?', async (req, res, next) => {
     //month is month or current month (utc)
-    try{
+    try {
         let _date = req.params.date;
-        if(!_date){
+        if (!_date) {
             const __date = new Date();
             let month = __date.getUTCMonth() + 1;
-            if(month < 10){
+            if (month < 10) {
                 month = `0${month}`;
             }
             _date = `${__date.getUTCFullYear()}-${month}`;
@@ -1091,11 +1091,26 @@ router.get('/rankings/:date?', async (req, res, next) => {
             return;
         }
 
-        res.json({ 
-            data: JSON.parse(data.data),
+        const parsed_data = JSON.parse(data.data);
+
+        // parsed_data.top_play
+        for await (const clan of parsed_data.top_play) {
+            const score = clan.ranking_prepared.top_play;
+            const user = await GetInspectorUser(score.user_id);
+            score.user = user;
+        }
+
+        for await (const clan of parsed_data.top_score) {
+            const score = clan.ranking_prepared.top_score;
+            const user = await GetInspectorUser(score.user_id);
+            score.user = user;
+        }
+
+        res.json({
+            data: parsed_data,
             date: data.date
         });
-    }catch(err){
+    } catch (err) {
         res.json({ error: err.message });
         return
     }

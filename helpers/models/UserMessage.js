@@ -7,6 +7,7 @@ const UserMessageModel = (db) => db.define('UserMessage', {
     message: { type: Sequelize.STRING, allowNull: false, },
     date: { type: Sequelize.DATE, allowNull: false, },
     channel: { type: Sequelize.STRING, allowNull: false, },
+    extra_data: { type: Sequelize.STRING, allowNull: true, },
     message_type: { type: Sequelize.STRING, allowNull: false, },
 }, {
     tableName: 'osu_chat_log',

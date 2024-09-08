@@ -33,6 +33,7 @@ const { InspectorClanMemberModel } = require('./models/InspectorClanMember.js');
 const { InspectorClanStatsModel } = require('./models/InspectorClanStats.js');
 const { InspectorClanLogsModel } = require('./models/InspectorClanLogs.js');
 const { InspectorClanRankingModel } = require('./models/InspectorClanRanking.js');
+const { UserMessageModel } = require('./models/UserMessage.js');
 require('dotenv').config();
 
 let databases = {
@@ -110,8 +111,8 @@ const InspectorClanMember = InspectorClanMemberModel(databases.inspector);
 const InspectorClanStats = InspectorClanStatsModel(databases.inspector);
 const InspectorClanLogs = InspectorClanLogsModel(databases.inspector);
 const InspectorClanRanking = InspectorClanRankingModel(databases.inspector);
-
 const InspectorOsuUser = OsuUserModel(databases.inspector);
+const UserMessage = UserMessageModel(databases.inspector);
 
 InspectorUser.belongsToMany(InspectorRole, { as: 'roles', through: 'inspector_user_roles', foreignKey: 'user_id', otherKey: 'role_id' });
 InspectorRole.belongsTo(InspectorUser, { as: 'roles', through: 'inspector_user_roles', foreignKey: 'user_id', otherKey: 'role_id' });
@@ -130,9 +131,6 @@ InspectorClan.hasOne(InspectorClanStats, { as: 'clan_stats', foreignKey: 'clan_i
 InspectorClan.hasMany(InspectorClanMember, { as: 'clan_members', foreignKey: 'clan_id' });
 InspectorClanMember.hasOne(InspectorUser, { as: 'user', foreignKey: 'osu_id', sourceKey: 'osu_id' });
 InspectorClan.hasMany(InspectorClanLogs, { as: 'logs', foreignKey: 'clan_id' });
-
-// InspectorPerformanceRecord.belongsTo(InspectorOsuUser, { as: 'user', foreignKey: 'user_id', targetKey: 'user_id' });
-// InspectorPerformanceRecord.belongsTo(InspectorBeatmap, { as: 'beatmap', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
 
 const AltUser = AltUserModel(databases.osuAlt);
 const AltPriorityUser = AltPriorityUserModel(databases.osuAlt);
@@ -200,6 +198,8 @@ module.exports.InspectorCountryStat = InspectorCountryStat;
 module.exports.InspectorMapPoll = InspectorMapPoll;
 module.exports.InspectorMapPollVote = InspectorMapPollVote;
 module.exports.InspectorCompletionist = InspectorCompletionist;
+
+module.exports.UserMessage = UserMessage;
 
 module.exports.AltUser = AltUser;
 module.exports.AltPriorityUser = AltPriorityUser;

@@ -77,6 +77,9 @@ router.get('/popular_words', async (req, res, next) => {
     try{
         const data = await UserMessage.findAll({
             attributes: ['message'],
+            where: {
+                message_type: 'message'
+            }
         });
 
         const messages = data.map((message) => message.message);
@@ -110,6 +113,14 @@ router.get('/stats', async (req, res, next) => {
                 message_type: 'message'
             }
         });
+        const message_count_today = await UserMessage.count({
+            where: {
+                message_type: 'message',
+                date: {
+                    [Sequelize.Op.gte]: new Date(new Date().setHours(0, 0, 0, 0))
+                }
+            }
+        });
         const unique_users = await UserMessage.count({
             distinct: true,
             col: 'user_id'
@@ -122,6 +133,7 @@ router.get('/stats', async (req, res, next) => {
 
         res.json({
             message_count,
+            message_count_today,
             unique_users,
             event_count
         });

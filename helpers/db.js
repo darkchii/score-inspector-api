@@ -34,6 +34,7 @@ const { InspectorClanStatsModel } = require('./models/InspectorClanStats.js');
 const { InspectorClanLogsModel } = require('./models/InspectorClanLogs.js');
 const { InspectorClanRankingModel } = require('./models/InspectorClanRanking.js');
 const { UserMessageModel } = require('./models/UserMessage.js');
+const { TournamentModel } = require('./models/Tournament.js');
 require('dotenv').config();
 
 let databases = {
@@ -113,6 +114,7 @@ const InspectorClanLogs = InspectorClanLogsModel(databases.inspector);
 const InspectorClanRanking = InspectorClanRankingModel(databases.inspector);
 const InspectorOsuUser = OsuUserModel(databases.inspector);
 const UserMessage = UserMessageModel(databases.inspector);
+const Tournament = TournamentModel(databases.inspector);
 
 InspectorUser.belongsToMany(InspectorRole, { as: 'roles', through: 'inspector_user_roles', foreignKey: 'user_id', otherKey: 'role_id' });
 InspectorRole.belongsTo(InspectorUser, { as: 'roles', through: 'inspector_user_roles', foreignKey: 'user_id', otherKey: 'role_id' });
@@ -200,6 +202,8 @@ module.exports.InspectorMapPollVote = InspectorMapPollVote;
 module.exports.InspectorCompletionist = InspectorCompletionist;
 
 module.exports.UserMessage = UserMessage;
+
+module.exports.Tournament = Tournament;
 
 module.exports.AltUser = AltUser;
 module.exports.AltPriorityUser = AltPriorityUser;

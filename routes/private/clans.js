@@ -507,6 +507,7 @@ router.post('/update', async (req, res, next) => {
         validateString('description', req.body.description, 100);
         validateString('color', req.body.color, 6);
         validateString('header_image_url', req.body.header_image_url, 255, true);
+        validateString('default_sort', req.body.default_sort, 32);
     } catch (err) {
         res.json({ error: err.message });
         return;
@@ -583,7 +584,8 @@ router.post('/update', async (req, res, next) => {
         description: req.body.description,
         color: req.body.color,
         header_image_url: req.body.header_image_url,
-        disable_requests: req.body.disable_requests
+        disable_requests: req.body.disable_requests,
+        default_sort: req.body.default_sort
     };
 
     for (const key in new_data) {

@@ -97,6 +97,16 @@ async function GetUserBeatmaps(username, type = 'ranked', limit = 100, offset = 
     }
 }
 
+module.exports.GetBeatmaps = GetBeatmaps;
+async function GetBeatmaps(beatmap_ids, timeout = 10000) {
+    const res = await AuthorizedApiCall(`https://osu.ppy.sh/api/v2/beatmaps?ids[]=${beatmap_ids.join('&ids[]=')}`, 'get', null, timeout);
+    try {
+        return res.data;
+    } catch (err) {
+        throw new Error('Unable to get beatmaps: ' + err.message);
+    }
+}
+
 module.exports.GetBeatmapScores = GetBeatmapScores;
 async function GetBeatmapScores(beatmap_id, mode = 'osu', mods = null, timeout = 10000) {
     const res = await AuthorizedApiCall(`https://osu.ppy.sh/api/v2/beatmaps/${beatmap_id}/scores?mode=${mode}${mods ? `&mods=${mods}` : ''}`, 'get', null, timeout);

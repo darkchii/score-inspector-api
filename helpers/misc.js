@@ -157,16 +157,21 @@ module.exports.renameKey = function (obj, curKey, newKey) {
     return obj;
 }
 
-module.exports.validateString = function (key, value, max_length = 255, is_url = false) {
+module.exports.validateString = function (key, value, max_length = 255, can_be_empty = false, is_url = false) {
+    
     if (typeof value !== 'string') {
         throw new Error(`Invalid type for ${key}: ${value}`);
     }
-
+    
     if (value.length > max_length) {
         throw new Error(`${key} is too long: ${value}`);
     }
+    
+    if(!can_be_empty && value.length < 1){
+        throw new Error(`${key} cannot be empty`);
+    }
 
-    if(!validator.isAscii(value)){
+    if(value.length > 0 && !validator.isAscii(value)){
         throw new Error(`Invalid characters in ${key}: ${value}`);
     }
 

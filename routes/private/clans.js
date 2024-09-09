@@ -506,7 +506,7 @@ router.post('/update', async (req, res, next) => {
         validateString('tag', req.body.tag, 5);
         validateString('description', req.body.description, 100);
         validateString('color', req.body.color, 6);
-        validateString('header_image_url', req.body.header_image_url, 255, true);
+        validateString('header_image_url', req.body.header_image_url, 255, true, true);
         validateString('default_sort', req.body.default_sort, 32);
     } catch (err) {
         res.json({ error: err.message });

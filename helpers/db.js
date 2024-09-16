@@ -35,6 +35,9 @@ const { InspectorClanLogsModel } = require('./models/InspectorClanLogs.js');
 const { InspectorClanRankingModel } = require('./models/InspectorClanRanking.js');
 const { UserMessageModel } = require('./models/UserMessage.js');
 const { TournamentModel } = require('./models/Tournament.js');
+const { InspectorBackgroundSourceModel } = require('./models/InspectorBackgroundSource.js');
+const { InspectorBackgroundTagModel } = require('./models/InspectorBackgroundTag.js');
+const { InspectorBackgroundTagPairModel } = require('./models/InspectorBackgroundTagPair.js');
 require('dotenv').config();
 
 let databases = {
@@ -113,6 +116,11 @@ const InspectorClanStats = InspectorClanStatsModel(databases.inspector);
 const InspectorClanLogs = InspectorClanLogsModel(databases.inspector);
 const InspectorClanRanking = InspectorClanRankingModel(databases.inspector);
 const InspectorOsuUser = OsuUserModel(databases.inspector);
+
+const InspectorBackgroundSource = InspectorBackgroundSourceModel(databases.inspector);
+const InspectorBackgroundTag = InspectorBackgroundTagModel(databases.inspector);
+const InspectorBackgroundTagPair = InspectorBackgroundTagPairModel(databases.inspector);
+
 const UserMessage = UserMessageModel(databases.inspector);
 const Tournament = TournamentModel(databases.inspector);
 
@@ -200,6 +208,9 @@ module.exports.InspectorCountryStat = InspectorCountryStat;
 module.exports.InspectorMapPoll = InspectorMapPoll;
 module.exports.InspectorMapPollVote = InspectorMapPollVote;
 module.exports.InspectorCompletionist = InspectorCompletionist;
+module.exports.InspectorBackgroundSource = InspectorBackgroundSource;
+module.exports.InspectorBackgroundTag = InspectorBackgroundTag;
+module.exports.InspectorBackgroundTagPair = InspectorBackgroundTagPair;
 
 module.exports.UserMessage = UserMessage;
 

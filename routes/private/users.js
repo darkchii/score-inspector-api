@@ -1,6 +1,6 @@
 const express = require('express');
 var apicache = require('apicache');
-const { GetDailyUser, GetUsers, GetUserBeatmaps, MODE_SLUGS, GetOsuUser } = require('../../helpers/osu');
+const { GetUsers, GetUserBeatmaps, MODE_SLUGS, GetOsuUser } = require('../../helpers/osu');
 const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser, GetPopulation } = require('../../helpers/osualt');
 const { getFullUsers } = require('../../helpers/inspector');
 const { InspectorCompletionist, AltUser, Databases, AltBeatmap, InspectorOsuUser, GetHistoricalScoreRankModel } = require('../../helpers/db');
@@ -78,7 +78,7 @@ router.get('/osu/completionists', cache('1 hour'), async (req, res) => {
     const completionists = await InspectorCompletionist.findAll();
 
     const ids = completionists.map(c => c.osu_id);
-    const full_users = await getFullUsers(ids, { daily: true, alt: false, score: false, osu: false });
+    const full_users = await getFullUsers(ids, { alt: false, score: false, osu: false });
 
     const data = completionists.map(c => {
       const user = full_users.find(u => u.osu.id == c.osu_id);
@@ -95,20 +95,6 @@ router.get('/osu/completionists', cache('1 hour'), async (req, res) => {
   } catch (e) {
     res.json({ error: e.message });
   }
-});
-
-router.get('/daily/:id', cache('30 minutes'), async (req, res) => {
-  const mode = req.query.mode !== undefined ? req.query.mode : 0;
-  let user = null;
-  try {
-    user = await GetDailyUser(req.params.id, 0, 'id');
-  } catch (err) {
-    res.json({ error: 'Unable to get user' });
-  }
-  if (user !== null) {
-    res.json(user);
-  }
-  // res.json(user);
 });
 
 router.get('/alt/registered/:id', cache('10 minutes'), async function (req, res, next) {
@@ -164,7 +150,6 @@ router.get('/population', cache('1 hour'), async (req, res) => {
 router.get('/full/:ids', cache('10 minutes'), async (req, res, next) => {
   try {
     const skippedData = {
-      daily: req.query.skipDailyData === 'true' ? true : false,
       alt: req.query.skipAltData === 'true' ? true : false,
       score: req.query.skipScoreRank === 'true' ? true : false,
       osu: req.query.skipOsuData === 'true' ? true : false,
@@ -210,7 +195,6 @@ router.get('/full/:ids', cache('10 minutes'), async (req, res, next) => {
       res.json({
         inspector_user: data[0]?.inspector_user,
         osu: data[0].osu,
-        daily: data[0].daily,
         alt: data[0].alt,
       });
     } else {

@@ -1,5 +1,5 @@
 const { Client } = require("pg");
-const { GetDailyUser, GetOsuUser, GetOsuUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET } = require("./osu");
+const { GetOsuUser, GetOsuUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET } = require("./osu");
 const { default: axios } = require("axios");
 const { range } = require("./misc");
 const { InspectorBeatmap, Databases, InspectorUser, InspectorRole, InspectorUserAccessToken, InspectorClan, InspectorClanMember } = require("./db");
@@ -465,7 +465,7 @@ function DefaultInspectorUser(inspector_user, username, osu_id) {
     return _inspector_user;
 }
 
-module.exports.getFullUsers = async function (user_ids, skippedData = { daily: false, alt: false, score: false, osu: false, extras: false }, allowFallback = false, forceLocalAlt = false) {
+module.exports.getFullUsers = async function (user_ids, skippedData = { alt: false, score: false, osu: false, extras: false }, allowFallback = false, forceLocalAlt = false) {
     //split ids in array of integers
     let ids = user_ids;
 
@@ -480,7 +480,6 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
     //we create arrays of each type of user data, and then we merge them together
     let inspector_users = [];
     let osu_users = [];
-    let daily_users = [];
     let alt_users = [];
     let score_ranks = [];
 
@@ -512,11 +511,6 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
             osu_users = [user];
         }).catch(err => { }) : GetOsuUsers(ids).then(users => {
             osu_users = users;
-        }).catch(err => {
-        }),
-        //daily users
-        skippedData.daily ? null : Promise.all(ids.map(id => GetDailyUser(id, 0, 'id'))).then(users => {
-            daily_users = users;
         }).catch(err => {
         }),
         //alt users
@@ -569,13 +563,6 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { daily: f
 
         user.inspector_user = DefaultInspectorUser(inspector_user, username, parseInt(id));
 
-        if (!skippedData.daily) {
-            try {
-                let daily_user = daily_users.find(user => user.osu_id == id);
-                user.daily = daily_user;
-            } catch (err) {
-            }
-        }
         data.push(user);
     });
 

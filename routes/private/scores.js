@@ -320,7 +320,7 @@ router.get('/stats', async function (req, res, next) {
             const unique_user_ids = user_ids.filter(id => id);
 
             const client = request(req.app);
-            const users = await client.get(`/users/full/${unique_user_ids.join(',')}?force_array=false&skipDailyData=true`).set('Origin', req.headers.origin || req.headers.host);
+            const users = await client.get(`/users/full/${unique_user_ids.join(',')}?force_array=false`).set('Origin', req.headers.origin || req.headers.host);
 
             pp_distribution.forEach(row => {
                 const user = users.body.find(user => user.osu.id === row.most_common_user_id);
@@ -600,7 +600,7 @@ router.get('/today', cache('10 minutes'), async function (req, res, next) {
 
         const user_ids = data.map(row => row.user_id);
         const client = request(req.app);
-        const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipDailyData=true&skipOsuData=true`).set('Origin', req.headers.origin || req.headers.host);
+        const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipOsuData=true`).set('Origin', req.headers.origin || req.headers.host);
 
         for (let index = 0; index < data.length; index++) {
             const row = data[index];
@@ -851,7 +851,7 @@ router.get('/milestones', cache('5 minutes'), async function (req, res, next) {
     if (limit && limit <= 100) {
         const user_ids = milestones.map(milestone => milestone.user_id);
         const client = request(req.app);
-        const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipDailyData=true&skipAltData=true`).set('Origin', req.headers.origin || req.headers.host);
+        const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipAltData=true`).set('Origin', req.headers.origin || req.headers.host);
 
         for (const milestone of milestones) {
             const _user = _.cloneDeep(users.body.find(user => user.osu.id === milestone.user_id) ?? {});
@@ -909,7 +909,7 @@ router.get('/monthly_farmers/:data', cache('1 hour'), async function (req, res, 
         //unique user ids only
         user_ids = [...new Set(user_ids)];
         const client = request(req.app);
-        const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipDailyData=true&skipOsuData=true`).set('Origin', req.headers.origin || req.headers.host);
+        const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipOsuData=true`).set('Origin', req.headers.origin || req.headers.host);
 
         for (let index = 0; index < data.length; index++) {
             const row = data[index];
@@ -938,7 +938,7 @@ router.get('/monthly_farmers/log/:data', cache('1 hour'), async function (req, r
         let user_ids = data.map(row => [row.old_user_id, row.new_user_id]).flat();
         user_ids = [...new Set(user_ids)];
         const client = request(req.app);
-        const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipDailyData=true&skipOsuData=true`).set('Origin', req.headers.origin || req.headers.host);
+        const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipOsuData=true`).set('Origin', req.headers.origin || req.headers.host);
 
         for (let index = 0; index < data.length; index++) {
             const row = data[index];
@@ -957,7 +957,7 @@ router.get('/monthly_farmers/log/:data', cache('1 hour'), async function (req, r
         // //unique user ids only
         // user_ids = [...new Set(user_ids)];
         // const client = request(req.app);
-        // const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipDailyData=true&skipOsuData=true`).set('Origin', req.headers.origin || req.headers.host);
+        // const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipOsuData=true`).set('Origin', req.headers.origin || req.headers.host);
 
         // for (let index = 0; index < data.length; index++) {
         //     const row = data[index];

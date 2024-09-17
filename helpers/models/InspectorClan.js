@@ -12,6 +12,7 @@ const InspectorClanModel = (db) => db.define('InspectorClan', {
     disable_requests: { type: Sequelize.BOOLEAN, allowNull: false, },
     last_owner_change: { type: Sequelize.DATE, allowNull: true, },
     default_sort: { type: Sequelize.STRING },
+    discord_invite: { type: Sequelize.STRING, allowNull: true, },
 }, {
     tableName: 'inspector_clans',
     timestamps: false

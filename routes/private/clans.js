@@ -471,144 +471,169 @@ router.all('/get/:id', async (req, res, next) => {
 });
 
 router.post('/update', async (req, res, next) => {
-    const user_id = req.body.user.id;
-    const token = req.body.user.token;
-
     try {
-        if (!(await VerifyToken(token, user_id))) {
-            res.json({ error: "Invalid token" });
+
+
+        const user_id = req.body.user.id;
+        const token = req.body.user.token;
+
+        try {
+            if (!(await VerifyToken(token, user_id))) {
+                res.json({ error: "Invalid token" });
+                return;
+            }
+        } catch (error) {
+            res.json({ error: "An error occurred" });
             return;
         }
-    } catch (error) {
-        res.json({ error: "An error occurred" });
-        return;
-    }
 
-    const clan_id = req.body.id;
-    const clan = await InspectorClan.findOne({
-        where: {
-            id: clan_id
+        const clan_id = req.body.id;
+        const clan = await InspectorClan.findOne({
+            where: {
+                id: clan_id
+            }
+        });
+
+        if (!clan) {
+            res.json({ error: "Clan not found" });
+            return;
         }
-    });
 
-    if (!clan) {
-        res.json({ error: "Clan not found" });
-        return;
-    }
+        if (clan.owner != user_id) {
+            res.json({ error: "You are not the owner of this clan" });
+            return;
+        }
 
-    if (clan.owner != user_id) {
-        res.json({ error: "You are not the owner of this clan" });
-        return;
-    }
-
-    try {
-        validateString('name', req.body.name, 20);
-        validateString('tag', req.body.tag, 5);
-        validateString('description', req.body.description, 100);
-        validateString('color', req.body.color, 6);
-        validateString('header_image_url', req.body.header_image_url, 255, true, true);
-        validateString('default_sort', req.body.default_sort, 32);
-    } catch (err) {
-        res.json({ error: err.message });
-        return;
-    }
-
-    //check if req.body.enable_requests is a boolean
-    if (typeof req.body.disable_requests !== "boolean") {
-        res.json({ error: "Invalid disable_requests value" });
-        return;
-    }
-
-    const header_image_url = req.body.header_image_url;
-    if (header_image_url && header_image_url.length > 0) {
         try {
-            const url = new URL(header_image_url);
-            if (url.protocol != "http:" && url.protocol != "https:") {
-                res.json({ error: "Invalid header image url" });
-                return;
-            }
-
-            //check image validity, with content-disposition:inline
-            const response = await fetch(url.href, {
-                method: 'HEAD'
-            });
-
-            if (response.status != 200) {
-                res.json({ error: "Invalid header image url" });
-                return;
-            }
-
-            //check mime type
-            const content_type = response.headers.get('content-type');
-            if (!content_type.startsWith("image/")) {
-                res.json({ error: "Invalid header image url" });
-                return;
-            }
-
+            validateString('name', req.body.name, 20);
+            validateString('tag', req.body.tag, 5);
+            validateString('description', req.body.description, 100);
+            validateString('color', req.body.color, 6);
+            validateString('header_image_url', req.body.header_image_url, 255, true, true);
+            validateString('default_sort', req.body.default_sort, 32);
+            validateString('discord_invite', req.body.discord_invite, 255, true, true);
         } catch (err) {
             res.json({ error: err.message });
             return;
         }
-    }
 
-    //check if the clan name or tag is already taken
-    const tag_taken = await InspectorClan.findOne({
-        where: {
-            tag: req.body.tag,
-            id: { [Op.ne]: clan_id }
+        //check if req.body.enable_requests is a boolean
+        if (typeof req.body.disable_requests !== "boolean") {
+            res.json({ error: "Invalid disable_requests value" });
+            return;
         }
-    });
 
-    if (tag_taken) {
-        res.json({ error: "Clan tag is already taken" });
-        return;
-    }
+        const header_image_url = req.body.header_image_url;
+        if (header_image_url && header_image_url.length > 0) {
+            try {
+                const url = new URL(header_image_url);
+                if (url.protocol != "http:" && url.protocol != "https:") {
+                    res.json({ error: "Invalid header image url" });
+                    return;
+                }
 
-    const clan_name_taken = await InspectorClan.findOne({
-        where: {
-            name: req.body.name,
-            id: { [Op.ne]: clan_id }
+                //check image validity, with content-disposition:inline
+                const response = await fetch(url.href, {
+                    method: 'HEAD'
+                });
+
+                if (response.status != 200) {
+                    res.json({ error: "Invalid header image url" });
+                    return;
+                }
+
+                //check mime type
+                const content_type = response.headers.get('content-type');
+                if (!content_type.startsWith("image/")) {
+                    res.json({ error: "Invalid header image url" });
+                    return;
+                }
+
+            } catch (err) {
+                res.json({ error: err.message });
+                return;
+            }
         }
-    });
 
-    if (clan_name_taken) {
-        res.json({ error: "Clan name or tag is already taken" });
-        return;
-    }
+        //discord invite validation
+        let discord_invite = req.body.discord_invite;
+        if (discord_invite && discord_invite.length > 0) {
+            //get the invite code
+            const invite_code = discord_invite.split('/').pop();
 
-    const old_data = JSON.stringify(clan.dataValues);
+            //check if the invite code is valid
+            const response = await fetch(`https://discord.com/api/v9/invites/${invite_code}`);
 
-    const new_data = {
-        name: req.body.name,
-        tag: req.body.tag,
-        description: req.body.description,
-        color: req.body.color,
-        header_image_url: req.body.header_image_url,
-        disable_requests: req.body.disable_requests,
-        default_sort: req.body.default_sort
-    };
+            if (response.status != 200) {
+                res.json({ error: "Invalid discord invite" });
+                return;
+            }
 
-    for (const key in new_data) {
-        clan[key] = new_data[key];
-    }
+            discord_invite = `https://discord.gg/${invite_code}`;
+        }
 
-    await clan.save();
-
-    try {
-        await InspectorClanLogs.create({
-            clan_id: clan_id,
-            created_at: new Date(),
-            data: JSON.stringify({
-                type: 'clan_update',
-                old_data: old_data,
-                new_data: JSON.stringify(new_data)
-            })
+        //check if the clan name or tag is already taken
+        const tag_taken = await InspectorClan.findOne({
+            where: {
+                tag: req.body.tag,
+                id: { [Op.ne]: clan_id }
+            }
         });
-    } catch (err) {
-        //do nothing, this isnt critical to work
-    }
 
-    res.json({ clan: clan });
+        if (tag_taken) {
+            res.json({ error: "Clan tag is already taken" });
+            return;
+        }
+
+        const clan_name_taken = await InspectorClan.findOne({
+            where: {
+                name: req.body.name,
+                id: { [Op.ne]: clan_id }
+            }
+        });
+
+        if (clan_name_taken) {
+            res.json({ error: "Clan name or tag is already taken" });
+            return;
+        }
+
+        const old_data = JSON.stringify(clan.dataValues);
+
+        const new_data = {
+            name: req.body.name,
+            tag: req.body.tag,
+            description: req.body.description,
+            color: req.body.color,
+            header_image_url: req.body.header_image_url,
+            disable_requests: req.body.disable_requests,
+            default_sort: req.body.default_sort,
+            discord_invite: discord_invite
+        };
+
+        for (const key in new_data) {
+            clan[key] = new_data[key];
+        }
+
+        await clan.save();
+
+        try {
+            await InspectorClanLogs.create({
+                clan_id: clan_id,
+                created_at: new Date(),
+                data: JSON.stringify({
+                    type: 'clan_update',
+                    old_data: old_data,
+                    new_data: JSON.stringify(new_data)
+                })
+            });
+        } catch (err) {
+            //do nothing, this isnt critical to work
+        }
+
+        res.json({ clan: clan });
+    } catch (err) {
+        res.json({ error: "An error occurred" });
+    }
 });
 
 router.post('/delete', async (req, res, next) => {

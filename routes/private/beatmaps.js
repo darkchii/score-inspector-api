@@ -1,8 +1,8 @@
 const express = require('express');
 const moment = require('moment');
 var apicache = require('apicache');
-const { buildQuery } = require('../../helpers/inspector');
-const { AltModdedStars, AltBeatmap, Databases } = require('../../helpers/db');
+const { buildQuery, getFullUsers } = require('../../helpers/inspector');
+const { AltModdedStars, AltBeatmap, Databases, AltScore } = require('../../helpers/db');
 const { default: axios } = require('axios');
 const { GetBeatmaps } = require('../../helpers/osualt');
 const { Op, Sequelize } = require('sequelize');
@@ -137,13 +137,15 @@ router.get('/count_periodic', cache('1 hour'), async (req, res) => {
 router.get('/:id', cache('1 hour'), async (req, res) => {
     const mode = req.query.mode !== undefined ? req.query.mode : 0;
     const mods = req.query.mods_enum !== undefined ? req.query.mods_enum : null;
+    const include_scores = req.query.include_scores !== undefined ? req.query.include_scores : false;
+    const include_score_data = req.query.include_score_data !== undefined ? req.query.include_score_data : false;
+    const score_limit = req.query.score_limit !== undefined ? req.query.score_limit : 10;
     try {
 
         //let result = await connection.awaitQuery('SELECT * FROM beatmap WHERE beatmap_id=? AND mode=?', [req.params.id, mode]);
         let result = await AltBeatmap.findOne({
             where: {
                 beatmap_id: req.params.id,
-                mode: mode
             }
         });
 
@@ -167,17 +169,68 @@ router.get('/:id', cache('1 hour'), async (req, res) => {
                 const version = sr.version;
                 res[version] = sr;
             });
-            result.modded_sr = res;
+
+            if (res !== null) {
+                result.modded_sr = res;
+            }
         } else {
             const sr_result = await AltModdedStars.findAll({
                 where: {
                     beatmap_id: req.params.id
                 }
             });
-            result.modded_sr = sr_result;
+            if (sr_result !== null) {
+                result.modded_sr = sr_result;
+            }
         }
+
+        const set_id = result.set_id;
+        const set = await AltBeatmap.findAll({
+            attributes: ['beatmap_id', 'diffname', 'stars', 'mode'],
+            where: {
+                set_id: set_id
+            }
+        });
+
+        const creator_id = result.creator_id;
+        const creator = await getFullUsers([creator_id], {
+            alt: true,
+            score: true,
+            extras: true
+        });
+
+        result.creator_obj = creator[0] ?? null;
+
+        //order by stars and mode
+        result.set = set.sort((a, b) => {
+            return a.stars - b.stars;
+        }).sort((a, b) => {
+            return a.mode - b.mode;
+        });
+
+        if (include_scores) {
+            console.log('include scores');
+            const scores = await AltScore.findAll({
+                where: {
+                    beatmap_id: req.params.id
+                },
+                limit: score_limit
+            });
+
+            result.scores = scores;
+        }
+
+        if (include_score_data) {
+            const score_count = await AltScore.count({ where: { beatmap_id: req.params.id } });
+
+            result.score_data = {
+                scores: score_count
+            }
+        }
+
         res.json(result);
     } catch (e) {
+        console.error(e);
         res.json([]);
     }
 });

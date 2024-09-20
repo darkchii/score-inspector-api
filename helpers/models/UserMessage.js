@@ -9,6 +9,7 @@ const UserMessageModel = (db) => db.define('UserMessage', {
     channel: { type: Sequelize.STRING, allowNull: false, },
     extra_data: { type: Sequelize.STRING, allowNull: true, },
     message_type: { type: Sequelize.STRING, allowNull: false, },
+    is_banned: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: false, },
 }, {
     tableName: 'osu_chat_log',
     timestamps: false

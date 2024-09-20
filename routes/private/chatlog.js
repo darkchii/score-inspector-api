@@ -5,7 +5,7 @@ const router = express.Router();
 require('dotenv').config();
 const { UserMessage } = require('../../helpers/db');
 const { getFullUsers } = require('../../helpers/inspector');
-const { Sequelize } = require('sequelize');
+const { Sequelize, Op } = require('sequelize');
 const { GetBeatmaps } = require('../../helpers/osu');
 let cache = apicache.middleware;
 
@@ -15,6 +15,11 @@ router.get('/active_users', cache('1 hour'), async (req, res, next) => {
         const data = await UserMessage.findAll({
             attributes: ['user_id', [Sequelize.fn('COUNT', Sequelize.col('user_id')), 'message_count']],
             group: ['user_id'],
+            where: {
+                user_id: {
+                    [Op.gt]: 0
+                }  
+            },
             order: [[Sequelize.fn('COUNT', Sequelize.col('user_id')), 'DESC']],
             limit: 25
         });
@@ -188,6 +193,14 @@ router.get('/stats', cache('1 hour'), async (req, res, next) => {
             }
         });
 
+        //group by user_id to get unique users
+        const banned_users = await UserMessage.count({
+            distinct: true,
+            col: 'username',
+            where: {
+                is_banned: true
+            }
+        });
 
         const events = await UserMessage.findAll({
             attributes: ['extra_data'],
@@ -228,7 +241,8 @@ router.get('/stats', cache('1 hour'), async (req, res, next) => {
             message_count_today,
             unique_users,
             event_count,
-            event_types
+            event_types,
+            banned_users
         });
     } catch (err) {
         res.json({ error: err.message });

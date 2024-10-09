@@ -2,9 +2,10 @@ const express = require('express');
 const moment = require('moment');
 var apicache = require('apicache');
 const { buildQuery, getFullUsers } = require('../../helpers/inspector');
-const { AltModdedStars, AltBeatmap, Databases, AltScore } = require('../../helpers/db');
+const { AltModdedStars, AltBeatmap, Databases, AltScore, InspectorBeatmapSongSource } = require('../../helpers/db');
 const { default: axios } = require('axios');
 const { GetBeatmaps } = require('../../helpers/osualt');
+const { GetBeatmaps: GetOsuBeatmaps } = require('../../helpers/osu');
 const { Op, Sequelize } = require('sequelize');
 const { CorrectMod } = require('../../helpers/misc');
 
@@ -140,6 +141,7 @@ router.get('/:id', cache('1 hour'), async (req, res) => {
     const include_scores = req.query.include_scores !== undefined ? req.query.include_scores : false;
     const include_score_data = req.query.include_score_data !== undefined ? req.query.include_score_data : false;
     const score_limit = req.query.score_limit !== undefined ? req.query.score_limit : 10;
+    const include_remote_data = req.query.include_remote_data !== undefined ? req.query.include_remote_data : false;
     try {
 
         //let result = await connection.awaitQuery('SELECT * FROM beatmap WHERE beatmap_id=? AND mode=?', [req.params.id, mode]);
@@ -209,12 +211,14 @@ router.get('/:id', cache('1 hour'), async (req, res) => {
         });
 
         if (include_scores) {
-            console.log('include scores');
             const scores = await AltScore.findAll({
                 where: {
                     beatmap_id: req.params.id
                 },
-                limit: score_limit
+                limit: score_limit,
+                order: [
+                    ['score', 'DESC']
+                ]
             });
 
             result.scores = scores;
@@ -227,6 +231,32 @@ router.get('/:id', cache('1 hour'), async (req, res) => {
                 scores: score_count
             }
         }
+
+        if(include_remote_data){
+            const remote_beatmap_data = await GetOsuBeatmaps([req.params.id]);
+            result.remote_data = remote_beatmap_data?.beatmaps?.[0] ?? null;
+
+            if(!result.remote_data){
+                throw new Error('No remote data found');
+            }
+
+            const beatmap_mapper_id = result.remote_data.user_id;
+            const beatmap_mapper = await getFullUsers([beatmap_mapper_id], {
+                alt: true,
+                score: true,
+                extras: true
+            });
+            result.remote_data.creator_obj = beatmap_mapper[0] ?? null;
+        }
+
+        //get beatmap song sources
+        const song_sources = await InspectorBeatmapSongSource.findAll({
+            where: {
+                beatmapset_id: set_id
+            }
+        });
+
+        result.sources = song_sources;
 
         res.json(result);
     } catch (e) {

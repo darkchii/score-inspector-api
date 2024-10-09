@@ -602,8 +602,10 @@ router.get('/today', cache('10 minutes'), async function (req, res, next) {
         const client = request(req.app);
         const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipOsuData=true`).set('Origin', req.headers.origin || req.headers.host);
 
+        console.log(users.body);
         for (let index = 0; index < data.length; index++) {
             const row = data[index];
+            console.log(row);
             row.rank = parseInt(row.rank);
             row.user = _.cloneDeep(users.body.find(user => user.alt.user_id === row.user_id));
             row.user.alt = undefined;
@@ -628,6 +630,7 @@ router.get('/today', cache('10 minutes'), async function (req, res, next) {
 
         res.json(categories);
     } catch (e) {
+        console.error(e);
         res.status(500).json({ error: e });
     }
 });

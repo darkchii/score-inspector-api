@@ -38,6 +38,7 @@ const { TournamentModel } = require('./models/Tournament.js');
 const { InspectorBackgroundSourceModel } = require('./models/InspectorBackgroundSource.js');
 const { InspectorBackgroundTagModel } = require('./models/InspectorBackgroundTag.js');
 const { InspectorBackgroundTagPairModel } = require('./models/InspectorBackgroundTagPair.js');
+const { InspectorBackgroundSongSourceModel } = require('./models/InspectorBeatmapSongSource.js');
 require('dotenv').config();
 
 let databases = {
@@ -120,6 +121,8 @@ const InspectorOsuUser = OsuUserModel(databases.inspector);
 const InspectorBackgroundSource = InspectorBackgroundSourceModel(databases.inspector);
 const InspectorBackgroundTag = InspectorBackgroundTagModel(databases.inspector);
 const InspectorBackgroundTagPair = InspectorBackgroundTagPairModel(databases.inspector);
+
+const InspectorBeatmapSongSource = InspectorBackgroundSongSourceModel(databases.inspector);
 
 const UserMessage = UserMessageModel(databases.inspector);
 const Tournament = TournamentModel(databases.inspector);
@@ -211,6 +214,7 @@ module.exports.InspectorCompletionist = InspectorCompletionist;
 module.exports.InspectorBackgroundSource = InspectorBackgroundSource;
 module.exports.InspectorBackgroundTag = InspectorBackgroundTag;
 module.exports.InspectorBackgroundTagPair = InspectorBackgroundTagPair;
+module.exports.InspectorBeatmapSongSource = InspectorBeatmapSongSource;
 
 module.exports.UserMessage = UserMessage;
 

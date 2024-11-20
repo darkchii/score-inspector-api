@@ -365,7 +365,7 @@ async function ApplyDifficultyData(data, force_all_mods = false, custom_mods = n
     }
 
     let finished_scores = [];
-    let diff_data = [];
+    let diff_data = {};
     let index = 0;
     let concurrent_queries = [];
     for await (const _data of split_array) {
@@ -397,7 +397,9 @@ async function ApplyDifficultyData(data, force_all_mods = false, custom_mods = n
                 resolve(_diff_data);
             }).then((_diff_data) => {
                 _diff_data.forEach((_diff) => {
-                    diff_data.push(_diff);
+                    // diff_data.push(_diff);
+                    const key = `${_diff.beatmap_id}_${_diff.mode}_${_diff.mods}`;
+                    diff_data[key] = _diff;
                 });
             }).catch((err) => {
                 console.error(err);
@@ -408,13 +410,21 @@ async function ApplyDifficultyData(data, force_all_mods = false, custom_mods = n
         index++;
     }
 
+    console.log(`============================================================================================`);
+    console.log(`Running ${concurrent_queries.length} queries concurrently (${BATCH_DIFF_DATA_FETCH} each)`);
+    console.log(`scores: ${data.length}`);
+    console.time('All queries');
     await Promise.all(concurrent_queries);
-
+    console.timeEnd('All queries');
+    console.log(`============================================================================================`);
+    console.log(`Applying difficulty data to scores`);
+    console.time('Apply');
     for (let i = 0; i < data.length; i++) {
         let _data = data[i];
         let beatmap_id = _data.beatmap_id;
         let mods = CorrectMod(_data.enabled_mods);
-        let _diff = diff_data.find(d => d.beatmap_id == beatmap_id && d.mods == mods);
+        // let _diff = diff_data.find(d => d.beatmap_id == beatmap_id && d.mods == mods);
+        let _diff = diff_data[`${beatmap_id}_${0}_${mods}`];
 
         if (_diff) {
             if(is_data_beatmap){
@@ -426,6 +436,8 @@ async function ApplyDifficultyData(data, force_all_mods = false, custom_mods = n
 
         finished_scores.push(_data);
     }
+    console.timeEnd('Apply');
+    console.log(`============================================================================================`);
 
     return finished_scores;
 }

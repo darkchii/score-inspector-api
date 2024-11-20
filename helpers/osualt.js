@@ -1,9 +1,9 @@
 const moment = require("moment/moment");
 const { Op, Sequelize, where } = require("sequelize");
-const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, AltModdedStars, Databases, InspectorUser, InspectorScoreStat, InspectorClanMember, InspectorClan, InspectorOsuUser } = require("./db");
+const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, Databases, InspectorUser, InspectorScoreStat, InspectorClanMember, InspectorClan, InspectorOsuUser } = require("./db");
 const { CorrectedSqlScoreMods, CorrectedSqlScoreModsCustom } = require("./misc");
 const { default: axios } = require("axios");
-const { GetOsuUsers } = require("./osu");
+const { GetOsuUsers, ApplyDifficultyData } = require("./osu");
 require('dotenv').config();
 
 const beatmap_columns = `
@@ -63,17 +63,7 @@ const score_columns = `
     scores.rank, 
     scores.pp, 
     scores.accuracy, 
-    ${beatmap_columns},
-    moddedsr.star_rating,
-    moddedsr.aim_diff,
-    moddedsr.speed_diff,
-    moddedsr.fl_diff,
-    moddedsr.slider_factor,
-    moddedsr.speed_note_count,
-    moddedsr.modded_od,
-    moddedsr.modded_ar,
-    moddedsr.modded_cs,
-    moddedsr.modded_hp
+    ${beatmap_columns}
 `;
 
 const score_columns_full = `
@@ -91,17 +81,7 @@ const score_columns_full = `
     scores.rank, 
     scores.pp, 
     scores.accuracy, 
-    ${beatmap_columns},
-    moddedsr.star_rating,
-    moddedsr.aim_diff,
-    moddedsr.speed_diff,
-    moddedsr.fl_diff,
-    moddedsr.slider_factor,
-    moddedsr.speed_note_count,
-    moddedsr.modded_od,
-    moddedsr.modded_ar,
-    moddedsr.modded_cs,
-    moddedsr.modded_hp,
+    ${beatmap_columns}
     pack_id
     `;
 module.exports.score_columns = score_columns;
@@ -338,26 +318,6 @@ async function GetBestScores(period, stat, limit, loved = false) {
     let data;
     try {
         let period_check_query = null;
-        // switch (period) {
-        //     case 'day':
-        //         period_check = 1;
-        //         break;
-        //     case 'week':
-        //         period_check = 7;
-        //         break;
-        //     case 'month':
-        //         period_check = 31;
-        //         break;
-        //     case 'year':
-        //         period_check = 365;
-        //         break;
-        //     case 'all':
-        //         period_check = null;
-        //         break;
-        // }
-
-        //date_played is now based on the day/week/month/year of the score, not current - interval
-        // (0 utc)
 
         switch(period){
             case 'day':
@@ -389,7 +349,7 @@ async function GetBestScores(period, stat, limit, loved = false) {
             ${period_check_query ? `AND ${period_check_query}` : ''}
             AND user_id in (select user_id from users2)
             ORDER BY ${stat} DESC
-            LIMIT ${limit+5}
+            LIMIT ${limit}
         `;
         //+5 limit to account for cheaters.
 
@@ -405,18 +365,6 @@ async function GetBestScores(period, stat, limit, loved = false) {
                 WHERE beatmap_id = ${score.beatmap_id}`);
             score.beatmap = beatmap_rows[0]?.[0];
 
-            if (score.beatmap) {
-                // add the modded stars data
-                const modded_sr_rows = await Databases.osuAlt.query(`
-                SELECT * FROM moddedsr 
-                WHERE beatmap_id = ${score.beatmap_id} 
-                AND mods_enum = ${CorrectedSqlScoreModsCustom(score.enabled_mods)}`);
-                score.beatmap.modded_sr = modded_sr_rows[0]?.[0];
-                if (score.beatmap.modded_sr !== undefined) {
-                    score.beatmap.modded_sr['live'] = JSON.parse(JSON.stringify(modded_sr_rows[0]?.[0]));
-                }
-            }
-
             if (users) {
                 users.forEach(osu_user => {
                     if (osu_user.id == score.user_id) {
@@ -426,12 +374,15 @@ async function GetBestScores(period, stat, limit, loved = false) {
             }
         }
 
+        data = await ApplyDifficultyData(data);
+
         //remove scores that dont have a user
         data = data.filter(x => x.user);
 
         //limit to the requested amount
         data = data.slice(0, limit);
     } catch (err) {
+        console.log(err);
         throw new Error(err.message);
     }
     return data;

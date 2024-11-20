@@ -2,10 +2,10 @@ const express = require('express');
 const moment = require('moment');
 var apicache = require('apicache');
 const { buildQuery, getFullUsers } = require('../../helpers/inspector');
-const { AltModdedStars, AltBeatmap, Databases, AltScore, InspectorBeatmapSongSource } = require('../../helpers/db');
+const { AltBeatmap, Databases, AltScore, InspectorBeatmapSongSource } = require('../../helpers/db');
 const { default: axios } = require('axios');
 const { GetBeatmaps } = require('../../helpers/osualt');
-const { GetBeatmaps: GetOsuBeatmaps } = require('../../helpers/osu');
+const { GetBeatmaps: GetOsuBeatmaps, ApplyDifficultyData } = require('../../helpers/osu');
 const { Op, Sequelize } = require('sequelize');
 const { CorrectMod } = require('../../helpers/misc');
 
@@ -156,34 +156,9 @@ router.get('/:id', cache('1 hour'), async (req, res) => {
         }
 
         if (mods) {
-            let res = {};
-            const correctedMods = CorrectMod(parseInt(mods));
-
-            const sr_result = await AltModdedStars.findOne({
-                where: {
-                    beatmap_id: req.params.id,
-                    mods_enum: correctedMods
-                }
-            });
-            res = { ...JSON.parse(JSON.stringify(sr_result)) };
-
-            sr_results.forEach(sr => {
-                const version = sr.version;
-                res[version] = sr;
-            });
-
-            if (res !== null) {
-                result.modded_sr = res;
-            }
+            result = (await ApplyDifficultyData([result], false, mods))[0];
         } else {
-            const sr_result = await AltModdedStars.findAll({
-                where: {
-                    beatmap_id: req.params.id
-                }
-            });
-            if (sr_result !== null) {
-                result.modded_sr = sr_result;
-            }
+            result = (await ApplyDifficultyData([result], true))[0];
         }
 
         const set_id = result.set_id;
@@ -232,11 +207,11 @@ router.get('/:id', cache('1 hour'), async (req, res) => {
             }
         }
 
-        if(include_remote_data){
+        if (include_remote_data) {
             const remote_beatmap_data = await GetOsuBeatmaps([req.params.id]);
             result.remote_data = remote_beatmap_data?.beatmaps?.[0] ?? null;
 
-            if(!result.remote_data){
+            if (!result.remote_data) {
                 throw new Error('No remote data found');
             }
 
@@ -279,6 +254,59 @@ router.get('/:id/maxscore', cache('1 hour'), async (req, res) => {
         res.json((result !== undefined && result[0] !== undefined) ? result[0].top_score : 0);
     } catch (e) {
         res.json([]);
+    }
+});
+
+router.get('/:id/trend', cache('4 hours'), async (req, res) => {
+    try {
+        const mode = req.query.mode !== undefined ? req.query.mode : 0;
+
+        if (mode !== 0) {
+            throw new Error('Mode not supported');
+        }
+
+        //get amount of scores for every day for the beatmap (utc)
+        const result = await Databases.osuAlt.query(`
+        SELECT
+        date_trunc('day', date_played) as date,
+        COUNT(*) as amount
+        FROM scores
+        WHERE scores.beatmap_id=?
+        GROUP BY date_trunc('day', date_played)
+        `, {
+            replacements: [req.params.id],
+            type: Sequelize.QueryTypes.SELECT
+        });
+
+        //order by date
+        result.sort((a, b) => {
+            return new Date(a.date) - new Date(b.date);
+        });
+
+        //fill in missing dates with 0
+        let _result = [];
+        let current = moment(result[0].date);
+        let end = moment(result[result.length - 1].date);
+
+        while (current <= end) {
+            let found = result.find(x => moment(x.date).isSame(current));
+
+            if (found === undefined) {
+                _result.push({
+                    date: current.format('YYYY-MM-DD'),
+                    amount: 0
+                });
+            } else {
+                _result.push(found);
+            }
+
+            current.add(1, 'days');
+        }
+
+        res.json(_result);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json([]);
     }
 });
 

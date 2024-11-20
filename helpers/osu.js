@@ -1,5 +1,6 @@
-const { Sequelize } = require('sequelize');
-const { AltUser, AltScore, Raw, InspectorCountryStat, InspectorOsuUser } = require('./db');
+const { Sequelize, where, sql } = require('sequelize');
+const { AltUser, AltScore, Raw, InspectorCountryStat, InspectorOsuUser, InspectorBeatmapDifficultyAttrib, InspectorBeatmapDifficulty } = require('./db');
+const { CorrectedSqlScoreModsCustom, CorrectModScore, CorrectMod } = require('./misc');
 
 require('dotenv').config();
 const axios = require('axios').default;
@@ -14,6 +15,31 @@ module.exports.OSU_CLIENT_ID = OSU_CLIENT_ID;
 module.exports.OSU_CLIENT_SECRET = OSU_CLIENT_SECRET;
 
 module.exports.MODE_SLUGS = ['osu', 'taiko', 'fruits', 'mania'];
+
+const MODS = {
+    None: 0,
+    NF: 1,
+    EZ: 2,
+    TD: 4,
+    HD: 8,
+    HR: 16,
+    SD: 32,
+    DT: 64,
+    RX: 128,
+    HT: 256,
+    NC: 512, // Only set along with DoubleTime. i.e: NC only gives 576
+    FL: 1024,
+    AP: 2048,
+    SO: 4096,
+    PF: 16384, // Only set along with SuddenDeath. i.e: PF only gives 16416  
+    FI: 1048576,
+    RN: 2097152,
+    CI: 4194304,
+    TG: 8388608,
+    SV2: 536870912,
+    MR: 1073741824
+}
+module.exports.MODS = MODS;
 
 async function Login(client_id, client_secret) {
     const data = {
@@ -140,16 +166,16 @@ async function GetOsuUsers(id_array, timeout = 5000) {
     }
 
     //update cover_url in inspector db
-    if(users?.length > 0){
+    if (users?.length > 0) {
         //bulk update
-        try{
-            for await(const user of users){
+        try {
+            for await (const user of users) {
                 const cover_url = user?.cover?.custom_url ?? user?.cover?.url ?? null;
-                if(cover_url){
-                    InspectorOsuUser.update({cover_url: cover_url}, {where: {user_id: user.id}});
+                if (cover_url) {
+                    InspectorOsuUser.update({ cover_url: cover_url }, { where: { user_id: user.id } });
                 }
             }
-        }catch(err){
+        } catch (err) {
         }
     }
 
@@ -158,16 +184,16 @@ async function GetOsuUsers(id_array, timeout = 5000) {
 
 module.exports.GetCountryLeaderboard = GetCountryLeaderboard;
 async function GetCountryLeaderboard() {
-    try{
+    try {
         const data = await InspectorCountryStat.findAll();
 
         //merge by country code
         let merged = [];
         data.forEach((row) => {
             let country = merged.find(c => c.country_code == row.country_code);
-            if(country){
+            if (country) {
                 country[row.stat] = row.value;
-            }else{
+            } else {
                 merged.push({
                     country_code: row.country_code,
                     [row.stat]: row.value
@@ -175,7 +201,7 @@ async function GetCountryLeaderboard() {
             }
         });
 
-        let regionNames = new Intl.DisplayNames(['en'], {type: 'region'});
+        let regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
         //add country name to each row
         merged.forEach((row) => {
             row.country = {
@@ -189,7 +215,7 @@ async function GetCountryLeaderboard() {
         });
 
         return merged;
-    }catch(err){
+    } catch (err) {
         return null;
     }
 
@@ -258,7 +284,7 @@ async function GetCountryLeaderboard() {
     //                 users2.country_code,
     //                 beatmap_id
     //         )
-            
+
     //         SELECT 
     //             count(*) as alt_scores, 
     //             sum(case when scores.rank LIKE 'XH' then 1 else 0 end) as ssh_count,
@@ -277,7 +303,7 @@ async function GetCountryLeaderboard() {
     //         INNER JOIN users2 ON scores.user_id = users2.user_id
     //         LEFT JOIN MaxScores max_scores ON users2.country_code = max_scores.country_code AND scores.beatmap_id = max_scores.beatmap_id
     //         GROUP BY users2.country_code;
-            
+
     //         `, 'osuAlt');
     //         console.log(_data);
     //         countries.forEach((country) => {
@@ -306,4 +332,100 @@ async function GetCountryLeaderboard() {
     //     }
     // }
     // return countries;
+}
+
+const DIFFICULTY_ATTRIBUTES = {
+    1: 'aim',
+    3: 'speed',
+    5: 'od',
+    7: 'ar',
+    9: 'max_combo',
+    11: 'strain',
+    13: 'hit_window_300',
+    15: 'score_multiplier',
+    17: 'flashlight_rating',
+    19: 'slider_factor',
+    21: 'speed_note_count',
+    23: 'speed_difficult_strain_count',
+    25: 'aim_difficult_strain_count',
+    27: 'hit_window_100',
+    29: 'mono_stamina_factor'
+}
+
+const BATCH_DIFF_DATA_FETCH = 1000;
+module.exports.ApplyDifficultyData = ApplyDifficultyData;
+async function ApplyDifficultyData(data, force_all_mods = false, custom_mods = null) {
+    const is_data_beatmap = data[0].beatmapset_id !== undefined || data[0].set_id !== undefined;
+
+    let cloned_data = JSON.parse(JSON.stringify(data));
+
+    let split_array = [];
+    while (cloned_data.length > 0) {
+        split_array.push(cloned_data.splice(0, BATCH_DIFF_DATA_FETCH));
+    }
+
+    let finished_scores = [];
+    let diff_data = [];
+    let index = 0;
+    let concurrent_queries = [];
+    for await (const _data of split_array) {
+        let beatmap_id_mod_pairs = [];
+        _data.forEach((__data) => {
+            let mods = custom_mods ? custom_mods : (force_all_mods ? undefined : CorrectMod(__data.enabled_mods));
+            let pair = {
+                beatmap_id: __data.beatmap_id,
+                mode: 0,
+                mods: mods
+            };
+
+            //unset mods if mods is undefined
+            if (pair.mods === undefined) {
+                delete pair.mods;
+            }
+
+            beatmap_id_mod_pairs.push(pair);
+        });
+
+        let concurrent_query = function (pairs, _index) {
+            return new Promise(async (resolve, reject) => {
+                let _diff_data = await InspectorBeatmapDifficulty.findAll({
+                    where: {
+                        [Sequelize.Op.or]: pairs
+                    },
+                    raw: true,
+                });
+                resolve(_diff_data);
+            }).then((_diff_data) => {
+                _diff_data.forEach((_diff) => {
+                    diff_data.push(_diff);
+                });
+            }).catch((err) => {
+                console.error(err);
+            });
+        }
+
+        concurrent_queries.push(concurrent_query(beatmap_id_mod_pairs, index));
+        index++;
+    }
+
+    await Promise.all(concurrent_queries);
+
+    for (let i = 0; i < data.length; i++) {
+        let _data = data[i];
+        let beatmap_id = _data.beatmap_id;
+        let mods = CorrectMod(_data.enabled_mods);
+        let _diff = diff_data.find(d => d.beatmap_id == beatmap_id && d.mods == mods);
+
+        if (_diff) {
+            if(is_data_beatmap){
+                _data.difficulty_data = _diff;
+            }else{
+                _data.beatmap.difficulty_data = _diff
+            }
+        }
+
+        finished_scores.push(_data);
+    }
+
+    return finished_scores;
 }

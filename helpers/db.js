@@ -39,6 +39,7 @@ const { InspectorBackgroundTagModel } = require('./models/InspectorBackgroundTag
 const { InspectorBackgroundTagPairModel } = require('./models/InspectorBackgroundTagPair.js');
 const { InspectorBackgroundSongSourceModel } = require('./models/InspectorBeatmapSongSource.js');
 const { InspectorBeatmapDifficultyModel } = require('./models/InspectorBeatmapDifficulty.js');
+const { AltScoreModsModel } = require('./models/AltScoreMods.js');
 require('dotenv').config();
 
 let databases = {
@@ -148,6 +149,7 @@ InspectorClan.hasMany(InspectorClanLogs, { as: 'logs', foreignKey: 'clan_id' });
 const AltUser = AltUserModel(databases.osuAlt);
 const AltPriorityUser = AltPriorityUserModel(databases.osuAlt);
 const AltScore = AltScoreModel(databases.osuAlt);
+const AltScoreMods = AltScoreModsModel(databases.osuAlt);
 const AltBeatmap = AltBeatmapModel(databases.osuAlt);
 const AltBeatmapEyup = AltBeatmapEyupModel(databases.osuAlt);
 const AltBeatmapSSRatio = AltBeatmapSSRatioModel(databases.osuAlt);
@@ -168,6 +170,9 @@ AltScore.hasOne(AltUser, { as: 'user', foreignKey: 'user_id', sourceKey: 'user_i
 AltUser.belongsTo(AltScore, { as: 'user', foreignKey: 'user_id', targetKey: 'user_id' });
 AltScore.hasOne(AltTopScore, { as: 'top_score', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
 AltTopScore.belongsTo(AltScore, { as: 'top_score', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
+//this one has user_id and beatmap_id as primary keys, we need both
+AltScore.hasOne(AltScoreMods, { as: 'modern_mods', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
+AltScoreMods.belongsTo(AltScore, { as: 'modern_mods', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
 
 AltBeatmap.hasOne(AltBeatmapEyup, { as: 'eyup_sr', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
 AltBeatmapEyup.belongsTo(AltBeatmap, { as: 'eyup_sr', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
@@ -222,6 +227,7 @@ module.exports.Tournament = Tournament;
 module.exports.AltUser = AltUser;
 module.exports.AltPriorityUser = AltPriorityUser;
 module.exports.AltScore = AltScore;
+module.exports.AltScoreMods = AltScoreMods;
 module.exports.AltTopScore = AltTopScore;
 module.exports.AltBeatmap = AltBeatmap;
 module.exports.AltBeatmapEyup = AltBeatmapEyup;

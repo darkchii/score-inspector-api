@@ -3,7 +3,7 @@ var apicache = require('apicache');
 var router = express.Router();
 const { GetBestScores, GetBeatmapScores } = require('../../helpers/osualt');
 const { getBeatmaps, getCompletionData, DefaultInspectorUser } = require('../../helpers/inspector');
-const { AltScore, AltBeatmap, AltBeatmapPack, InspectorScoreStat, Databases, AltTopScore, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, AltUser, InspectorClanMember, InspectorClan, GetHistoricalScoreRankModel, CheckConnection, AltScoreMods } = require('../../helpers/db');
+const { AltScore, AltModdedStars, AltBeatmap, AltBeatmapPack, InspectorScoreStat, Databases, AltTopScore, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, AltUser, InspectorClanMember, InspectorClan, GetHistoricalScoreRankModel, CheckConnection, AltScoreMods } = require('../../helpers/db');
 const { Op, Sequelize } = require('sequelize');
 const { CorrectedSqlScoreMods, db_now, all_mods_short } = require('../../helpers/misc');
 const request = require("supertest");
@@ -63,6 +63,10 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
                 where: {
                     user_id: {
                         [Op.eq]: Sequelize.col('Score.user_id')
+                    },
+                    date_played: {
+                        [Op.eq]: Sequelize.col('Score.date_played'),
+                        [Op.eq]: Sequelize.col('date_attributes'),
                     }
                 }
             },
@@ -80,7 +84,26 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
                     ...(req.query.beatmap_id ? { beatmap_id: req.query.beatmap_id } : {}), //for development purposes
                     ...(req.query.min_approved_date || req.query.max_approved_date ? { approved_date: { [Op.between]: [req.query.min_approved_date ?? '2000-01-01', req.query.max_approved_date ?? '2100-01-01'] } } : {}),
                 },
-                required: true
+                required: true,
+                include: [
+                    ...(include_modded ? [
+                        {
+                            // required: false,
+                            model: AltModdedStars,
+                            as: 'modded_sr',
+                            where: {
+                                [Op.and]: {
+                                    mods_enum: {
+                                        [Op.eq]: Sequelize.literal(CorrectedSqlScoreMods)
+                                    },
+                                    beatmap_id: {
+                                        [Op.eq]: Sequelize.literal('beatmap.beatmap_id')
+                                    },
+                                    ...(req.query.min_stars || req.query.max_stars ? { star_rating: { [Op.between]: [req.query.min_stars ?? 0, req.query.max_stars ?? 1000000000] } } : {}),
+                                }
+                            }
+                        }] : [])
+                ],
             },
             ...(!req.params.id ? [{
                 model: AltUser,
@@ -104,18 +127,19 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
                 }] : [])
         ],
         raw: true,
-        nest: true
+        nest: true,
+        logging: console.log
     });
 
     //if we have modern_mods, move the contents of score.modern_mods.mods to score.mods, and remove modern_mods
     scores.forEach(score => {
         if (score.modern_mods) {
-            score.mods = score.modern_mods.mods;
+            score.mods = score.modern_mods;
             delete score.modern_mods;
         }
     });
 
-    if(include_modded){
+    if (include_modded) {
         console.time('modded_stars');
         scores = await ApplyDifficultyData(scores);
         console.timeEnd('modded_stars');

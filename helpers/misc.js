@@ -72,6 +72,16 @@ module.exports.all_mods_short = {
     SV2: 536870912,
 }
 
+//these are difficulty adjusting mods
+const include_mods = [
+    2, //EZ
+    16, //HR
+    64, //DT
+    256, //HT
+    512, //NC
+    1024, //FL
+];
+
 module.exports.mod_multipliers = {
     [all_mods.None]: 1,
     [all_mods.Easy]: 0.5,
@@ -116,6 +126,9 @@ const excluded_mods = [
     2048, //AP
     4096, //SO
     16384, //PF
+    8192, //RX2
+    536870912, //SV2
+    1073741824, //Mirror
 ];
 module.exports.excluded_mods = excluded_mods;
 

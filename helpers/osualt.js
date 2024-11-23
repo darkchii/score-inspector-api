@@ -1,6 +1,6 @@
 const moment = require("moment/moment");
 const { Op, Sequelize, where } = require("sequelize");
-const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, Databases, InspectorUser, InspectorScoreStat, InspectorClanMember, InspectorClan, InspectorOsuUser } = require("./db");
+const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, Databases, InspectorUser, InspectorScoreStat, InspectorClanMember, InspectorClan, InspectorOsuUser, AltScoreMods } = require("./db");
 const { CorrectedSqlScoreMods, CorrectedSqlScoreModsCustom } = require("./misc");
 const { default: axios } = require("axios");
 const { GetOsuUsers, ApplyDifficultyData } = require("./osu");
@@ -63,7 +63,17 @@ const score_columns = `
     scores.rank, 
     scores.pp, 
     scores.accuracy, 
-    ${beatmap_columns}
+    ${beatmap_columns},
+    moddedsr.star_rating,
+    moddedsr.aim_diff,
+    moddedsr.speed_diff,
+    moddedsr.fl_diff,
+    moddedsr.slider_factor,
+    moddedsr.speed_note_count,
+    moddedsr.modded_od,
+    moddedsr.modded_ar,
+    moddedsr.modded_cs,
+    moddedsr.modded_hp
 `;
 
 const score_columns_full = `
@@ -81,7 +91,17 @@ const score_columns_full = `
     scores.rank, 
     scores.pp, 
     scores.accuracy, 
-    ${beatmap_columns}
+    ${beatmap_columns},
+    moddedsr.star_rating,
+    moddedsr.aim_diff,
+    moddedsr.speed_diff,
+    moddedsr.fl_diff,
+    moddedsr.slider_factor,
+    moddedsr.speed_note_count,
+    moddedsr.modded_od,
+    moddedsr.modded_ar,
+    moddedsr.modded_cs,
+    moddedsr.modded_hp,
     pack_id
     `;
 module.exports.score_columns = score_columns;
@@ -358,12 +378,31 @@ async function GetBestScores(period, stat, limit, loved = false) {
         data = rows[0];
 
         const users = await GetOsuUsers(data.map(x => x.user_id));
+        //find by user_id,beatmap_id pair
+        const modded_sr_rows = await AltScoreMods.findAll({
+            where: {
+                user_id: data.map(x => x.user_id),
+                beatmap_id: data.map(x => x.beatmap_id)
+            }
+        });
         for await (let score of data) {
             // add the beatmap data
             const beatmap_rows = await Databases.osuAlt.query(`
                 SELECT * FROM beatmaps 
                 WHERE beatmap_id = ${score.beatmap_id}`);
             score.beatmap = beatmap_rows[0]?.[0];
+
+            if (score.beatmap) {
+                // add the modded stars data
+                const modded_sr_rows = await Databases.osuAlt.query(`
+                SELECT * FROM moddedsr 
+                WHERE beatmap_id = ${score.beatmap_id} 
+                AND mods_enum = ${CorrectedSqlScoreModsCustom(score.enabled_mods)}`);
+                score.beatmap.modded_sr = modded_sr_rows[0]?.[0];
+                if (score.beatmap.modded_sr !== undefined) {
+                    score.beatmap.modded_sr['live'] = JSON.parse(JSON.stringify(modded_sr_rows[0]?.[0]));
+                }
+            }
 
             if (users) {
                 users.forEach(osu_user => {
@@ -372,13 +411,16 @@ async function GetBestScores(period, stat, limit, loved = false) {
                     }
                 });
             }
+
+            const modded_sr = modded_sr_rows.find(x => x.user_id == score.user_id && x.beatmap_id == score.beatmap_id);
+            if(modded_sr){
+                score.modern_mods = modded_sr.dataValues;
+            }
         }
 
         data = await ApplyDifficultyData(data);
-
         //remove scores that dont have a user
         data = data.filter(x => x.user);
-
         //limit to the requested amount
         data = data.slice(0, limit);
     } catch (err) {

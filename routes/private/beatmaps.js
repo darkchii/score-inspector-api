@@ -5,7 +5,7 @@ const { buildQuery, getFullUsers } = require('../../helpers/inspector');
 const { AltBeatmap, Databases, AltScore, InspectorBeatmapSongSource } = require('../../helpers/db');
 const { default: axios } = require('axios');
 const { GetBeatmaps } = require('../../helpers/osualt');
-const { GetBeatmaps: GetOsuBeatmaps, ApplyDifficultyData } = require('../../helpers/osu');
+const { GetBeatmaps: GetOsuBeatmaps } = require('../../helpers/osu');
 const { Op, Sequelize } = require('sequelize');
 const { CorrectMod } = require('../../helpers/misc');
 
@@ -156,9 +156,34 @@ router.get('/:id', cache('1 hour'), async (req, res) => {
         }
 
         if (mods) {
-            result = (await ApplyDifficultyData([result], false, mods))[0];
+            let res = {};
+            const correctedMods = CorrectMod(parseInt(mods));
+
+            const sr_result = await AltModdedStars.findOne({
+                where: {
+                    beatmap_id: req.params.id,
+                    mods_enum: correctedMods
+                }
+            });
+            res = { ...JSON.parse(JSON.stringify(sr_result)) };
+
+            sr_results.forEach(sr => {
+                const version = sr.version;
+                res[version] = sr;
+            });
+
+            if (res !== null) {
+                result.modded_sr = res;
+            }
         } else {
-            result = (await ApplyDifficultyData([result], true))[0];
+            const sr_result = await AltModdedStars.findAll({
+                where: {
+                    beatmap_id: req.params.id
+                }
+            });
+            if (sr_result !== null) {
+                result.modded_sr = sr_result;
+            }
         }
 
         const set_id = result.set_id;

@@ -193,7 +193,17 @@ const STAT_DATA = {
     'most_played_sets': { query: 'beatmaps', groupSets: true, beatmapQuery: 'sum(beatmaps.playcount)', table: 'array_table', fullFilter: 'approved in (1,2,4)', isArray: false, isBeatmaps: true, noScores: true, noModeCheck: true },
     'most_ssed': { query: 'beatmaps', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', scoreFilter: 'accuracy=100', isArray: false, isBeatmaps: true, direction: 'asc' },
     'most_fm_ssed': { query: 'beatmaps', table: 'array_table', scoreFilter: '(is_hd = true and is_hr = true and is_dt = true and is_fl = true and accuracy=100)', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true },
-    'longest_approval': { query: 'beatmaps', groupSets: true, beatmapQuery: 'EXTRACT(EPOCH FROM age(approved_date,submit_date))', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2)', isArray: false, isBeatmaps: true, noScores: true },
+    'longest_approval': { 
+        query: 'beatmaps', 
+        groupSets: true, 
+        beatmapQuery: 'EXTRACT(EPOCH FROM age(approved_date,submit_date))', 
+        table: 'array_table',
+        fullFilter: 'mode = 0 AND approved in (1,2)', 
+        isArray: false, 
+        isBeatmaps: true, 
+        noScores: true,
+        extra_output: 'approved_date'
+        },
     'longest_maps': { query: 'beatmaps', beatmapQuery: 'length', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true, noScores: true },
     'set_with_most_maps': { query: 'beatmaps', groupSets: true, beatmapQuery: 'count(*)', table: 'array_table', fullFilter: 'mode = 0 AND approved in (1,2,4)', isArray: false, isBeatmaps: true, noScores: true },
 }

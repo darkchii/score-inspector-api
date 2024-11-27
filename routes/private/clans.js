@@ -407,9 +407,9 @@ router.all('/get/:id', async (req, res, next) => {
                 medals: user?.alt?.medals ?? 0,
                 badges: user?.alt?.badges ?? 0
             }
-        }
 
-        _members.push(_data);
+            _members.push(_data);
+        }
     };
 
     const pending_members = _members.filter(m => m.pending == true);

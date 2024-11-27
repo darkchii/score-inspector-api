@@ -1,5 +1,5 @@
 const { Client } = require("pg");
-const { GetOsuUser, GetOsuUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET } = require("./osu");
+const { GetDailyUser, GetOsuUser, GetOsuUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET } = require("./osu");
 const { default: axios } = require("axios");
 const { range } = require("./misc");
 const { InspectorBeatmap, Databases, InspectorUser, InspectorRole, InspectorUserAccessToken, InspectorClan, InspectorClanMember } = require("./db");
@@ -465,7 +465,7 @@ function DefaultInspectorUser(inspector_user, username, osu_id) {
     return _inspector_user;
 }
 
-module.exports.getFullUsers = async function (user_ids, skippedData = { alt: false, score: false, osu: false, extras: false }, allowFallback = false, forceLocalAlt = false) {
+module.exports.getFullUsers = async function (user_ids, skippedData = { daily: false, alt: false, score: false, osu: false, extras: false }, allowFallback = false, forceLocalAlt = false, allowBanned = false) {
     //split ids in array of integers
     let ids = user_ids;
 
@@ -480,6 +480,7 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { alt: fal
     //we create arrays of each type of user data, and then we merge them together
     let inspector_users = [];
     let osu_users = [];
+    let daily_users = [];
     let alt_users = [];
     let score_ranks = [];
 
@@ -513,6 +514,11 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { alt: fal
             osu_users = users;
         }).catch(err => {
         }),
+        //daily users
+        skippedData.daily ? null : Promise.all(ids.map(id => GetDailyUser(id, 0, 'id'))).then(users => {
+            daily_users = users;
+        }).catch(err => {
+        }),
         //alt users
         skippedData.alt ? null : GetAltUsers(ids, ids.length === 1 && !skippedData.extras, forceLocalAlt).then(users => {
             alt_users = users;
@@ -544,7 +550,8 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { alt: fal
 
         let inspector_user = inspector_users.find(user => user.osu_id == id);
 
-        if (inspector_user && inspector_user.is_banned) return;
+        // if (inspector_user && inspector_user.is_banned) return;
+        if(!allowBanned && inspector_user && inspector_user.is_banned) return
 
         let alt_user = alt_users.find(user => user.user_id == id);
         let osu_user = osu_users.find(user => user.id == id);
@@ -563,6 +570,13 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { alt: fal
 
         user.inspector_user = DefaultInspectorUser(inspector_user, username, parseInt(id));
 
+        if (!skippedData.daily) {
+            try {
+                let daily_user = daily_users.find(user => user.osu_id == id);
+                user.daily = daily_user;
+            } catch (err) {
+            }
+        }
         data.push(user);
     });
 

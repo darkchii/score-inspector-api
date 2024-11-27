@@ -352,7 +352,7 @@ router.all('/get/:id', async (req, res, next) => {
     //use "ids" to get the missing users, then merge them with the full_users array
     const missing_ids = ids.filter(id => !full_users.find(u => u.alt?.user_id == id));
     if (missing_ids.length > 0) {
-        let missing_users = await getFullUsers(missing_ids, { daily: true, alt: true, score: true, osu: false }, true, true);
+        let missing_users = await getFullUsers(missing_ids, { daily: true, alt: true, score: true, osu: false }, true, true, true);
 
         full_users = full_users.map(u => {
             const missing_user = missing_users.find(mu => mu.osu?.id == u.inspector_user.osu_id);
@@ -380,42 +380,44 @@ router.all('/get/:id', async (req, res, next) => {
             }
         });
 
-        _data.user.extra = {
-            total_ss: user?.alt?.ss_count ?? 0,
-            total_ssh: user?.alt?.ssh_count ?? 0,
-            total_ss_both: (user?.alt?.ss_count ?? 0) + (user?.alt?.ssh_count ?? 0),
-            total_s: user?.alt?.s_count ?? 0,
-            total_sh: user?.alt?.sh_count ?? 0,
-            total_s_both: (user?.alt?.s_count ?? 0) + (user?.alt?.sh_count ?? 0),
-            total_a: user?.alt?.a_count ?? 0,
-            total_b: expanded_user?.b_count ?? 0,
-            total_c: expanded_user?.c_count ?? 0,
-            total_d: expanded_user?.d_count ?? 0,
-            total_pp: expanded_user?.total_pp ?? 0,
-            playcount: user?.alt?.playcount ?? 0,
-            playtime: user?.alt?.playtime ?? 0,
-            ranked_score: user?.alt?.ranked_score ?? 0,
-            total_score: user?.alt?.total_score ?? 0,
-            replays_watched: user?.alt?.replays_watched ?? 0,
-            total_hits: user?.alt?.total_hits ?? 0,
-            clears: (
-                (user?.alt?.ss_count ?? 0) +
-                (user?.alt?.s_count ?? 0) +
-                (user?.alt?.sh_count ?? 0) +
-                (user?.alt?.ssh_count ?? 0) +
-                (user?.alt?.a_count ?? 0) +
-                (expanded_user?.b_count ?? 0) +
-                (expanded_user?.c_count ?? 0) +
-                (expanded_user?.d_count ?? 0)),
-            accuracy: user?.alt?.hit_accuracy ?? 0,
-            level: user?.alt?.level ?? 0,
-            average_pp: user?.alt?.pp ?? 0, //not really average, but easier to be picked up by the frontend,
-            join_date: m.join_date,
-            medals: user?.alt?.medals ?? 0,
-            badges: user?.alt?.badges ?? 0
-        }
+        if (_data.user) {
+            _data.user.extra = {
+                total_ss: user?.alt?.ss_count ?? 0,
+                total_ssh: user?.alt?.ssh_count ?? 0,
+                total_ss_both: (user?.alt?.ss_count ?? 0) + (user?.alt?.ssh_count ?? 0),
+                total_s: user?.alt?.s_count ?? 0,
+                total_sh: user?.alt?.sh_count ?? 0,
+                total_s_both: (user?.alt?.s_count ?? 0) + (user?.alt?.sh_count ?? 0),
+                total_a: user?.alt?.a_count ?? 0,
+                total_b: expanded_user?.b_count ?? 0,
+                total_c: expanded_user?.c_count ?? 0,
+                total_d: expanded_user?.d_count ?? 0,
+                total_pp: expanded_user?.total_pp ?? 0,
+                playcount: user?.alt?.playcount ?? 0,
+                playtime: user?.alt?.playtime ?? 0,
+                ranked_score: user?.alt?.ranked_score ?? 0,
+                total_score: user?.alt?.total_score ?? 0,
+                replays_watched: user?.alt?.replays_watched ?? 0,
+                total_hits: user?.alt?.total_hits ?? 0,
+                clears: (
+                    (user?.alt?.ss_count ?? 0) +
+                    (user?.alt?.s_count ?? 0) +
+                    (user?.alt?.sh_count ?? 0) +
+                    (user?.alt?.ssh_count ?? 0) +
+                    (user?.alt?.a_count ?? 0) +
+                    (expanded_user?.b_count ?? 0) +
+                    (expanded_user?.c_count ?? 0) +
+                    (expanded_user?.d_count ?? 0)),
+                accuracy: user?.alt?.hit_accuracy ?? 0,
+                level: user?.alt?.level ?? 0,
+                average_pp: user?.alt?.pp ?? 0, //not really average, but easier to be picked up by the frontend,
+                join_date: m.join_date,
+                medals: user?.alt?.medals ?? 0,
+                badges: user?.alt?.badges ?? 0
+            }
 
-        _members.push(_data);
+            _members.push(_data);
+        }
     };
 
     const pending_members = _members.filter(m => m.pending == true);

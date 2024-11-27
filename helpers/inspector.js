@@ -465,7 +465,7 @@ function DefaultInspectorUser(inspector_user, username, osu_id) {
     return _inspector_user;
 }
 
-module.exports.getFullUsers = async function (user_ids, skippedData = { daily: false, alt: false, score: false, osu: false, extras: false }, allowFallback = false, forceLocalAlt = false, allowBanned = false) {
+module.exports.getFullUsers = async function (user_ids, skippedData = { alt: false, score: false, osu: false, extras: false }, allowFallback = false, forceLocalAlt = false, allowBanned = false) {
     //split ids in array of integers
     let ids = user_ids;
 

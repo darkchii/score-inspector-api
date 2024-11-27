@@ -105,6 +105,14 @@ router.get('/list', async (req, res, next) => {
         }
     });
 
+    sliced_clans = sliced_clans.map(c => c.dataValues);
+
+    //add owner_user to each clan
+    for await (const clan of sliced_clans) {
+        const owner = await GetInspectorUser(clan.owner);
+        clan.owner_user = owner;
+    }
+
     res.json({
         clans: sliced_clans,
         query_clans: clans.length,
@@ -1092,6 +1100,16 @@ router.post('/leave', async (req, res, next) => {
     res.json({ success: true });
 });
 
+router.get('/rankings/months', async (req, res, next) => {
+    //get all clan ranking months that are available
+    const months = await InspectorClanRanking.findAll({
+        attributes: ['date']
+    });
+
+    //return as array
+    res.json(months.map(m => m.date));
+});
+
 router.get('/rankings/:date?', async (req, res, next) => {
     //month is month or current month (utc)
     try {
@@ -1131,6 +1149,18 @@ router.get('/rankings/:date?', async (req, res, next) => {
             const score = clan.ranking_prepared.top_score;
             const user = await GetInspectorUser(score.user_id);
             score.user = user;
+        }
+
+        // console.log(parsed_data.total_scores[0].owner);
+        //we need to fetch user data for each clan owner
+        for await(const stat of Object.keys(parsed_data)) {
+            const stat_obj = parsed_data[stat];
+            if(stat_obj && Array.isArray(stat_obj)){
+                for await(const clan of stat_obj) {
+                    const user = await GetInspectorUser(clan.owner);
+                    clan.owner_user = user;
+                }
+            }
         }
 
         res.json({

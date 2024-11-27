@@ -577,6 +577,7 @@ router.get('/today', cache('10 minutes'), async function (req, res, next) {
     try {
         // await Databases.osuAlt.authenticate();
         await CheckConnection(Databases.osuAlt);
+        const blacklist = [647309];
 
         const users_limit = req.query.users_limit || 10;
         const specific_user_id = req.query.user_id || undefined;
@@ -598,6 +599,7 @@ router.get('/today', cache('10 minutes'), async function (req, res, next) {
             const top_query = `
                 ${base_query}
                 WHERE date_played >= date_trunc('day',${db_now})
+                AND scores.user_id NOT IN (${blacklist.join(',')})
                 GROUP BY scores.user_id
                 ORDER BY value DESC `;
 
@@ -634,13 +636,13 @@ router.get('/today', cache('10 minutes'), async function (req, res, next) {
         const client = request(req.app);
         const users = await client.get(`/users/full/${user_ids.join(',')}?force_array=false&skipOsuData=true`).set('Origin', req.headers.origin || req.headers.host);
 
-        console.log(users.body);
         for (let index = 0; index < data.length; index++) {
             const row = data[index];
-            console.log(row);
             row.rank = parseInt(row.rank);
-            row.user = _.cloneDeep(users.body.find(user => user.alt.user_id === row.user_id));
-            row.user.alt = undefined;
+            row.user = _.cloneDeep(users.body.find(user => user.alt?.user_id === row.user_id));
+            if (row.user && row.user.alt) {
+                row.user.alt = undefined;
+            }
         }
         //reformat each category into their own array
         const categories = {};

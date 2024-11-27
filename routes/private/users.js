@@ -188,7 +188,7 @@ router.get('/full/:ids', cache('10 minutes'), async (req, res, next) => {
       ids = users.map(u => u.user_id);
     }
 
-    const data = await getFullUsers(ids, skippedData, false, req.query.force_alt_data === 'true');
+    const data = await getFullUsers(ids, skippedData, false, req.query.force_alt_data === 'true', true);
 
     if (ids.length === 1 && (req.query.force_array === undefined || req.query.force_array === 'false')) {
       //old way of returning user, we keep it for compatibility so we don't have to change the frontend

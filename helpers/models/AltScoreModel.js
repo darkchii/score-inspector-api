@@ -17,7 +17,7 @@ const AltScoreModel = (db) => db.define('Score', {
         allowNull: false,
         get() {
             const rawValue = this.getDataValue('date_played');
-            return moment(rawValue).format('YYYY-MM-DDTHH:mm:ss[Z]');
+            return moment.utc(rawValue).format('YYYY-MM-DDTHH:mm:ss[Z]');
         },
     },
     rank: { type: Sequelize.STRING, allowNull: false, },

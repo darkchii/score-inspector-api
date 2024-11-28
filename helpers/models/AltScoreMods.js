@@ -27,6 +27,8 @@ const AltScoreModsModel = (db) => db.define('ScoreMods', {
     slider_factor: { type: Sequelize.FLOAT },
     max_combo: { type: Sequelize.INTEGER },
     date_attributes: { type: Sequelize.DATE },
+    statistics: { type: Sequelize.JSONB },
+    maximum_statistics: { type: Sequelize.JSONB },
 }, {
     tableName: 'scoresmods',
     timestamps: false,

@@ -13,11 +13,10 @@ const AltScoreModel = (db) => db.define('Score', {
     perfect: { type: Sequelize.INTEGER, allowNull: false, },
     enabled_mods: { type: Sequelize.INTEGER, allowNull: false },
     date_played: {
-        type: Sequelize.DATE,
-        allowNull: false,
+        type: Sequelize.DATE, allowNull: false,
         get() {
             const rawValue = this.getDataValue('date_played');
-            return moment.utc(rawValue).format('YYYY-MM-DDTHH:mm:ss[Z]');
+            return moment(rawValue).format('YYYY-MM-DDTHH:mm:ss[Z]');
         },
     },
     rank: { type: Sequelize.STRING, allowNull: false, },

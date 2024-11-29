@@ -37,7 +37,7 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
             }
         }
     }
-    let scores = await AltScore.findAll({
+    let _scores = await AltScore.findAll({
         where: {
             ...req.params.id ? { user_id: req.params.id } : {},
             ...req.query.min_score || req.query.max_score ? { score: { [Op.between]: [req.query.min_score ?? 0, req.query.max_score ?? 100000000000] } } : {},
@@ -126,10 +126,12 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
                     required: false,
                 }] : [])
         ],
-        raw: true,
+        // raw: true,
         nest: true,
         logging: console.log
     });
+
+    let scores = _scores.map(row => row.toJSON());
 
     //if we have modern_mods, move the contents of score.modern_mods.mods to score.mods, and remove modern_mods
     scores.forEach(score => {

@@ -26,7 +26,12 @@ const AltScoreModsModel = (db) => db.define('ScoreMods', {
     drain_rate: { type: Sequelize.FLOAT },
     slider_factor: { type: Sequelize.FLOAT },
     max_combo: { type: Sequelize.INTEGER },
-    date_attributes: { type: Sequelize.DATE },
+    date_attributes: {
+        type: Sequelize.DATE, allowNull: true, get() {
+            const rawValue = this.getDataValue('date_attributes');
+            return moment(rawValue).format('YYYY-MM-DDTHH:mm:ss[Z]');
+        },
+    },
     statistics: { type: Sequelize.JSONB },
     maximum_statistics: { type: Sequelize.JSONB },
 }, {

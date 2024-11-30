@@ -6,6 +6,7 @@ const { InspectorBeatmap, Databases, InspectorUser, InspectorRole, InspectorUser
 const { Sequelize } = require("sequelize");
 const { GetAltUsers } = require("./osualt");
 const moment = require("moment");
+const { DefaultInspectorUser } = require("./user");
 require('dotenv').config();
 
 module.exports.GetInspectorUser = GetInspectorUser;
@@ -450,19 +451,6 @@ async function GetToken(user_id) {
     });
 
     return result;
-}
-
-module.exports.DefaultInspectorUser = DefaultInspectorUser;
-function DefaultInspectorUser(inspector_user, username, osu_id) {
-    let _inspector_user = inspector_user;
-    if (!inspector_user || inspector_user === null || inspector_user === undefined || inspector_user?.id === null) {
-        _inspector_user = {
-            known_username: username,
-            osu_id: osu_id,
-            roles: []
-        }
-    }
-    return _inspector_user;
 }
 
 module.exports.getFullUsers = async function (user_ids, skippedData = { alt: false, score: false, osu: false, extras: false }, allowFallback = false, forceLocalAlt = false, allowBanned = false) {

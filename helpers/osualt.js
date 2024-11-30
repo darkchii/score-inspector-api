@@ -1,9 +1,10 @@
 const moment = require("moment/moment");
 const { Op, Sequelize, where } = require("sequelize");
-const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, Databases, InspectorUser, InspectorScoreStat, InspectorClanMember, InspectorClan, InspectorOsuUser, AltScoreMods } = require("./db");
+const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, Databases, InspectorUser, InspectorScoreStat, InspectorClanMember, InspectorClan, InspectorOsuUser, AltScoreMods, AltModdedStars, AltTopScore, AltBeatmapPack } = require("./db");
 const { CorrectedSqlScoreMods, CorrectedSqlScoreModsCustom } = require("./misc");
 const { default: axios } = require("axios");
 const { GetOsuUsers, ApplyDifficultyData } = require("./osu");
+const { DefaultInspectorUser } = require("./user");
 require('dotenv').config();
 
 const beatmap_columns = `
@@ -583,4 +584,197 @@ async function GetPopulation() {
         throw new Error(err.message);
     }
     return data;
+}
+
+module.exports.GetScores = GetScores;
+async function GetScores(req, score_attributes = undefined, beatmap_attributes = undefined) {
+    const include_modded = req.query.ignore_modded_stars !== 'true';
+    const _mods = req.query.mods;
+    const split_mods = _mods ? _mods.split(',') : [];
+    const mods_bit_values = split_mods.map(mod => all_mods_short[mod]);
+    let _user_id = undefined;
+    if(req.query.user_id) {
+        if(Array.isArray(req.query.user_id)) {
+            _user_id = req.query.user_id;
+        } else {
+            _user_id = [req.query.user_id];
+        }
+    }
+    let _enabled_mods = {};
+    if (req.query.mods) {
+        //we do NOT correct any mods here
+        //enabled_mods is a varchar in database, keep that in mind
+        if (req.query.mods === 'NM') {
+            _enabled_mods[Op.eq] = '0';
+        } else {
+            if (req.query.mods_usage === 'all') {
+                //enabled_mods must contain all mods
+                _enabled_mods[Op.eq] = '' + mods_bit_values.reduce((ps, a) => ps + a, 0);
+            } else {
+                //enabled_mods must contain any of the mods
+                //Op.bitwiseAnd is not a thing, use raw sql for this
+                _enabled_mods[Op.or] = mods_bit_values.map(mod => {
+                    return Sequelize.literal(`(CAST("Score"."enabled_mods" AS int) & ${mod}) = ${mod}`);
+                });
+            }
+        }
+    }
+
+    console.log(`Getting scores for ${_user_id}`);
+    let _scores = await AltScore.findAll({
+        where: {
+            ..._user_id ? { user_id: { [Op.in]: _user_id } } : {},
+            ...req.query.min_score || req.query.max_score ? { score: { [Op.between]: [req.query.min_score ?? 0, req.query.max_score ?? 100000000000] } } : {},
+            ...req.query.min_pp || req.query.max_pp ? { pp: { [Op.between]: [req.query.min_pp ?? 0, req.query.max_pp ?? 100000000000] } } : {},
+            ...req.query.min_acc || req.query.max_acc ? { accuracy: { [Op.between]: [req.query.min_acc ?? 0, req.query.max_acc ?? 101] } } : {},
+            ...req.query.min_combo || req.query.max_combo ? { combo: { [Op.between]: [req.query.min_combo ?? 0, req.query.max_combo ?? 1000000000] } } : {},
+            //for mods we check if enabled_mods & mod == mod, depending on mods_usage we use AND or OR, we do NOT correct the mods here
+            ...req.query.mods ? {
+                enabled_mods: _enabled_mods
+            } : {},
+            ...req.query.grades ? { rank: { [Op.in]: req.query.grades.split(',') } } : {},
+            ...req.query.min_played_date || req.query.max_played_date ? { date_played: { [Op.between]: [req.query.min_played_date ?? '2000-01-01', req.query.max_played_date ?? '2100-01-01'] } } : {},
+        },
+        order: req.query.order ? [[req.query.order, req.query.order_dir ?? 'DESC']] : undefined,
+        limit: req.query.limit ?? undefined,
+        offset: req.query.offset ?? undefined,
+        include: [
+            {
+                model: AltScoreMods,
+                as: 'modern_mods',
+                required: false,
+                //where clause should only check if user_id matches score.user_id
+                where: {
+                    user_id: {
+                        [Op.eq]: Sequelize.col('Score.user_id')
+                    },
+                    date_played: {
+                        [Op.eq]: Sequelize.col('Score.date_played'),
+                        [Op.eq]: Sequelize.col('date_attributes'),
+                    }
+                }
+            },
+            {
+                model: AltBeatmap,
+                as: 'beatmap',
+                where: {
+                    ...(req.query.beatmap_id ? { beatmap_id: req.query.beatmap_id } : {}),
+                    ...(req.query.approved ? { [Op.or]: req.query.approved.split(',').map(approved => { return { approved: approved } }) } : {}),
+                    ...(req.query.min_ar || req.query.max_ar ? { ar: { [Op.between]: [req.query.min_ar ?? 0, req.query.max_ar ?? 1000000000] } } : {}),
+                    ...(req.query.min_od || req.query.max_od ? { od: { [Op.between]: [req.query.min_od ?? 0, req.query.max_od ?? 1000000000] } } : {}),
+                    ...(req.query.min_hp || req.query.max_hp ? { hp: { [Op.between]: [req.query.min_hp ?? 0, req.query.max_hp ?? 1000000000] } } : {}),
+                    ...(req.query.min_length || req.query.max_length ? { length: { [Op.between]: [req.query.min_length ?? 0, req.query.max_length ?? 1000000000] } } : {}),
+                    //approved: { [Op.in]: [1, 2, req.query.include_loved === 'true' ? 4 : 1] },
+                    ...(req.query.beatmap_id ? { beatmap_id: req.query.beatmap_id } : {}), //for development purposes
+                    ...(req.query.min_approved_date || req.query.max_approved_date ? { approved_date: { [Op.between]: [req.query.min_approved_date ?? '2000-01-01', req.query.max_approved_date ?? '2100-01-01'] } } : {}),
+                },
+                required: true,
+                include: [
+                    ...(include_modded ? [
+                        {
+                            // required: false,
+                            model: AltModdedStars,
+                            as: 'modded_sr',
+                            where: {
+                                [Op.and]: {
+                                    mods_enum: {
+                                        [Op.eq]: Sequelize.literal(CorrectedSqlScoreMods)
+                                    },
+                                    beatmap_id: {
+                                        [Op.eq]: Sequelize.literal('beatmap.beatmap_id')
+                                    },
+                                    ...(req.query.min_stars || req.query.max_stars ? { star_rating: { [Op.between]: [req.query.min_stars ?? 0, req.query.max_stars ?? 1000000000] } } : {}),
+                                }
+                            }
+                        }] : [])
+                ],
+            },
+            ...(!req.params?.id ? [{
+                model: AltUser,
+                as: 'user',
+                required: true,
+                where: {
+                    ...(req.query.min_rank || req.query.max_rank ? { global_rank: { [Op.between]: [req.query.min_rank ?? 0, req.query.max_rank ?? 1000000000] } } : {}),
+                    //country is comma separated, so we split it, if 'world' is in the array, we don't filter by country at all
+                    //entire country code is capitalized in the database
+                    ...(req.query.country && req.query.country !== 'world' ? { country_code: { [Op.or]: req.query.country.split(',').map(country => { return { [Op.iLike]: `%${country}%` } }) } } : {}),
+                }
+            }] : []),
+        ],
+        // raw: true,
+        nest: true,
+    });
+
+    let scores = _scores.map(row => row.toJSON());
+
+    //if we have modern_mods, move the contents of score.modern_mods.mods to score.mods, and remove modern_mods
+    scores.forEach(score => {
+        if (score.modern_mods) {
+            score.mods = score.modern_mods;
+            delete score.modern_mods;
+        }
+    });
+
+    if (include_modded) {
+        console.time('modded_stars');
+        scores = await ApplyDifficultyData(scores);
+        console.timeEnd('modded_stars');
+    }
+
+    if (!req.params?.id) {
+        //add user data after the fact, since we don't need it in the massive query
+        const inspectorUsers = await InspectorUser.findAll({
+            where: { osu_id: scores.map(row => row.user_id) },
+            include: [
+                {
+                    model: InspectorClanMember,
+                    attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
+                    as: 'clan_member',
+                    include: [{
+                        model: InspectorClan,
+                        attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
+                        as: 'clan',
+                    }]
+                }
+            ]
+        });
+
+        for (let i = 0; i < scores.length; i++) {
+            scores[i].inspector_user = DefaultInspectorUser(inspectorUsers.find(user => user.osu_id === scores[i].user_id), scores[i].user.username, scores[i].user_id);
+        }
+    }
+
+    if (req.query.include_packs !== 'false') {
+        let beatmap_set_ids = scores.map(score => score.beatmap.set_id);
+        let beatmap_ids = scores.map(score => score.beatmap.beatmap_id);
+        //remove duplicates and nulls
+        beatmap_set_ids = [...new Set(beatmap_set_ids)].filter(id => id);
+        beatmap_ids = [...new Set(beatmap_ids)].filter(id => id);
+
+        const beatmap_packs = await AltBeatmapPack.findAll({
+            where: {
+                beatmap_id: {
+                    [Op.in]: beatmap_ids
+                }
+            },
+            raw: true,
+            nest: true
+        });
+
+        let _beatmap_packs = {};
+        beatmap_packs.forEach(pack => {
+            if (!_beatmap_packs[pack.beatmap_id]) {
+                _beatmap_packs[pack.beatmap_id] = [];
+            }
+
+            _beatmap_packs[pack.beatmap_id].push(pack);
+        });
+
+        for (const score of scores) {
+            score.beatmap.packs = _beatmap_packs[score.beatmap_id] ?? [];
+        }
+    }
+
+    return scores;
+    // return [];
 }

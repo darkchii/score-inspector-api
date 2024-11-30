@@ -4,6 +4,7 @@ const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, Inspec
 const { Op } = require('sequelize');
 const { IsUserClanOwner } = require('../../helpers/clans');
 const { validateString } = require('../../helpers/misc');
+const { GetScores } = require('../../helpers/osualt');
 const router = express.Router();
 require('dotenv').config();
 
@@ -477,7 +478,24 @@ router.all('/get/:id', async (req, res, next) => {
         }
     });
 
-    res.json({ clan: clan, stats: stats, members: full_members, owner: owner, ranking: rankings, pending_members: pending_members, logs: logs, logs_user_data: log_users });
+    let activities = undefined;
+    if(req.query.activities == 'true') {
+        const s = await GetScores({
+            query: {
+                user_id: full_members.map(m => m.user?.osu?.id ?? m.user?.alt?.user_id),
+                limit: 100,
+                order: 'date_played',
+                order_dir: 'DESC',
+                min_played_date: new Date(new Date().getTime() - 2592000000) //30 days
+            }
+        });
+
+        activities = {
+            scores: s
+        }
+    }
+
+    res.json({ clan: clan, activities: activities, stats: stats, members: full_members, owner: owner, ranking: rankings, pending_members: pending_members, logs: logs, logs_user_data: log_users });
 });
 
 router.post('/update', async (req, res, next) => {

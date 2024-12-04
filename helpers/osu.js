@@ -397,11 +397,6 @@ async function ApplyDifficultyData(scores, force_all_mods = false, custom_mods =
             score.statistics = score.beatmap.difficulty_data.statistics ?? null;
             score.maximum_statistics = score.beatmap.difficulty_data.maximum_statistics ?? null;
 
-            if(score.statistics && !score.statistics.slider_tail_hit && !score.maximum_statistics.slider_tail_hit){
-                score.statistics.slider_tail_hit = score.beatmap.sliders;
-                score.maximum_statistics.slider_tail_hit = score.beatmap.sliders;
-            }
-
             delete score.beatmap.difficulty_data.statistics;
             delete score.beatmap.difficulty_data.maximum_statistics
         }

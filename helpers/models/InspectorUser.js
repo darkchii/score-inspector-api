@@ -7,6 +7,8 @@ const InspectorUserModel = (db) => db.define('User', {
     background_image: { type: Sequelize.STRING, allowNull: true, },
     is_visitors_public: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: false, },
     is_banned: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: false, },
+    is_private: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: false, }, //hides the full profile from public
+    is_completion_mode: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: false, }, //hides parts of the profile from public
 }, {
     tableName: 'inspector_users',
     timestamps: false

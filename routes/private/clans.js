@@ -479,7 +479,7 @@ router.all('/get/:id', async (req, res, next) => {
     });
 
     let activities = undefined;
-    if(req.query.activities == 'true') {
+    if (req.query.activities == 'true') {
         const s = await GetScores({
             query: {
                 user_id: full_members.map(m => m.user?.osu?.id ?? m.user?.alt?.user_id),
@@ -495,7 +495,27 @@ router.all('/get/:id', async (req, res, next) => {
         }
     }
 
-    res.json({ clan: clan, activities: activities, stats: stats, members: full_members, owner: owner, ranking: rankings, pending_members: pending_members, logs: logs, logs_user_data: log_users });
+    let competition = [];
+    const comp_data = await InspectorClanRanking.findAll();
+    for (const comp of comp_data) {
+        const data = JSON.parse(comp.data);
+        for (const key of Object.keys(data)) {
+            if(key === "global_stats" || key === "update_date") continue;
+            
+            const index = data[key].findIndex(c => c.id == clan_id);
+            if(index === -1 || index > 2) continue;
+
+            const competition_data = {
+                name: key,
+                date: comp_data.date,
+                position: index + 1,
+                data: data[key][index].ranking_prepared
+            }
+            competition.push(competition_data);
+        }
+    }
+
+    res.json({ clan: clan, activities: activities, competition: competition, stats: stats, members: full_members, owner: owner, ranking: rankings, pending_members: pending_members, logs: logs, logs_user_data: log_users });
 });
 
 router.post('/update', async (req, res, next) => {
@@ -1120,16 +1140,6 @@ router.post('/leave', async (req, res, next) => {
     res.json({ success: true });
 });
 
-router.get('/rankings/months', async (req, res, next) => {
-    //get all clan ranking months that are available
-    const months = await InspectorClanRanking.findAll({
-        attributes: ['date']
-    });
-
-    //return as array
-    res.json(months.map(m => m.date));
-});
-
 router.get('/rankings/:date?', async (req, res, next) => {
     //month is month or current month (utc)
     try {
@@ -1173,10 +1183,10 @@ router.get('/rankings/:date?', async (req, res, next) => {
 
         // console.log(parsed_data.total_scores[0].owner);
         //we need to fetch user data for each clan owner
-        for await(const stat of Object.keys(parsed_data)) {
+        for await (const stat of Object.keys(parsed_data)) {
             const stat_obj = parsed_data[stat];
-            if(stat_obj && Array.isArray(stat_obj)){
-                for await(const clan of stat_obj) {
+            if (stat_obj && Array.isArray(stat_obj)) {
+                for await (const clan of stat_obj) {
                     const user = await GetInspectorUser(clan.owner);
                     clan.owner_user = user;
                 }
@@ -1191,6 +1201,16 @@ router.get('/rankings/:date?', async (req, res, next) => {
         res.json({ error: err.message });
         return
     }
+});
+
+router.get('/rankings/months', async (req, res, next) => {
+    //get all clan ranking months that are available
+    const months = await InspectorClanRanking.findAll({
+        attributes: ['date']
+    });
+
+    //return as array
+    res.json(months.map(m => m.date));
 });
 
 module.exports = router;

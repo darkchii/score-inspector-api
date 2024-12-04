@@ -453,7 +453,7 @@ async function GetToken(user_id) {
     return result;
 }
 
-module.exports.getFullUsers = async function (user_ids, skippedData = { alt: false, score: false, osu: false, extras: false }, allowFallback = false, forceLocalAlt = false, allowBanned = false) {
+module.exports.getFullUsers = async function (user_ids, skippedData = { alt: false, score: false, osu: false, extras: false }, allowFallback = false, forceLocalAlt = false) {
     //split ids in array of integers
     let ids = user_ids;
 
@@ -531,9 +531,6 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { alt: fal
         let user = {};
 
         let inspector_user = inspector_users.find(user => user.osu_id == id);
-
-        // if (inspector_user && inspector_user.is_banned) return;
-        if(!allowBanned && inspector_user && inspector_user.is_banned) return
 
         let alt_user = alt_users.find(user => user.user_id == id);
         let osu_user = osu_users.find(user => user.id == id);

@@ -66,6 +66,7 @@ router.get('/beatmap/:id', cache('1 hour'), async function (req, res, next) {
 
 router.get('/completion/:id', cache('1 hour'), async function (req, res, next) {
     try {
+        req.query.user_id = req.params.id;
         req.query.ignore_modded_stars = 'true';
         const scores = await GetScores(req, ['beatmap_id'], ['beatmap_id', 'approved_date', 'length', 'stars', 'cs', 'ar', 'od', 'hp', 'approved', 'max_combo']);
         const beatmaps = await getBeatmaps({

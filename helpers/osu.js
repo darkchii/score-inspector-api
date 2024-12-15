@@ -368,11 +368,15 @@ async function GetBeatmapAttributes(beatmap_id, mods, timeout = 10000) {
 module.exports.ConvertOsuScoreResultToInspectorScore = ConvertOsuScoreResultToInspectorScore;
 async function ConvertOsuScoreResultToInspectorScore(score, user) {
     const attributes = await GetBeatmapAttributes(score.beatmap.id, score.mods);
+    if (score.beatmap.id == 2844649) {
+        console.log(score);
+    }
+
 
     let inspector_score = {
         user_id: score.user.id,
         beatmap_id: score.beatmap.id,
-        score: score.legacy_total_score ?? score.classic_total_score ?? score.total_score,
+        // score: score.legacy_total_score ?? score.classic_total_score ?? score.total_score,
         count300: score.statistics.great ?? 0,
         count100: score.statistics.meh ?? 0,
         count50: score.statistics.ok ?? 0,
@@ -387,6 +391,16 @@ async function ConvertOsuScoreResultToInspectorScore(score, user) {
         accuracy: score.accuracy * 100,
         mods: score.mods,
     };
+
+
+    inspector_score.score = score.legacy_total_score;
+    if (!inspector_score.score || inspector_score.score == 0) {
+        inspector_score.score = score.classic_total_score;
+    }
+
+    if (!inspector_score.score || inspector_score.score == 0) {
+        inspector_score.score = score.total_score;
+    }
 
     inspector_score.beatmap = {
         beatmap_id: score.beatmap.id,

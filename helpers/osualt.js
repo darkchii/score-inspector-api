@@ -364,11 +364,13 @@ async function GetBestScores(period, stat, limit, loved = false) {
 
         //create a subquery which orders and limits the scores, then afterwards join the users and beatmaps
         const query = `
-            SELECT *
+            SELECT scores.*
             FROM scores
+            INNER JOIN beatmaps ON scores.beatmap_id = beatmaps.beatmap_id
             WHERE ${stat} > 0 AND ${stat} IS NOT NULL AND ${stat} <> 'NaN'::NUMERIC
             ${period_check_query ? `AND ${period_check_query}` : ''}
             AND user_id in (select user_id from users2)
+            AND beatmaps.approved IN (1, 2, ${loved ? 4 : 1})
             ORDER BY ${stat} DESC
             LIMIT ${limit}
         `;
@@ -620,7 +622,6 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
         }
     }
 
-    console.log(`Getting scores for ${_user_id}`);
     let _scores = await AltScore.findAll({
         where: {
             ..._user_id ? { user_id: { [Op.in]: _user_id } } : {},
@@ -716,9 +717,7 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
     });
 
     if (include_modded) {
-        console.time('modded_stars');
         scores = await ApplyDifficultyData(scores);
-        console.timeEnd('modded_stars');
     }
 
     if (!req.params?.id) {

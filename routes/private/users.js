@@ -1,6 +1,6 @@
 const express = require('express');
 var apicache = require('apicache');
-const { GetUsers, GetUserBeatmaps, MODE_SLUGS, GetOsuUser, GetOsuUserScores, ConvertOsuScoreResultToInspectorScore } = require('../../helpers/osu');
+const { GetUsers, GetUserBeatmaps, MODE_SLUGS, GetOsuUser, GetOsuUserScores, ConvertOsuScoreResultToInspectorScore, MODS } = require('../../helpers/osu');
 const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser, GetPopulation, GetScores } = require('../../helpers/osualt');
 const { getFullUsers } = require('../../helpers/inspector');
 const { InspectorCompletionist, AltUser, Databases, AltBeatmap, InspectorOsuUser, GetHistoricalScoreRankModel } = require('../../helpers/db');
@@ -467,7 +467,6 @@ router.get('/wrapped/:id', cache('1 hour'), async (req, res) => {
       data.top_pp_scores.push(inspector_score);
     }
 
-
     if (osu_top_plays.length < WRAPPED_SCORE_COUNT) {
       let filler_pp_scores = await GetScores({
         query: {
@@ -520,6 +519,63 @@ router.get('/wrapped/:id', cache('1 hour'), async (req, res) => {
     for await (const score of data.top_score_scores) {
       score.beatmap.cover = await getDataImageFromUrl(`https://assets.ppy.sh/beatmaps/${score.beatmap.set_id}/covers/cover.jpg`);
     }
+
+    //get most used mods
+    const mod_counts = {};
+    const mods_data = await Databases.osuAlt.query(`
+      SELECT
+        scores.beatmap_id,
+        enabled_mods,
+        scoresmods.mods
+      FROM scores
+      ${JOINS}
+      LEFT JOIN scoresmods ON scores.beatmap_id = scoresmods.beatmap_id AND scores.user_id = scoresmods.user_id AND scores.date_played = scoresmods.date_played
+      ${WHERES}
+      `, {
+      replacements: {
+        user_id: req.params.id,
+        start_date: `${WRAPPED_YEAR}-01-01 00:00:00`,
+        end_date: `${WRAPPED_YEAR + 1}-01-01 00:00:00`
+      }
+    });
+
+    for (const score of mods_data?.[0]) {
+      if (score.mods) {
+        for (const mod of score.mods) {
+          if (!mod_counts[mod.acronym]) {
+            mod_counts[mod.acronym] = 1;
+          } else {
+            mod_counts[mod.acronym]++;
+          }
+        }
+      } else {
+        const score_mods = score.enabled_mods;
+
+        mod_counts["CL"] = mod_counts["CL"] ? mod_counts["CL"] + 1 : 1;
+        for (let i = 0; i < MODS.length; i++) {
+          if (score_mods & (1 << i)) {
+            const mod = MODS[i];
+            if (!mod_counts[mod]) {
+              mod_counts[mod] = 1;
+            } else {
+              mod_counts[mod]++;
+            }
+          }
+        }
+      }
+    }
+
+    const mod_counts_array = Object.keys(mod_counts).map(mod => {
+      return {
+        mod: mod,
+        count: mod_counts[mod]
+      }
+    });
+
+    mod_counts_array.sort((a, b) => b.count - a.count);
+
+    //order by count
+    data.most_used_mods = mod_counts_array.slice(0, 3);
 
     //move grades to scores.grades
     data.scores.grades = {

@@ -1,3 +1,4 @@
+const { default: axios } = require('axios');
 var cors = require('cors');
 var validator = require('validator');
 
@@ -171,26 +172,39 @@ module.exports.renameKey = function (obj, curKey, newKey) {
 }
 
 module.exports.validateString = function (key, value, max_length = 255, can_be_empty = false, is_url = false) {
-    
+
     if (typeof value !== 'string') {
         throw new Error(`Invalid type for ${key}: ${value}`);
     }
-    
+
     if (value.length > max_length) {
         throw new Error(`${key} is too long: ${value}`);
     }
-    
-    if(!can_be_empty && value.length < 1){
+
+    if (!can_be_empty && value.length < 1) {
         throw new Error(`${key} cannot be empty`);
     }
 
-    if(value.length > 0 && !validator.isAscii(value)){
+    if (value.length > 0 && !validator.isAscii(value)) {
         throw new Error(`Invalid characters in ${key}: ${value}`);
     }
 
-    if(is_url && !validator.isURL(value)){
+    if (is_url && !validator.isURL(value)) {
         throw new Error(`Invalid URL in ${key}: ${value}`);
     }
 
     return true;
+}
+
+module.exports.getDataImageFromUrl = async function (url) {
+    try {
+        const response = await axios.get(url, { responseType: 'arraybuffer' });
+        const buffer = Buffer.from(response.data, 'binary');
+        const mimeType = response.headers['content-type'];
+        const dataString = `data:${mimeType};base64,${buffer.toString('base64')}`;
+        return dataString;
+    } catch (error) {
+        console.error('Error fetching image:', error);
+        throw error;
+    }
 }

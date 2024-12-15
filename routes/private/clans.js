@@ -1,10 +1,11 @@
 const express = require('express');
 const { VerifyToken, getFullUsers, GetInspectorUser } = require('../../helpers/inspector');
-const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser, InspectorUser, InspectorUserRole, InspectorClanLogs, InspectorClanRanking } = require('../../helpers/db');
-const { Op } = require('sequelize');
+const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser, InspectorUser, InspectorUserRole, InspectorClanLogs, InspectorClanRanking, AltScoreMods, AltModdedStars } = require('../../helpers/db');
+const { Op, Sequelize } = require('sequelize');
 const { IsUserClanOwner } = require('../../helpers/clans');
-const { validateString } = require('../../helpers/misc');
+const { validateString, CorrectedSqlScoreModsCustom, CorrectModScore } = require('../../helpers/misc');
 const { GetScores } = require('../../helpers/osualt');
+const { ApplyDifficultyData } = require('../../helpers/osu');
 const router = express.Router();
 require('dotenv').config();
 
@@ -500,10 +501,10 @@ router.all('/get/:id', async (req, res, next) => {
     for (const comp of comp_data) {
         const data = JSON.parse(comp.data);
         for (const key of Object.keys(data)) {
-            if(key === "global_stats" || key === "update_date") continue;
-            
+            if (key === "global_stats" || key === "update_date") continue;
+
             const index = data[key].findIndex(c => c.id == clan_id);
-            if(index === -1 || index > 2) continue;
+            if (index === -1 || index > 2) continue;
 
             const competition_data = {
                 name: key,
@@ -1189,6 +1190,43 @@ router.get('/rankings/:date?', async (req, res, next) => {
                 for await (const clan of stat_obj) {
                     const user = await GetInspectorUser(clan.owner);
                     clan.owner_user = user;
+
+                    if (clan.ranking_prepared?.[stat] !== undefined && clan.ranking_prepared?.[stat]?.beatmap_id !== undefined) {
+                        let score = clan.ranking_prepared[stat];
+                        // clan.ranking_prepared[key].scores = prepareScores(null, clan.ranking_prepared[key].scores, true);
+                        // clan.ranking_prepared[key] = prepareScore(clan.ranking_prepared[key], null);
+                        const modded_sr = await AltScoreMods.findOne({
+                            where: {
+                                user_id: {
+                                    [Op.eq]: score.user_id
+                                },
+                                beatmap_id: {
+                                    [Op.eq]: score.beatmap_id
+                                },
+                                date_played: {
+                                    [Op.eq]: score.date_played,
+                                    [Op.eq]: Sequelize.col('date_attributes'),
+                                }
+                            }
+                        });
+
+                        const legacy_modded_sr = await AltModdedStars.findOne({
+                            where: {
+                                beatmap_id: {
+                                    [Op.eq]: score.beatmap_id
+                                },
+                                mods_enum: {
+                                    [Op.eq]: CorrectModScore(score.enabled_mods)
+                                }
+                            }
+                        });
+                        
+                        clan.ranking_prepared[stat].modern_mods = modded_sr?.dataValues ?? null;
+                        clan.ranking_prepared[stat].beatmap.modded_sr = legacy_modded_sr?.dataValues ?? null;
+
+                        const prep = await ApplyDifficultyData([clan.ranking_prepared[stat]]);
+                        clan.ranking_prepared[stat] = prep[0];
+                    }
                 }
             }
         }
@@ -1199,6 +1237,7 @@ router.get('/rankings/:date?', async (req, res, next) => {
         });
     } catch (err) {
         res.json({ error: err.message });
+        console.error(err);
         return
     }
 });

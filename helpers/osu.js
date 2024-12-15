@@ -1,5 +1,5 @@
 const { Sequelize, where, sql } = require('sequelize');
-const { AltUser, AltScore, Raw, InspectorCountryStat, InspectorOsuUser, InspectorBeatmapDifficultyAttrib, InspectorBeatmapDifficulty, Databases } = require('./db');
+const { AltUser, AltScore, Raw, InspectorCountryStat, InspectorOsuUser, InspectorBeatmapDifficultyAttrib, InspectorBeatmapDifficulty, Databases, AltBeatmap } = require('./db');
 const { CorrectedSqlScoreModsCustom, CorrectModScore, CorrectMod } = require('./misc');
 
 require('dotenv').config();
@@ -62,7 +62,7 @@ async function Login(client_id, client_secret) {
 }
 
 module.exports.AuthorizedApiCall = AuthorizedApiCall;
-async function AuthorizedApiCall(url, type = 'get', api_version = null, timeout = 10000) {
+async function AuthorizedApiCall(url, type = 'get', api_version = null, timeout = 10000, post_body = null) {
     if (stored_token === null || refetch_token === null || refetch_token < Date.now()) {
         try {
             stored_token = await Login(OSU_CLIENT_ID, OSU_CLIENT_SECRET);
@@ -95,7 +95,8 @@ async function AuthorizedApiCall(url, type = 'get', api_version = null, timeout 
         case 'post':
             res = await axios.post(url, {
                 headers,
-                timeout: parseInt(timeout)
+                timeout: parseInt(timeout),
+                data: post_body
             });
             break;
     }
@@ -334,6 +335,119 @@ async function GetCountryLeaderboard() {
     // return countries;
 }
 
+module.exports.GetOsuUserScores = GetOsuUserScores;
+async function GetOsuUserScores(username, type = 'best', mode = 'osu', limit = 100, offset = 0, timeout = 10000) {
+    try {
+        const res = await AuthorizedApiCall(`https://osu.ppy.sh/api/v2/users/${username}/scores/${type}?mode=${mode}&limit=${limit}&offset=${offset}`, 'get', null, timeout);
+        return res.data;
+    } catch (err) {
+        throw new Error('Unable to get user scores: ' + err.message);
+    }
+}
+
+
+module.exports.GetBeatmapAttributes = GetBeatmapAttributes;
+async function GetBeatmapAttributes(beatmap_id, mods, timeout = 10000) {
+    let api_url = 'http://192.168.178.23:5001';
+    try {
+        // const res = await AuthorizedApiCall(`https://osu.ppy.sh/api/v2/beatmaps/${beatmap_id}`, 'get', null, timeout, {
+        //     mods: mods,
+        //     ruleset_id: 0
+        // });
+        const res = await axios.post(`${api_url}/attributes`, {
+            beatmap_id: beatmap_id,
+            mods: mods,
+            ruleset: 0
+        })
+        return res.data;
+    } catch (err) {
+        throw new Error('Unable to get beatmap attributes: ' + err.message);
+    }
+}
+
+module.exports.ConvertOsuScoreResultToInspectorScore = ConvertOsuScoreResultToInspectorScore;
+async function ConvertOsuScoreResultToInspectorScore(score, user) {
+    const attributes = await GetBeatmapAttributes(score.beatmap.id, score.mods);
+
+    let inspector_score = {
+        user_id: score.user.id,
+        beatmap_id: score.beatmap.id,
+        score: score.legacy_total_score ?? score.classic_total_score ?? score.total_score,
+        count300: score.statistics.great ?? 0,
+        count100: score.statistics.meh ?? 0,
+        count50: score.statistics.ok ?? 0,
+        countmiss: score.statistics.miss ?? 0,
+        combo: score.max_combo,
+        perfect: score.legacy_perfect ?? score.is_perfect_combo,
+        enabled_mods: null, //legacy, we shouldn't use this
+        date_played: score.ended_at,
+        rank: score.rank,
+        pp: score.pp,
+        replay_available: score.replay ? 1 : 0,
+        accuracy: score.accuracy * 100,
+        mods: score.mods,
+    };
+
+    inspector_score.beatmap = {
+        beatmap_id: score.beatmap.id,
+        approved: score.beatmap.ranked,
+        submit_date: null,
+        approved_date: null,
+        last_update: score.beatmap.last_updated,
+        artist: score.beatmapset.artist,
+        set_id: score.beatmapset.id,
+        bpm: score.beatmap.bpm,
+        creator: score.beatmapset.creator,
+        creator_id: null, //for some reason, api doesn't provide this
+        stars: score.beatmap.difficulty_rating,
+        diff_aim: null,
+        diff_speed: null,
+        cs: score.beatmap.cs,
+        od: score.beatmap.accuracy,
+        ar: score.beatmap.ar,
+        hp: score.beatmap.drain,
+        drain: score.beatmap.total_length,
+        source: score.beatmapset.source,
+        genre: null, //for some reason, api doesn't provide this
+        language: null, //for some reason, api doesn't provide this
+        title: score.beatmapset.title,
+        length: score.beatmap.hit_length,
+        diffname: score.beatmap.version,
+        file_md5: score.beatmap.checksum,
+        mode: score.mode,
+        tags: null, //for some reason, api doesn't provide this
+        favorites: null,
+        rating: null,
+        playcount: score.beatmap.play_count,
+        passcount: score.beatmap.pass_count,
+        circles: score.beatmap.count_circles,
+        sliders: score.beatmap.count_sliders,
+        spinners: score.beatmap.count_spinners,
+        maxcombo: attributes.max_combo, //TODO, uses osu apiv2 attributes endpoint
+        storyboard: null, //for some reason, api doesn't provide this
+        video: null, //for some reason, api doesn't provide this
+        download_unavailable: null, //for some reason, api doesn't provide this
+        audio_unavailable: null, //for some reason, api doesn't provide this
+        difficulty_data: {
+            star_rating: attributes.star_rating,
+            aim_difficulty: attributes.aim_difficulty,
+            speed_difficulty: attributes.speed_difficulty,
+            speed_note_count: attributes.speed_note_count,
+            flashlight_difficulty: attributes.flashlight_difficulty ?? null,
+            aim_difficult_strain_count: attributes.aim_difficult_strain_count,
+            speed_difficult_strain_count: attributes.speed_difficult_strain_count,
+            approach_rate: attributes.approach_rate,
+            overall_difficulty: attributes.overall_difficulty,
+            drain_rate: attributes.hp,
+            slider_factor: attributes.slider_factor,
+        }
+    }
+
+    inspector_score.user = user;
+
+    return inspector_score;
+}
+
 const DIFFICULTY_ATTRIBUTES = {
     1: 'aim',
     3: 'speed',
@@ -364,7 +478,7 @@ async function ApplyDifficultyData(scores, force_all_mods = false, custom_mods =
     });
 
     scores.forEach(score => {
-        if (!score.mods?.star_rating && score.beatmap.modded_sr) {
+        if (!score.mods?.star_rating && score.beatmap?.modded_sr !== undefined) {
             if (score.beatmap.modded_sr) {
                 let modded_sr = score.beatmap.modded_sr;
 
@@ -391,7 +505,7 @@ async function ApplyDifficultyData(scores, force_all_mods = false, custom_mods =
                 delete score.beatmap.modded_sr;
                 delete score.mods;
             }
-        }else{
+        } else {
             score.beatmap.difficulty_data = score.mods;
             score.mods = score.mods.mods;
             score.statistics = score.beatmap.difficulty_data.statistics ?? null;

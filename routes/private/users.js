@@ -1,12 +1,12 @@
 const express = require('express');
 var apicache = require('apicache');
-const { GetUsers, GetUserBeatmaps, MODE_SLUGS, GetOsuUser } = require('../../helpers/osu');
-const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser, GetPopulation } = require('../../helpers/osualt');
+const { GetUsers, GetUserBeatmaps, MODE_SLUGS, GetOsuUser, GetOsuUserScores, ConvertOsuScoreResultToInspectorScore } = require('../../helpers/osu');
+const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser, GetPopulation, GetScores } = require('../../helpers/osualt');
 const { getFullUsers } = require('../../helpers/inspector');
 const { InspectorCompletionist, AltUser, Databases, AltBeatmap, InspectorOsuUser, GetHistoricalScoreRankModel } = require('../../helpers/db');
 const { Op, Sequelize } = require('sequelize');
 const { default: axios } = require('axios');
-const { validateString } = require('../../helpers/misc');
+const { validateString, getDataImageFromUrl } = require('../../helpers/misc');
 
 let cache = apicache.middleware;
 const router = express.Router();
@@ -190,6 +190,8 @@ router.get('/full/:ids', cache('10 minutes'), async (req, res, next) => {
 
     const data = await getFullUsers(ids, skippedData, false, req.query.force_alt_data === 'true', true);
 
+    console.log(data[0]?.inspector_user);
+
     if (ids.length === 1 && (req.query.force_array === undefined || req.query.force_array === 'false')) {
       //old way of returning user, we keep it for compatibility so we don't have to change the frontend
       res.json({
@@ -309,7 +311,7 @@ router.get('/stats/completion_percentage/:ids', cache('2 hours'), async (req, re
     res.status(400).json({ error: 'Too many user ids provided' });
     return;
   }
-  
+
   try {
     const beatmap_count = await AltBeatmap.count({
       where: {
@@ -317,7 +319,7 @@ router.get('/stats/completion_percentage/:ids', cache('2 hours'), async (req, re
         mode: 0
       }
     });
-    
+
     const users = await InspectorOsuUser.findAll({
       where: {
         user_id: { [Op.in]: ids }
@@ -348,11 +350,210 @@ router.get('/stats/completion_percentage/:ids', cache('2 hours'), async (req, re
   }
 });
 
+const WRAPPED_YEAR = 2024;
+const WRAPPED_SCORE_COUNT = 5;
+router.get('/wrapped/:id', cache('1 hour'), async (req, res) => {
+  if (isNaN(req.params.id)) {
+    res.status(400).json({ error: 'Invalid user id' });
+    return;
+  }
+
+  try {
+    const full_user = (await getFullUsers([req.params.id], { alt: false, score: false, osu: false }, false, false, true))?.[0];
+    const user = await AltUser.findOne({ where: { user_id: req.params.id } });
+
+    if (!user || !full_user || !full_user.osu) {
+      throw new Error('User not found');
+    }
+
+    const data = {
+      id: full_user.osu.id,
+      username: full_user.osu.username,
+      avatar: (await getDataImageFromUrl(full_user.osu.avatar_url)),
+      cover: (await getDataImageFromUrl(full_user.osu.cover_url)),
+      playcount: 0,
+      replays_watched: 0,
+      achievements: 0,
+      badges: 0,
+      clan_data: full_user.inspector_user?.clan_member,
+    };
+
+    //check user.osu.monthly_playcounts
+    if (full_user.osu.monthly_playcounts) {
+      for (const month of full_user.osu.monthly_playcounts) {
+        if (month.start_date.startsWith(WRAPPED_YEAR)) {
+          data.playcount += month.count;
+        }
+      }
+    }
+
+    if (full_user.osu.replays_watched_counts) {
+      for (const month of full_user.osu.replays_watched_counts) {
+        if (month.start_date.startsWith(WRAPPED_YEAR)) {
+          data.replays_watched += month.count;
+        }
+      }
+    }
+
+    if (full_user.osu.user_achievements) {
+      for (const achievement of full_user.osu.user_achievements) {
+        const achieved_at = new Date(achievement.achieved_at);
+        if (achieved_at.getFullYear() === WRAPPED_YEAR) {
+          data.achievements++;
+        }
+      }
+    }
+
+    if (full_user.osu.badges) {
+      for (const achievement of full_user.osu.badges) {
+        const awarded_at = new Date(achievement.awarded_at);
+        if (awarded_at.getFullYear() === WRAPPED_YEAR) {
+          data.badges++;
+        }
+      }
+    }
+
+    const JOINS = `
+      INNER JOIN beatmaps ON scores.beatmap_id = beatmaps.beatmap_id
+      INNER JOIN users2 ON scores.user_id = users2.user_id
+    `;
+
+    const WHERES = `
+    WHERE scores.user_id = :user_id
+        AND beatmaps.approved IN (1, 2, 4)
+        AND beatmaps.mode = 0
+        AND scores.date_played >= :start_date
+        AND scores.date_played < :end_date
+    `
+
+    const score_data = await Databases.osuAlt.query(`
+        SELECT
+          count(*) as total_scores,
+          count(case when scores.rank = 'X' then 1 end) as ss,
+          count(case when scores.rank = 'XH' then 1 end) as ssh,
+          count(case when scores.rank = 'S' then 1 end) as s,
+          count(case when scores.rank = 'SH' then 1 end) as sh,
+          count(case when scores.rank = 'A' then 1 end) as a,
+          count(case when scores.rank = 'B' then 1 end) as b,
+          count(case when scores.rank = 'C' then 1 end) as c,
+          count(case when scores.rank = 'D' then 1 end) as d,
+          sum(scores.score) as score,
+          sum(case when scores.rank = 'X' or scores.rank = 'XH' then scores.score end) as ss_score
+        FROM scores
+        ${JOINS}
+        ${WHERES}
+      `, {
+      replacements: {
+        user_id: req.params.id,
+        start_date: `${WRAPPED_YEAR}-01-01 00:00:00`,
+        end_date: `${WRAPPED_YEAR + 1}-01-01 00:00:00`
+      },
+      type: Databases.osuAlt.QueryTypes.SELECT
+    });
+
+    data.scores = score_data[0];
+
+    //first we try get top plays from osu api
+
+    data.top_pp_scores = [];
+    let osu_top_plays = await GetOsuUserScores(req.params.id, 'best', 'osu');
+    //filter out scores that are not from the wrapped year (osu_top_plays.ended_at, example: 2021-10-01T00:09:12Z)
+    osu_top_plays = osu_top_plays?.filter(score => new Date(score.ended_at).getFullYear() === WRAPPED_YEAR);
+    osu_top_plays = osu_top_plays.slice(0, WRAPPED_SCORE_COUNT);
+
+    console.log(`osu_top_plays: ${osu_top_plays.length}`);
+    for await (const score of osu_top_plays) {
+      const inspector_score = await ConvertOsuScoreResultToInspectorScore(score, user);
+      data.top_pp_scores.push(inspector_score);
+    }
+
+
+    if (osu_top_plays.length < WRAPPED_SCORE_COUNT) {
+      let filler_pp_scores = await GetScores({
+        query: {
+          user_id: req.params.id,
+          min_played_date: `${WRAPPED_YEAR}-01-01 00:00:00`,
+          max_played_date: `${WRAPPED_YEAR + 1}-01-01 00:00:00`,
+          order: 'pp',
+          limit: WRAPPED_SCORE_COUNT,
+          approved: '1,2,4',
+        }
+      });
+
+      //filter out scores that are already in osu_top_plays
+      filler_pp_scores = filler_pp_scores.filter(score => !osu_top_plays.some(s => s.beatmap_id === score.beatmap_id));
+
+      //slice to remaining amount
+      filler_pp_scores = filler_pp_scores.slice(0, WRAPPED_SCORE_COUNT - osu_top_plays.length);
+
+      for await (const score of filler_pp_scores) {
+        data.top_pp_scores.push(score);
+      }
+
+      //sort to make sure
+    }
+
+    //convert pp to number
+    data.top_pp_scores = data.top_pp_scores.map(score => {
+      score.pp = parseFloat(score.pp);
+      return score;
+    });
+
+    data.top_pp_scores = data.top_pp_scores.sort((a, b) => b.pp - a.pp);
+
+    data.top_score_scores = await GetScores({
+      query: {
+        user_id: req.params.id,
+        min_played_date: `${WRAPPED_YEAR}-01-01 00:00:00`,
+        max_played_date: `${WRAPPED_YEAR + 1}-01-01 00:00:00`,
+        order: 'score',
+        limit: WRAPPED_SCORE_COUNT,
+        approved: '1,2,4',
+      }
+    });
+
+    //add cover image data strings
+    for await (const score of data.top_pp_scores) {
+      score.beatmap.cover = await getDataImageFromUrl(`https://assets.ppy.sh/beatmaps/${score.beatmap.set_id}/covers/cover.jpg`);
+    }
+
+    for await (const score of data.top_score_scores) {
+      score.beatmap.cover = await getDataImageFromUrl(`https://assets.ppy.sh/beatmaps/${score.beatmap.set_id}/covers/cover.jpg`);
+    }
+
+    //move grades to scores.grades
+    data.scores.grades = {
+      ssh: data.scores.ssh,
+      ss: data.scores.ss,
+      sh: data.scores.sh,
+      s: data.scores.s,
+      a: data.scores.a,
+      b: data.scores.b,
+      c: data.scores.c,
+      d: data.scores.d,
+    };
+
+    delete data.scores.ss;
+    delete data.scores.ssh;
+    delete data.scores.s;
+    delete data.scores.sh;
+    delete data.scores.a;
+    delete data.scores.b;
+    delete data.scores.c;
+    delete data.scores.d;
+
+    return res.json(data);
+
+  } catch (err) {
+    res.status(500).json({ error: 'Unable to get user', message: err.message });
+  }
+});
+
 const SS_RANK_PAGE_SIZE = 50;
 router.get('/ss_rank/:page', cache('1 hour'), async (req, res) => {
   const page = req.params.page;
 
-  if(isNaN(page)) {
+  if (isNaN(page)) {
     res.status(400).json({ error: 'Invalid page number' });
     return;
   }

@@ -3,7 +3,7 @@ const { VerifyToken, getFullUsers, GetInspectorUser } = require('../../helpers/i
 const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser, InspectorUser, InspectorUserRole, InspectorClanLogs, InspectorClanRanking, AltScoreMods, AltModdedStars } = require('../../helpers/db');
 const { Op, Sequelize } = require('sequelize');
 const { IsUserClanOwner, IsUserClanModerator } = require('../../helpers/clans');
-const { validateString, CorrectedSqlScoreModsCustom, CorrectModScore } = require('../../helpers/misc');
+const { validateString, CorrectedSqlScoreModsCustom, CorrectModScore, validateImageUrl } = require('../../helpers/misc');
 const { GetScores } = require('../../helpers/osualt');
 const { ApplyDifficultyData } = require('../../helpers/osu');
 const router = express.Router();
@@ -12,6 +12,7 @@ require('dotenv').config();
 const CLAN_MEMBER_LIMIT = 100;
 const CLAN_MEMBER_LIMIT_PREMIUM = 150;
 const CLAN_MODERATOR_LIMIT = 5;
+const CLAN_RECENT_ACTIVITY_LIMIT = 50;
 
 const stat_rankings = [
     { key: 'clears', query: 'clears' },
@@ -34,7 +35,8 @@ const stat_rankings = [
     { key: 'accuracy', query: 'accuracy' },
     { key: 'members', query: 'members' },
     { key: 'medals', query: 'medals' },
-    { key: 'badges', query: 'badges' }
+    { key: 'badges', query: 'badges' },
+    { key: 'xp', query: 'xp' }
 ]
 
 router.get('/list', async (req, res, next) => {
@@ -60,6 +62,9 @@ router.get('/list', async (req, res, next) => {
             break;
         case 'total_s':
             sort = 'total_s_both';
+            break;
+        case 'xp_level':
+            sort = 'xp';
             break;
         default:
             break;
@@ -433,6 +438,7 @@ router.all('/get/:id', async (req, res, next) => {
     const pending_members = _members.filter(m => m.pending == true);
     const full_members = _members.filter(m => m.pending == false);
 
+    
     const owner = full_members.find(m => (m.user?.osu?.id ?? m.user?.alt?.user_id) == clan.owner) || null;
 
     const stats = await InspectorClanStats.findOne({
@@ -492,7 +498,7 @@ router.all('/get/:id', async (req, res, next) => {
         const s = await GetScores({
             query: {
                 user_id: full_members.map(m => m.user?.osu?.id ?? m.user?.alt?.user_id),
-                limit: 100,
+                limit: CLAN_RECENT_ACTIVITY_LIMIT,
                 order: 'date_played',
                 order_dir: 'DESC',
                 min_played_date: new Date(new Date().getTime() - 2592000000) //30 days
@@ -524,7 +530,18 @@ router.all('/get/:id', async (req, res, next) => {
         }
     }
 
-    res.json({ clan: clan, activities: activities, competition: competition, stats: stats, members: full_members, owner: owner, ranking: rankings, pending_members: pending_members, logs: logs, logs_user_data: log_users });
+    res.json({ 
+        clan: clan, 
+        activities: activities, 
+        competition: competition, 
+        stats: stats, 
+        members: full_members, 
+        owner: owner, 
+        ranking: rankings, 
+        pending_members: pending_members, 
+        logs: logs, 
+        logs_user_data: log_users
+    });
 });
 
 router.post('/update', async (req, res, next) => {
@@ -567,6 +584,7 @@ router.post('/update', async (req, res, next) => {
             validateString('description', req.body.description, 100);
             validateString('color', req.body.color, 6);
             validateString('header_image_url', req.body.header_image_url, 255, true, true);
+            validateString('background_image_url', req.body.background_image_url, 255, true, true);
             validateString('default_sort', req.body.default_sort, 32);
             validateString('discord_invite', req.body.discord_invite, 255, true, true);
         } catch (err) {
@@ -581,33 +599,22 @@ router.post('/update', async (req, res, next) => {
         }
 
         const header_image_url = req.body.header_image_url;
-        if (header_image_url && header_image_url.length > 0) {
-            try {
-                const url = new URL(header_image_url);
-                if (url.protocol != "http:" && url.protocol != "https:") {
-                    res.json({ error: "Invalid header image url" });
-                    return;
-                }
+        const background_image_url = req.body.background_image_url;
 
-                //check image validity, with content-disposition:inline
-                const response = await fetch(url.href, {
-                    method: 'HEAD'
-                });
+        if(header_image_url && header_image_url.length > 0) {
+            try{
+                await validateImageUrl(header_image_url);
+            }catch(err){
+                res.json({ error: `Invalid header image url: ${err.message}` });
+                return;
+            }
+        }
 
-                if (response.status != 200) {
-                    res.json({ error: "Invalid header image url" });
-                    return;
-                }
-
-                //check mime type
-                const content_type = response.headers.get('content-type');
-                if (!content_type.startsWith("image/")) {
-                    res.json({ error: "Invalid header image url" });
-                    return;
-                }
-
-            } catch (err) {
-                res.json({ error: err.message });
+        if(background_image_url && background_image_url.length > 0) {
+            try{
+                await validateImageUrl(background_image_url);
+            }catch(err){
+                res.json({ error: `Invalid background image url: ${err.message}` });
                 return;
             }
         }
@@ -662,6 +669,7 @@ router.post('/update', async (req, res, next) => {
             description: req.body.description,
             color: req.body.color,
             header_image_url: req.body.header_image_url,
+            background_image_url: req.body.background_image_url,
             disable_requests: req.body.disable_requests,
             default_sort: req.body.default_sort,
             discord_invite: discord_invite

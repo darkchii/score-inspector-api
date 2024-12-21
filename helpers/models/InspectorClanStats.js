@@ -25,6 +25,7 @@ const InspectorClanStatsModel = (db) => db.define('InspectorClanStats', {
     members: { type: Sequelize.INTEGER, allowNull: true, },
     medals: { type: Sequelize.INTEGER, allowNull: true, },
     badges: { type: Sequelize.INTEGER, allowNull: true, },
+    xp: { type: Sequelize.DOUBLE, allowNull: true, },
 }, {
     tableName: 'inspector_clan_stats',
     timestamps: false

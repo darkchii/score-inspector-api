@@ -208,3 +208,30 @@ module.exports.getDataImageFromUrl = async function (url) {
         throw error;
     }
 }
+
+module.exports.validateImageUrl = async function (image_url) {
+    const url = new URL(image_url);
+    if (url.protocol != "http:" && url.protocol != "https:") {
+        // res.json({ error: "Invalid header image url" });
+        throw new Error("Invalid image url");
+    }
+
+    //check image validity, with content-disposition:inline
+    const response = await fetch(url.href, {
+        method: 'HEAD'
+    });
+
+    if (response.status != 200) {
+        // res.json({ error: "Invalid header image url" });
+        throw new Error("Invalid image url");
+    }
+
+    //check mime type
+    const content_type = response.headers.get('content-type');
+    if (!content_type.startsWith("image/")) {
+        // res.json({ error: "Invalid header image url" });
+        throw new Error("Invalid image url");
+    }
+
+    return true;
+}

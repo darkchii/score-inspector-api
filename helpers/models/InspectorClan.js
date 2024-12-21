@@ -9,6 +9,7 @@ const InspectorClanModel = (db) => db.define('InspectorClan', {
     description: { type: Sequelize.STRING, allowNull: false, },
     owner: { type: Sequelize.INTEGER, allowNull: false, },
     header_image_url: { type: Sequelize.STRING, allowNull: true, },
+    background_image_url: { type: Sequelize.STRING, allowNull: true, },
     disable_requests: { type: Sequelize.BOOLEAN, allowNull: false, },
     last_owner_change: { type: Sequelize.DATE, allowNull: true, },
     default_sort: { type: Sequelize.STRING },

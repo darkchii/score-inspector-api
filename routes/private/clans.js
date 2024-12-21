@@ -2,7 +2,7 @@ const express = require('express');
 const { VerifyToken, getFullUsers, GetInspectorUser } = require('../../helpers/inspector');
 const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser, InspectorUser, InspectorUserRole, InspectorClanLogs, InspectorClanRanking, AltScoreMods, AltModdedStars } = require('../../helpers/db');
 const { Op, Sequelize } = require('sequelize');
-const { IsUserClanOwner } = require('../../helpers/clans');
+const { IsUserClanOwner, IsUserClanModerator } = require('../../helpers/clans');
 const { validateString, CorrectedSqlScoreModsCustom, CorrectModScore } = require('../../helpers/misc');
 const { GetScores } = require('../../helpers/osualt');
 const { ApplyDifficultyData } = require('../../helpers/osu');
@@ -11,6 +11,7 @@ require('dotenv').config();
 
 const CLAN_MEMBER_LIMIT = 100;
 const CLAN_MEMBER_LIMIT_PREMIUM = 150;
+const CLAN_MODERATOR_LIMIT = 5;
 
 const stat_rankings = [
     { key: 'clears', query: 'clears' },
@@ -336,7 +337,13 @@ router.all('/get/:id', async (req, res, next) => {
     }
 
     if (allow_pending) {
-        allow_pending = clan.owner == login_user_id;
+        const member = await InspectorClanMember.findOne({
+            where: {
+                osu_id: login_user_id,
+                clan_id: clan_id
+            }
+        });
+        allow_pending = clan.owner == login_user_id || member?.is_moderator;
     }
 
     const members = await InspectorClanMember.findAll({
@@ -373,7 +380,8 @@ router.all('/get/:id', async (req, res, next) => {
         let _data = {
             user: user,
             join_date: m.join_date,
-            pending: m.pending
+            pending: m.pending,
+            is_moderator: m.is_moderator
         }
 
         const expanded_user = await InspectorOsuUser.findOne({
@@ -781,20 +789,21 @@ router.post('/join_request', async (req, res, next) => {
         osu_id: user_id,
         clan_id: clan_id,
         pending: true,
-        join_date: new Date()
+        join_date: new Date(),
+        is_moderator: false
     });
 
     res.json({ success: true });
 });
 
 router.post('/accept_request', async (req, res, next) => {
-    const owner_id = req.body.owner_id;
+    const moderator_id = req.body.moderator_id;
     const token = req.body.token;
     const user_id = req.body.join_request_id;
     const clan_id = req.body.clan_id;
 
     try {
-        if (!(await VerifyToken(token, owner_id))) {
+        if (!(await VerifyToken(token, moderator_id))) {
             res.json({ error: "Invalid token" });
             return;
         }
@@ -804,7 +813,7 @@ router.post('/accept_request', async (req, res, next) => {
         return;
     }
 
-    if (!(await IsUserClanOwner(owner_id, clan_id))) {
+    if (!(await IsUserClanModerator(moderator_id, clan_id))) {
         res.json({ error: "You are not the owner of this clan" });
         return;
     }
@@ -815,9 +824,9 @@ router.post('/accept_request', async (req, res, next) => {
         return;
     }
 
-    const owner = await GetInspectorUser(owner_id);
-    if (!owner) {
-        res.json({ error: "Owner not found, this is most likely a bug." });
+    const mod = await GetInspectorUser(moderator_id);
+    if (!mod) {
+        res.json({ error: "Moderator not found, this is most likely a bug." });
         return;
     }
 
@@ -840,12 +849,24 @@ router.post('/accept_request', async (req, res, next) => {
         }
     });
 
+    const clan_owner = await InspectorClanMember.findOne({
+        where: {
+            clan_id: clan_id,
+            osu_id: clan.owner
+        }
+    });
+
+    if (!clan_owner) {
+        res.json({ error: "Clan owner not found, this is most likely a bug." });
+        return;
+    }
+
     const is_owner_premium = (await InspectorUserRole.findOne({
         where: {
-            user_id: owner.id,
+            user_id: clan_owner.osu_id,
             role_id: 4
         }
-    }))?.dataValues?.user_id === owner.id;
+    }))?.dataValues?.user_id === clan_owner.osu_id;
 
     if (member_count >= (is_owner_premium ? CLAN_MEMBER_LIMIT_PREMIUM : CLAN_MEMBER_LIMIT)) {
         // res.json({ error: `Clan member limit reached: ${is_owner_premium ? CLAN_MEMBER_LIMIT_PREMIUM : CLAN_MEMBER_LIMIT}` });
@@ -892,13 +913,13 @@ router.post('/accept_request', async (req, res, next) => {
 });
 
 router.post('/reject_request', async (req, res, next) => {
-    const owner_id = req.body.owner_id;
+    const moderator_id = req.body.moderator_id;
     const token = req.body.token;
     const user_id = req.body.join_request_id;
     const clan_id = req.body.clan_id;
 
     try {
-        if (!(await VerifyToken(token, owner_id))) {
+        if (!(await VerifyToken(token, moderator_id))) {
             res.json({ error: "Invalid token" });
             return;
         }
@@ -907,8 +928,8 @@ router.post('/reject_request', async (req, res, next) => {
         return;
     }
 
-    if (!(await IsUserClanOwner(owner_id, clan_id))) {
-        res.json({ error: "You are not the owner of this clan" });
+    if (!(await IsUserClanModerator(moderator_id, clan_id))) {
+        res.json({ error: "You don't have permissions for this action." });
         return;
     }
 
@@ -948,13 +969,13 @@ router.post('/reject_request', async (req, res, next) => {
 });
 
 router.post('/remove_member', async (req, res, next) => {
-    const owner_id = req.body.owner_id;
+    const moderator_id = req.body.moderator_id;
     const token = req.body.token;
     const user_id = req.body.member_id;
     const clan_id = req.body.clan_id;
 
     try {
-        if (!(await VerifyToken(token, owner_id))) {
+        if (!(await VerifyToken(token, moderator_id))) {
             res.json({ error: "Invalid token" });
             return;
         }
@@ -963,8 +984,8 @@ router.post('/remove_member', async (req, res, next) => {
         return;
     }
 
-    if (!(await IsUserClanOwner(owner_id, clan_id))) {
-        res.json({ error: "You are not the owner of this clan" });
+    if (!(await IsUserClanModerator(moderator_id, clan_id))) {
+        res.json({ error: "You don't have permissions for this action." });
         return;
     }
 
@@ -1006,7 +1027,7 @@ router.post('/remove_member', async (req, res, next) => {
             created_at: new Date(),
             data: JSON.stringify({
                 type: 'member_remove',
-                owner_id: owner_id,
+                owner_id: moderator_id,
                 user_id: user_id
             })
         });
@@ -1100,6 +1121,101 @@ router.post('/transfer_owner', async (req, res, next) => {
     res.json({ success: true });
 });
 
+router.post('/update_moderator', async (req, res, next) => {
+    try {
+        const owner_id = req.body.owner_id;
+        const token = req.body.token;
+        const target_user_id = req.body.target_user_id;
+        const clan_id = req.body.clan_id;
+        const new_moderator_status = req.body.new_status;
+
+        try {
+            if (!(await VerifyToken(token, owner_id))) {
+                res.json({ error: "Invalid token" });
+                return;
+            }
+        } catch (error) {
+            console.log(req.body);
+            console.error(error);
+            res.json({ error: "An error occurred" });
+            return;
+        }
+
+        if (!(await IsUserClanOwner(owner_id, clan_id))) {
+            res.json({ error: "You are not the owner of this clan" });
+            return;
+        }
+
+        const user = await GetInspectorUser(target_user_id);
+        if (!user) {
+            res.json({ error: "User not found" });
+            return;
+        }
+
+        const clan = await InspectorClan.findOne({
+            where: {
+                id: clan_id
+            }
+        });
+
+        if (!clan) {
+            res.json({ error: "Clan not found" });
+            return;
+        }
+
+        const member = await InspectorClanMember.findOne({
+            where: {
+                osu_id: target_user_id,
+                clan_id: clan_id
+            }
+        });
+
+        if (!member) {
+            res.json({ error: "User is not in this clan" });
+            return;
+        }
+
+        if(new_moderator_status){
+            //check if we have CLAN_MODERATOR_LIMIT moderators already
+            const moderators = await InspectorClanMember.count({
+                where: {
+                    clan_id: clan_id,
+                    is_moderator: true
+                }
+            });
+
+            if (moderators >= CLAN_MODERATOR_LIMIT) {
+                res.json({ error: `Clan moderator limit reached: ${CLAN_MODERATOR_LIMIT}` });
+                return;
+            }
+        }
+
+        member.is_moderator = new_moderator_status;
+
+        await member.save();
+
+        //log it
+        try {
+            await InspectorClanLogs.create({
+                clan_id: clan_id,
+                created_at: new Date(),
+                data: JSON.stringify({
+                    type: 'moderator_update',
+                    user_id: user_id,
+                    new_status: new_moderator_status
+                })
+            });
+        } catch (err) {
+            //do nothing, this isnt critical to work
+        }
+
+        res.json({ success: true });
+    } catch (err) {
+        console.log(err);
+        res.json({ error: "An error occurred" });
+    }
+});
+
 router.post('/leave', async (req, res, next) => {
     const user_id = req.body.user_id;
     const token = req.body.token;
@@ -1137,6 +1253,17 @@ router.post('/leave', async (req, res, next) => {
     }
 
     await user?.clan_member.destroy();
+
+    if (!user.clan_member.pending) {
+        await InspectorClanLogs.create({
+            clan_id: clan_id,
+            created_at: new Date(),
+            data: JSON.stringify({
+                type: 'member_leave',
+                user_id: user_id
+            })
+        });
+    }
 
     res.json({ success: true });
 });
@@ -1220,7 +1347,7 @@ router.get('/rankings/:date?', async (req, res, next) => {
                                 }
                             }
                         });
-                        
+
                         clan.ranking_prepared[stat].modern_mods = modded_sr?.dataValues ?? null;
                         clan.ranking_prepared[stat].beatmap.modded_sr = legacy_modded_sr?.dataValues ?? null;
 

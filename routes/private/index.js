@@ -68,7 +68,7 @@ router.get('/roles/:id', cache('1 hour'), async (req, res) => {
         },
         {
           model: InspectorClanMember,
-          attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
+          attributes: ['osu_id', 'clan_id', 'join_date', 'pending', 'is_moderator'],
           as: 'clan_member',
           include: [{
             model: InspectorClan,

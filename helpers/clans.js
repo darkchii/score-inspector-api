@@ -120,3 +120,29 @@ async function IsUserClanOwner(user_id, clan_id) {
     return false;
 }
 module.exports.IsUserClanOwner = IsUserClanOwner;
+
+async function IsUserClanModerator(user_id, clan_id){
+    const clan = await InspectorClan.findOne({
+        where: {
+            id: clan_id
+        }
+    });
+
+    if(!clan){
+        return false;
+    }
+
+    const member = await InspectorClanMember.findOne({
+        where: {
+            osu_id: user_id,
+            clan_id: clan_id
+        }
+    });
+
+    if(!member){
+        return false;
+    }
+
+    return member.is_moderator || clan.owner === user_id;
+}
+module.exports.IsUserClanModerator = IsUserClanModerator;

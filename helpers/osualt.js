@@ -259,7 +259,7 @@ async function FindUser(query, single, requirePriority = true) {
                 include: [
                     {
                         model: InspectorClanMember,
-                        attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
+                        attributes: ['osu_id', 'clan_id', 'join_date', 'pending', 'is_moderator'],
                         as: 'clan_member',
                         include: [{
                             model: InspectorClan,
@@ -506,7 +506,7 @@ async function GetBeatmapScores(beatmap_id, limit = 0, offset = 0) {
             include: [
                 {
                     model: InspectorClanMember,
-                    attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
+                    attributes: ['osu_id', 'clan_id', 'join_date', 'pending', 'is_moderator'],
                     as: 'clan_member',
                     include: [{
                         model: InspectorClan,
@@ -727,7 +727,7 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
             include: [
                 {
                     model: InspectorClanMember,
-                    attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
+                    attributes: ['osu_id', 'clan_id', 'join_date', 'pending', 'is_moderator'],
                     as: 'clan_member',
                     include: [{
                         model: InspectorClan,

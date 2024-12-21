@@ -348,7 +348,7 @@ async function GetOsuUserScores(username, type = 'best', mode = 'osu', limit = 1
 
 module.exports.GetBeatmapAttributes = GetBeatmapAttributes;
 async function GetBeatmapAttributes(beatmap_id, mods, timeout = 10000) {
-    let api_url = 'http://192.168.178.23:5001';
+    let api_url = 'http://192.168.178.115:5001';
     try {
         // const res = await AuthorizedApiCall(`https://osu.ppy.sh/api/v2/beatmaps/${beatmap_id}`, 'get', null, timeout, {
         //     mods: mods,

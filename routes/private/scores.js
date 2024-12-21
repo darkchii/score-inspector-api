@@ -554,7 +554,7 @@ router.get('/ranking', cache('1 hour'), async function (req, res, next) {
                     },
                     {
                         model: InspectorClanMember,
-                        attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
+                        attributes: ['osu_id', 'clan_id', 'join_date', 'pending', 'is_moderator'],
                         as: 'clan_member',
                         include: [{
                             model: InspectorClan,

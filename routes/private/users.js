@@ -438,7 +438,8 @@ router.get('/wrapped/:id', cache('1 hour'), async (req, res) => {
           count(case when scores.rank = 'C' then 1 end) as c,
           count(case when scores.rank = 'D' then 1 end) as d,
           sum(scores.score) as score,
-          sum(case when scores.rank = 'X' or scores.rank = 'XH' then scores.score end) as ss_score
+          sum(case when scores.rank = 'X' or scores.rank = 'XH' then scores.score end) as ss_score,
+          max(scores.combo) as max_combo
         FROM scores
         ${JOINS}
         ${WHERES}
@@ -522,6 +523,7 @@ router.get('/wrapped/:id', cache('1 hour'), async (req, res) => {
 
     //get most used mods
     const mod_counts = {};
+    const mod_combo_counts = {};
     const mods_data = await Databases.osuAlt.query(`
       SELECT
         scores.beatmap_id,
@@ -540,8 +542,10 @@ router.get('/wrapped/:id', cache('1 hour'), async (req, res) => {
     });
 
     for (const score of mods_data?.[0]) {
+      let mod_array = [];
       if (score.mods) {
         for (const mod of score.mods) {
+          mod_array.push(mod.acronym);
           if (!mod_counts[mod.acronym]) {
             mod_counts[mod.acronym] = 1;
           } else {
@@ -555,6 +559,7 @@ router.get('/wrapped/:id', cache('1 hour'), async (req, res) => {
         for (let i = 0; i < MODS.length; i++) {
           if (score_mods & (1 << i)) {
             const mod = MODS[i];
+            mod_array.push(mod);
             if (!mod_counts[mod]) {
               mod_counts[mod] = 1;
             } else {
@@ -563,7 +568,24 @@ router.get('/wrapped/:id', cache('1 hour'), async (req, res) => {
           }
         }
       }
+
+      if(mod_array.length === 0){
+        mod_array.push("NM");
+      }
+
+      //sort alphabetically
+      mod_array = mod_array.sort();
+
+      const mod_combo = mod_array.sort().join('');
+      if (!mod_combo_counts[mod_combo]) {
+        mod_combo_counts[mod_combo] = 1;
+      } else {
+        mod_combo_counts[mod_combo]++;
+      }
     }
+
+    //remove CL mod
+    // delete mod_counts["CL"];
 
     const mod_counts_array = Object.keys(mod_counts).map(mod => {
       return {
@@ -572,10 +594,19 @@ router.get('/wrapped/:id', cache('1 hour'), async (req, res) => {
       }
     });
 
+    const mod_combo_counts_array = Object.keys(mod_combo_counts).map(mod_combo => {
+      return {
+        mod_combo: mod_combo,
+        count: mod_combo_counts[mod_combo]
+      }
+    });
+
     mod_counts_array.sort((a, b) => b.count - a.count);
+    mod_combo_counts_array.sort((a, b) => b.count - a.count);
 
     //order by count
     data.most_used_mods = mod_counts_array.slice(0, 3);
+    data.most_used_mod_combos = mod_combo_counts_array.slice(0, 3);
 
     //move grades to scores.grades
     data.scores.grades = {

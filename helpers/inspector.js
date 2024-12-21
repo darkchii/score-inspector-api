@@ -24,7 +24,7 @@ async function GetInspectorUser(id) {
                     },
                     {
                         model: InspectorClanMember,
-                        attributes: ['osu_id', 'clan_id', 'join_date', 'pending'],
+                        attributes: ['osu_id', 'clan_id', 'join_date', 'pending', 'is_moderator'],
                         as: 'clan_member',
                         include: [{
                             model: InspectorClan,

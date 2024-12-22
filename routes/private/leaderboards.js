@@ -115,8 +115,8 @@ const DEDICATION_XP_FORMULA = `(
     + users2.sh_count * ${DEDICATION_VALUES.points_s}
     + users2.s_count * ${DEDICATION_VALUES.points_s}
     + users2.a_count * ${DEDICATION_VALUES.points_a}
-    + (users2.ranked_score / 1000000000) * ${DEDICATION_VALUES.points_r_score}
-    + (users2.total_score / 1000000000) * ${DEDICATION_VALUES.points_t_score}
+    + users2.ranked_score * ${DEDICATION_VALUES.points_r_score}
+    + users2.total_score * ${DEDICATION_VALUES.points_t_score}
     + (select count(*) from user_achievements where user_achievements.user_id = users2.user_id) * ${DEDICATION_VALUES.points_medal}
     + (users2.playtime / 60 / 60) * ${DEDICATION_VALUES.points_points_hour})`;
 

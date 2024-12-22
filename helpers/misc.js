@@ -205,7 +205,7 @@ module.exports.getDataImageFromUrl = async function (url) {
         return dataString;
     } catch (error) {
         console.error('Error fetching image:', error);
-        throw error;
+        return null;
     }
 }
 

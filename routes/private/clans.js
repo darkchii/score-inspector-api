@@ -438,7 +438,7 @@ router.all('/get/:id', async (req, res, next) => {
     const pending_members = _members.filter(m => m.pending == true);
     const full_members = _members.filter(m => m.pending == false);
 
-    
+
     const owner = full_members.find(m => (m.user?.osu?.id ?? m.user?.alt?.user_id) == clan.owner) || null;
 
     const stats = await InspectorClanStats.findOne({
@@ -530,16 +530,16 @@ router.all('/get/:id', async (req, res, next) => {
         }
     }
 
-    res.json({ 
-        clan: clan, 
-        activities: activities, 
-        competition: competition, 
-        stats: stats, 
-        members: full_members, 
-        owner: owner, 
-        ranking: rankings, 
-        pending_members: pending_members, 
-        logs: logs, 
+    res.json({
+        clan: clan,
+        activities: activities,
+        competition: competition,
+        stats: stats,
+        members: full_members,
+        owner: owner,
+        ranking: rankings,
+        pending_members: pending_members,
+        logs: logs,
         logs_user_data: log_users
     });
 });
@@ -601,19 +601,19 @@ router.post('/update', async (req, res, next) => {
         const header_image_url = req.body.header_image_url;
         const background_image_url = req.body.background_image_url;
 
-        if(header_image_url && header_image_url.length > 0) {
-            try{
+        if (header_image_url && header_image_url.length > 0) {
+            try {
                 await validateImageUrl(header_image_url);
-            }catch(err){
+            } catch (err) {
                 res.json({ error: `Invalid header image url: ${err.message}` });
                 return;
             }
         }
 
-        if(background_image_url && background_image_url.length > 0) {
-            try{
+        if (background_image_url && background_image_url.length > 0) {
+            try {
                 await validateImageUrl(background_image_url);
-            }catch(err){
+            } catch (err) {
                 res.json({ error: `Invalid background image url: ${err.message}` });
                 return;
             }
@@ -869,12 +869,19 @@ router.post('/accept_request', async (req, res, next) => {
         return;
     }
 
+    const clan_owner_user = await GetInspectorUser(clan.owner);
+
+    if (!clan_owner_user) {
+        res.json({ error: "Clan owner not found, this is most likely a bug." });
+        return;
+    }
+
     const is_owner_premium = (await InspectorUserRole.findOne({
         where: {
-            user_id: clan_owner.osu_id,
+            user_id: clan_owner_user.id,
             role_id: 4
         }
-    }))?.dataValues?.user_id === clan_owner.osu_id;
+    }))?.dataValues?.user_id === clan_owner_user.id;
 
     if (member_count >= (is_owner_premium ? CLAN_MEMBER_LIMIT_PREMIUM : CLAN_MEMBER_LIMIT)) {
         // res.json({ error: `Clan member limit reached: ${is_owner_premium ? CLAN_MEMBER_LIMIT_PREMIUM : CLAN_MEMBER_LIMIT}` });
@@ -1183,7 +1190,7 @@ router.post('/update_moderator', async (req, res, next) => {
             return;
         }
 
-        if(new_moderator_status){
+        if (new_moderator_status) {
             //check if we have CLAN_MODERATOR_LIMIT moderators already
             const moderators = await InspectorClanMember.count({
                 where: {

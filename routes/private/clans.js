@@ -36,7 +36,7 @@ const stat_rankings = [
     { key: 'members', query: 'members' },
     { key: 'medals', query: 'medals' },
     { key: 'badges', query: 'badges' },
-    { key: 'xp', query: 'xp' }
+    { key: 'xp', query: 'xp' },
 ]
 
 router.get('/list', async (req, res, next) => {
@@ -211,7 +211,8 @@ router.post('/create', async (req, res, next) => {
         clan_id: new_clan.id,
         osu_id: user_id,
         pending: false,
-        join_date: new Date()
+        join_date: new Date(),
+        is_moderator: true
     });
 
     const new_stats = await InspectorClanStats.create({
@@ -455,7 +456,7 @@ router.all('/get/:id', async (req, res, next) => {
 
     for (const rank of stat_rankings) {
         const sorted = await InspectorClanStats.findAll({
-            order: [[rank.key, 'DESC']]
+            order: [[rank.key, 'DESC']],
         });
 
         const index = sorted.findIndex(s => s.clan_id == clan_id);

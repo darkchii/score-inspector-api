@@ -189,7 +189,7 @@ module.exports.validateString = function (key, value, max_length = 255, can_be_e
         throw new Error(`Invalid characters in ${key}: ${value}`);
     }
 
-    if (is_url && !validator.isURL(value)) {
+    if (is_url && !validator.isURL(value) && value.length > 0) {
         throw new Error(`Invalid URL in ${key}: ${value}`);
     }
 

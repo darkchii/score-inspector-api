@@ -492,33 +492,51 @@ async function ApplyDifficultyData(scores, force_all_mods = false, custom_mods =
     });
 
     scores.forEach(score => {
-        if (!score.mods?.star_rating && score.beatmap?.modded_sr !== undefined) {
-            if (score.beatmap.modded_sr) {
-                let modded_sr = score.beatmap.modded_sr;
+        if (!score.mods?.star_rating) {
+            let modded_sr = score.beatmap.modded_sr;
 
-                if (!score.beatmap.difficulty_data) {
-                    score.beatmap.difficulty_data = {};
+            if (!modded_sr) {
+                //fallback of the fallback
+                //if moddedsr also doesnt exist, we just go we the raw beatmap data
+                //nothing else we can do
+                modded_sr = {
+                    star_rating: score.beatmap.stars,
+                    aim_diff: 0, //doesnt exist
+                    speed_diff: 0, //doesnt exist
+                    fl_diff: 0, //doesnt exist
+                    modded_od: score.beatmap.od,
+                    modded_ar: score.beatmap.ar,
+                    modded_hp: score.beatmap.hp,
+                    modded_cs: score.beatmap.cs,
+                    slider_factor: 1,
+                    speed_note_count: 0,
+                    unranked: true
                 }
-
-                score.beatmap.difficulty_data.star_rating = modded_sr.star_rating;
-                score.beatmap.difficulty_data.aim_difficulty = modded_sr.aim_diff;
-                score.beatmap.difficulty_data.speed_difficulty = modded_sr.speed_diff;
-                score.beatmap.difficulty_data.flashlight_difficulty = modded_sr.fl_diff;
-                score.beatmap.difficulty_data.overall_difficulty = modded_sr.modded_od;
-                score.beatmap.difficulty_data.approach_rate = modded_sr.modded_ar;
-                score.beatmap.difficulty_data.drain_rate = modded_sr.modded_hp;
-                score.beatmap.difficulty_data.circle_size = modded_sr.modded_cs;
-                score.beatmap.difficulty_data.slider_factory = modded_sr.slider_factory;
-                score.beatmap.difficulty_data.speed_note_count = modded_sr.speed_note_count;
-
-                score.beatmap.difficulty_data.aim_difficult_strain_count = 0;
-                score.beatmap.difficulty_data.speed_difficult_strain_count = 0;
-
-                score.beatmap.difficulty_data.is_legacy = true;
-
-                delete score.beatmap.modded_sr;
-                delete score.mods;
             }
+
+            if (!score.beatmap.difficulty_data) {
+                score.beatmap.difficulty_data = {};
+            }
+
+            score.beatmap.difficulty_data.star_rating = modded_sr.star_rating;
+            score.beatmap.difficulty_data.aim_difficulty = modded_sr.aim_diff;
+            score.beatmap.difficulty_data.speed_difficulty = modded_sr.speed_diff;
+            score.beatmap.difficulty_data.flashlight_difficulty = modded_sr.fl_diff;
+            score.beatmap.difficulty_data.overall_difficulty = modded_sr.modded_od;
+            score.beatmap.difficulty_data.approach_rate = modded_sr.modded_ar;
+            score.beatmap.difficulty_data.drain_rate = modded_sr.modded_hp;
+            score.beatmap.difficulty_data.circle_size = modded_sr.modded_cs;
+            score.beatmap.difficulty_data.slider_factor = modded_sr.slider_factor;
+            score.beatmap.difficulty_data.speed_note_count = modded_sr.speed_note_count;
+
+            score.beatmap.difficulty_data.aim_difficult_strain_count = 0;
+            score.beatmap.difficulty_data.speed_difficult_strain_count = 0;
+
+            score.beatmap.difficulty_data.is_legacy = true;
+            score.beatmap.difficulty_data.unranked = modded_sr.unranked;
+
+            delete score.beatmap.modded_sr;
+            delete score.mods;
         } else {
             score.beatmap.difficulty_data = score.mods;
             score.mods = score.mods.mods;

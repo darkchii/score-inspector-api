@@ -673,7 +673,7 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
                 include: [
                     ...(include_modded ? [
                         {
-                            // required: false,
+                            required: false,
                             model: AltModdedStars,
                             as: 'modded_sr',
                             where: {

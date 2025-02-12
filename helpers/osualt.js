@@ -340,7 +340,7 @@ async function GetBestScores(period, stat, limit, loved = false) {
     try {
         let period_check_query = null;
 
-        switch(period){
+        switch (period) {
             case 'day':
                 //scores set since 0 utc today
                 period_check_query = `date_played >= date_trunc('day', now()::date) AND date_played < date_trunc('day', now()::date) + interval '1 day'`;
@@ -416,7 +416,7 @@ async function GetBestScores(period, stat, limit, loved = false) {
             }
 
             const modded_sr = modded_sr_rows.find(x => x.user_id == score.user_id && x.beatmap_id == score.beatmap_id);
-            if(modded_sr){
+            if (modded_sr) {
                 score.modern_mods = modded_sr.dataValues;
             }
         }
@@ -595,8 +595,8 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
     const split_mods = _mods ? _mods.split(',') : [];
     const mods_bit_values = split_mods.map(mod => all_mods_short[mod]);
     let _user_id = undefined;
-    if(req.query.user_id) {
-        if(Array.isArray(req.query.user_id)) {
+    if (req.query.user_id) {
+        if (Array.isArray(req.query.user_id)) {
             _user_id = req.query.user_id;
         } else {
             _user_id = [req.query.user_id];
@@ -622,91 +622,98 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
         }
     }
 
-    let _scores = await AltScore.findAll({
-        where: {
-            ..._user_id ? { user_id: { [Op.in]: _user_id } } : {},
-            ...req.query.min_score || req.query.max_score ? { score: { [Op.between]: [req.query.min_score ?? 0, req.query.max_score ?? 100000000000] } } : {},
-            ...req.query.min_pp || req.query.max_pp ? { pp: { [Op.between]: [req.query.min_pp ?? 0, req.query.max_pp ?? 100000000000] } } : {},
-            ...req.query.min_acc || req.query.max_acc ? { accuracy: { [Op.between]: [req.query.min_acc ?? 0, req.query.max_acc ?? 101] } } : {},
-            ...req.query.min_combo || req.query.max_combo ? { combo: { [Op.between]: [req.query.min_combo ?? 0, req.query.max_combo ?? 1000000000] } } : {},
-            //for mods we check if enabled_mods & mod == mod, depending on mods_usage we use AND or OR, we do NOT correct the mods here
-            ...req.query.mods ? {
-                enabled_mods: _enabled_mods
-            } : {},
-            ...req.query.grades ? { rank: { [Op.in]: req.query.grades.split(',') } } : {},
-            ...req.query.min_played_date || req.query.max_played_date ? { date_played: { [Op.between]: [req.query.min_played_date ?? '2000-01-01', req.query.max_played_date ?? '2100-01-01'] } } : {},
-        },
-        order: req.query.order ? [[req.query.order, req.query.order_dir ?? 'DESC']] : undefined,
-        limit: req.query.limit ?? undefined,
-        offset: req.query.offset ?? undefined,
-        include: [
-            {
-                model: AltScoreMods,
-                as: 'modern_mods',
-                required: false,
-                //where clause should only check if user_id matches score.user_id
+    //wrap in promise so it doesn't block anything else
+    let scores = await new Promise(async (resolve, reject) => {
+        try{
+            let _scores = await AltScore.findAll({
                 where: {
-                    user_id: {
-                        [Op.eq]: Sequelize.col('Score.user_id')
-                    },
-                    date_played: {
-                        [Op.eq]: Sequelize.col('Score.date_played'),
-                        [Op.eq]: Sequelize.col('date_attributes'),
-                    }
-                }
-            },
-            {
-                model: AltBeatmap,
-                as: 'beatmap',
-                where: {
-                    ...(req.query.beatmap_id ? { beatmap_id: req.query.beatmap_id } : {}),
-                    ...(req.query.approved ? { [Op.or]: req.query.approved.split(',').map(approved => { return { approved: approved } }) } : {}),
-                    ...(req.query.min_ar || req.query.max_ar ? { ar: { [Op.between]: [req.query.min_ar ?? 0, req.query.max_ar ?? 1000000000] } } : {}),
-                    ...(req.query.min_od || req.query.max_od ? { od: { [Op.between]: [req.query.min_od ?? 0, req.query.max_od ?? 1000000000] } } : {}),
-                    ...(req.query.min_hp || req.query.max_hp ? { hp: { [Op.between]: [req.query.min_hp ?? 0, req.query.max_hp ?? 1000000000] } } : {}),
-                    ...(req.query.min_length || req.query.max_length ? { length: { [Op.between]: [req.query.min_length ?? 0, req.query.max_length ?? 1000000000] } } : {}),
-                    //approved: { [Op.in]: [1, 2, req.query.include_loved === 'true' ? 4 : 1] },
-                    ...(req.query.beatmap_id ? { beatmap_id: req.query.beatmap_id } : {}), //for development purposes
-                    ...(req.query.min_approved_date || req.query.max_approved_date ? { approved_date: { [Op.between]: [req.query.min_approved_date ?? '2000-01-01', req.query.max_approved_date ?? '2100-01-01'] } } : {}),
+                    ..._user_id ? { user_id: { [Op.in]: _user_id } } : {},
+                    ...req.query.min_score || req.query.max_score ? { score: { [Op.between]: [req.query.min_score ?? 0, req.query.max_score ?? 100000000000] } } : {},
+                    ...req.query.min_pp || req.query.max_pp ? { pp: { [Op.between]: [req.query.min_pp ?? 0, req.query.max_pp ?? 100000000000] } } : {},
+                    ...req.query.min_acc || req.query.max_acc ? { accuracy: { [Op.between]: [req.query.min_acc ?? 0, req.query.max_acc ?? 101] } } : {},
+                    ...req.query.min_combo || req.query.max_combo ? { combo: { [Op.between]: [req.query.min_combo ?? 0, req.query.max_combo ?? 1000000000] } } : {},
+                    //for mods we check if enabled_mods & mod == mod, depending on mods_usage we use AND or OR, we do NOT correct the mods here
+                    ...req.query.mods ? {
+                        enabled_mods: _enabled_mods
+                    } : {},
+                    ...req.query.grades ? { rank: { [Op.in]: req.query.grades.split(',') } } : {},
+                    ...req.query.min_played_date || req.query.max_played_date ? { date_played: { [Op.between]: [req.query.min_played_date ?? '2000-01-01', req.query.max_played_date ?? '2100-01-01'] } } : {},
                 },
-                required: true,
+                order: req.query.order ? [[req.query.order, req.query.order_dir ?? 'DESC']] : undefined,
+                limit: req.query.limit ?? undefined,
+                offset: req.query.offset ?? undefined,
                 include: [
-                    ...(include_modded ? [
-                        {
-                            required: false,
-                            model: AltModdedStars,
-                            as: 'modded_sr',
-                            where: {
-                                [Op.and]: {
-                                    mods_enum: {
-                                        [Op.eq]: Sequelize.literal(CorrectedSqlScoreMods)
-                                    },
-                                    beatmap_id: {
-                                        [Op.eq]: Sequelize.literal('beatmap.beatmap_id')
-                                    },
-                                    ...(req.query.min_stars || req.query.max_stars ? { star_rating: { [Op.between]: [req.query.min_stars ?? 0, req.query.max_stars ?? 1000000000] } } : {}),
-                                }
+                    {
+                        model: AltScoreMods,
+                        as: 'modern_mods',
+                        required: false,
+                        //where clause should only check if user_id matches score.user_id
+                        where: {
+                            user_id: {
+                                [Op.eq]: Sequelize.col('Score.user_id')
+                            },
+                            date_played: {
+                                [Op.eq]: Sequelize.col('Score.date_played'),
+                                [Op.eq]: Sequelize.col('date_attributes'),
                             }
-                        }] : [])
+                        }
+                    },
+                    {
+                        model: AltBeatmap,
+                        as: 'beatmap',
+                        where: {
+                            ...(req.query.beatmap_id ? { beatmap_id: req.query.beatmap_id } : {}),
+                            ...(req.query.approved ? { [Op.or]: req.query.approved.split(',').map(approved => { return { approved: approved } }) } : {}),
+                            ...(req.query.min_ar || req.query.max_ar ? { ar: { [Op.between]: [req.query.min_ar ?? 0, req.query.max_ar ?? 1000000000] } } : {}),
+                            ...(req.query.min_od || req.query.max_od ? { od: { [Op.between]: [req.query.min_od ?? 0, req.query.max_od ?? 1000000000] } } : {}),
+                            ...(req.query.min_hp || req.query.max_hp ? { hp: { [Op.between]: [req.query.min_hp ?? 0, req.query.max_hp ?? 1000000000] } } : {}),
+                            ...(req.query.min_length || req.query.max_length ? { length: { [Op.between]: [req.query.min_length ?? 0, req.query.max_length ?? 1000000000] } } : {}),
+                            //approved: { [Op.in]: [1, 2, req.query.include_loved === 'true' ? 4 : 1] },
+                            ...(req.query.beatmap_id ? { beatmap_id: req.query.beatmap_id } : {}), //for development purposes
+                            ...(req.query.min_approved_date || req.query.max_approved_date ? { approved_date: { [Op.between]: [req.query.min_approved_date ?? '2000-01-01', req.query.max_approved_date ?? '2100-01-01'] } } : {}),
+                        },
+                        required: true,
+                        include: [
+                            ...(include_modded ? [
+                                {
+                                    required: false,
+                                    model: AltModdedStars,
+                                    as: 'modded_sr',
+                                    where: {
+                                        [Op.and]: {
+                                            mods_enum: {
+                                                [Op.eq]: Sequelize.literal(CorrectedSqlScoreMods)
+                                            },
+                                            beatmap_id: {
+                                                [Op.eq]: Sequelize.literal('beatmap.beatmap_id')
+                                            },
+                                            ...(req.query.min_stars || req.query.max_stars ? { star_rating: { [Op.between]: [req.query.min_stars ?? 0, req.query.max_stars ?? 1000000000] } } : {}),
+                                        }
+                                    }
+                                }] : [])
+                        ],
+                    },
+                    ...(!req.params?.id ? [{
+                        model: AltUser,
+                        as: 'user',
+                        required: true,
+                        where: {
+                            ...(req.query.min_rank || req.query.max_rank ? { global_rank: { [Op.between]: [req.query.min_rank ?? 0, req.query.max_rank ?? 1000000000] } } : {}),
+                            //country is comma separated, so we split it, if 'world' is in the array, we don't filter by country at all
+                            //entire country code is capitalized in the database
+                            ...(req.query.country && req.query.country !== 'world' ? { country_code: { [Op.or]: req.query.country.split(',').map(country => { return { [Op.iLike]: `%${country}%` } }) } } : {}),
+                        }
+                    }] : []),
                 ],
-            },
-            ...(!req.params?.id ? [{
-                model: AltUser,
-                as: 'user',
-                required: true,
-                where: {
-                    ...(req.query.min_rank || req.query.max_rank ? { global_rank: { [Op.between]: [req.query.min_rank ?? 0, req.query.max_rank ?? 1000000000] } } : {}),
-                    //country is comma separated, so we split it, if 'world' is in the array, we don't filter by country at all
-                    //entire country code is capitalized in the database
-                    ...(req.query.country && req.query.country !== 'world' ? { country_code: { [Op.or]: req.query.country.split(',').map(country => { return { [Op.iLike]: `%${country}%` } }) } } : {}),
-                }
-            }] : []),
-        ],
-        // raw: true,
-        nest: true,
+                // raw: true,
+                nest: true,
+            });
+            let scores = _scores.map(row => row.toJSON());
+            resolve(scores);
+        }catch(err){
+            reject(err);
+        }
     });
-
-    let scores = _scores.map(row => row.toJSON());
 
     //if we have modern_mods, move the contents of score.modern_mods.mods to score.mods, and remove modern_mods
     scores.forEach(score => {
@@ -775,5 +782,4 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
     }
 
     return scores;
-    // return [];
 }

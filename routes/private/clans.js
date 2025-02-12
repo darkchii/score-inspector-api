@@ -204,6 +204,7 @@ router.post('/create', async (req, res, next) => {
         description: req.body.description,
         color: req.body.color,
         disable_requests: false,
+        disable_logs: false,
         creation_date: new Date()
     });
 
@@ -584,6 +585,7 @@ router.post('/update', async (req, res, next) => {
             validateString('tag', req.body.tag, 5);
             validateString('description', req.body.description, 100);
             validateString('color', req.body.color, 6);
+            validateString('logo_image_url', req.body.logo_image_url, 255, true, true);
             validateString('header_image_url', req.body.header_image_url, 255, true, true);
             validateString('background_image_url', req.body.background_image_url, 255, true, true);
             validateString('default_sort', req.body.default_sort, 32);
@@ -599,8 +601,23 @@ router.post('/update', async (req, res, next) => {
             return;
         }
 
+        if (typeof req.body.disable_logs !== "boolean") {
+            res.json({ error: "Invalid disable_logs value" });
+            return;
+        }
+
+        const logo_image_url = req.body.logo_image_url;
         const header_image_url = req.body.header_image_url;
         const background_image_url = req.body.background_image_url;
+
+        if (logo_image_url && logo_image_url.length > 0) {
+            try {
+                await validateImageUrl(logo_image_url);
+            } catch (err) {
+                res.json({ error: `Invalid logo image url: ${err.message}` });
+                return;
+            }
+        }
 
         if (header_image_url && header_image_url.length > 0) {
             try {
@@ -669,9 +686,11 @@ router.post('/update', async (req, res, next) => {
             tag: req.body.tag,
             description: req.body.description,
             color: req.body.color,
+            logo_image_url: req.body.logo_image_url,
             header_image_url: req.body.header_image_url,
             background_image_url: req.body.background_image_url,
             disable_requests: req.body.disable_requests,
+            disable_logs: req.body.disable_logs,
             default_sort: req.body.default_sort,
             discord_invite: discord_invite
         };

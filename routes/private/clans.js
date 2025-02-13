@@ -361,10 +361,13 @@ router.all('/get/:id', async (req, res, next) => {
     const login_user_id = req.body.login_user_id;
     const login_token = req.body.login_user_token;
     let allow_pending = false;
+    let is_valid_user = false;
+    let is_valid_member = false;
 
     if (login_user_id && login_token) {
         try {
             if ((await VerifyToken(login_token, login_user_id))) {
+                is_valid_user = true;
                 allow_pending = true;
             }
         } catch (err) {
@@ -481,6 +484,10 @@ router.all('/get/:id', async (req, res, next) => {
     const pending_members = _members.filter(m => m.pending == true);
     const full_members = _members.filter(m => m.pending == false);
 
+    if (is_valid_user && full_members.find(m => m.user?.osu?.id == login_user_id || m.user?.alt?.user_id == login_user_id)) {
+        is_valid_member = true;
+    }
+
 
     const owner = full_members.find(m => (m.user?.osu?.id ?? m.user?.alt?.user_id) == clan.owner) || null;
 
@@ -509,36 +516,43 @@ router.all('/get/:id', async (req, res, next) => {
         rankings[rank.key] = Number(sorted_res[0]?.[0]?.row_index ?? 0);
     }
 
-    const logs = await InspectorClanLogs.findAll({
-        where: {
-            clan_id: clan_id
-        },
-        order: [
-            ['created_at', 'DESC']
-        ],
-        limit: 50
-    });
-
-    //find every possible user_id in the logs, we need to fetch their data
-    let log_ids = [];
-    for (const log of logs) {
-        const data = JSON.parse(log.data);
-        if (data.user_id) { log_ids.push(data.user_id); }
-        if (data.owner_id) { log_ids.push(data.owner_id); }
-        if (data.new_owner) { log_ids.push(data.new_owner); }
-        if (data.member_id) { log_ids.push(data.member_id); }
-        if (data.old_owner) { log_ids.push(data.old_owner); }
+    let logs = null;
+    let log_users = null;
+    if (!clan.disable_logs || is_valid_member) {
+        logs = await InspectorClanLogs.findAll({
+            where: {
+                clan_id: clan_id
+            },
+            order: [
+                ['created_at', 'DESC']
+            ],
+            limit: 50
+        });
     }
 
-    //remove duplicates
-    log_ids = [...new Set(log_ids)];
-
-    //only need inspector user data for them, no need for full user data
-    const log_users = await InspectorUser.findAll({
-        where: {
-            osu_id: log_ids
+    //find every possible user_id in the logs, we need to fetch their data
+    if (logs && logs.length > 0) {
+        let log_ids = [];
+        for (const log of logs) {
+            const data = JSON.parse(log.data);
+            if (data.user_id) { log_ids.push(data.user_id); }
+            if (data.owner_id) { log_ids.push(data.owner_id); }
+            if (data.new_owner) { log_ids.push(data.new_owner); }
+            if (data.member_id) { log_ids.push(data.member_id); }
+            if (data.old_owner) { log_ids.push(data.old_owner); }
+            if (data.moderator_id) { log_ids.push(data.moderator_id); }
         }
-    });
+
+        //remove duplicates
+        log_ids = [...new Set(log_ids)];
+
+        //only need inspector user data for them, no need for full user data
+        log_users = await InspectorUser.findAll({
+            where: {
+                osu_id: log_ids
+            }
+        });
+    }
 
     let competition = [];
     const comp_data = await InspectorClanRanking.findAll();
@@ -735,10 +749,12 @@ router.post('/update', async (req, res, next) => {
                 data: JSON.stringify({
                     type: 'clan_update',
                     old_data: old_data,
-                    new_data: JSON.stringify(new_data)
+                    new_data: JSON.stringify(new_data),
+                    moderator_id: user_id
                 })
             });
         } catch (err) {
+            console.error(err);
             //do nothing, this isnt critical to work
         }
 
@@ -964,7 +980,8 @@ router.post('/accept_request', async (req, res, next) => {
             created_at: new Date(),
             data: JSON.stringify({
                 type: 'member_join',
-                user_id: user_id
+                user_id: user_id,
+                moderator_id: moderator_id
             })
         });
     } catch (err) {
@@ -1090,7 +1107,8 @@ router.post('/remove_member', async (req, res, next) => {
             data: JSON.stringify({
                 type: 'member_remove',
                 owner_id: moderator_id,
-                user_id: user_id
+                user_id: user_id,
+                moderator_id: moderator_id
             })
         });
     } catch (err) {
@@ -1263,7 +1281,8 @@ router.post('/update_moderator', async (req, res, next) => {
                 data: JSON.stringify({
                     type: 'moderator_update',
                     user_id: user_id,
-                    new_status: new_moderator_status
+                    new_status: new_moderator_status,
+                    moderator_id: owner_id
                 })
             });
         } catch (err) {

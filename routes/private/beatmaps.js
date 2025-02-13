@@ -6,8 +6,8 @@ const { AltBeatmap, Databases, AltScore, InspectorBeatmapSongSource, AltModdedSt
 const { default: axios } = require('axios');
 const { GetBeatmaps } = require('../../helpers/osualt');
 const { GetBeatmaps: GetOsuBeatmaps } = require('../../helpers/osu');
-const { Op, Sequelize } = require('sequelize');
 const { CorrectMod } = require('../../helpers/misc');
+const { QueryTypes } = require('@sequelize/core');
 
 const router = express.Router();
 let cache = apicache.middleware;
@@ -53,7 +53,7 @@ router.get('/count', cache('1 hour'), async (req, res) => {
 
         const result = await Databases.osuAlt.query(`SELECT COUNT(*) as amount FROM beatmaps ${q}`, {
             replacements: qVar,
-            type: Sequelize.QueryTypes.SELECT
+            type: QueryTypes.SELECT
         });
 
         res.json(result[0].amount);
@@ -103,7 +103,7 @@ router.get('/count_periodic', cache('1 hour'), async (req, res) => {
             // const data = await connection.awaitQuery(query, [mode]);
             const data = await Databases.osuAlt.query(query, {
                 replacements: [mode],
-                type: Sequelize.QueryTypes.SELECT
+                type: QueryTypes.SELECT
             });
 
             const _data = JSON.parse(JSON.stringify(data));
@@ -273,7 +273,7 @@ router.get('/:id/maxscore', cache('1 hour'), async (req, res) => {
 
         const result = await Databases.osuAlt.query('SELECT top_score FROM top_score WHERE beatmap_id=?', {
             replacements: [req.params.id],
-            type: Sequelize.QueryTypes.SELECT
+            type: QueryTypes.SELECT
         });
 
         res.json((result !== undefined && result[0] !== undefined) ? result[0].top_score : 0);
@@ -300,7 +300,7 @@ router.get('/:id/trend', cache('4 hours'), async (req, res) => {
         GROUP BY date_trunc('day', date_played)
         `, {
             replacements: [req.params.id],
-            type: Sequelize.QueryTypes.SELECT
+            type: QueryTypes.SELECT
         });
 
         //order by date

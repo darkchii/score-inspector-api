@@ -3,10 +3,10 @@ const { GetOsuUser, GetOsuUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET } = require(".
 const { default: axios } = require("axios");
 const { range } = require("./misc");
 const { InspectorBeatmap, Databases, InspectorUser, InspectorRole, InspectorUserAccessToken, InspectorClan, InspectorClanMember } = require("./db");
-const { Sequelize } = require("sequelize");
 const { GetAltUsers } = require("./osualt");
 const moment = require("moment");
 const { DefaultInspectorUser } = require("./user");
+const { default: Sequelize } = require("@sequelize/core");
 require('dotenv').config();
 
 module.exports.GetInspectorUser = GetInspectorUser;

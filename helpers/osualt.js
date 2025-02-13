@@ -1,5 +1,5 @@
 const moment = require("moment/moment");
-const { Op, Sequelize, where } = require("sequelize");
+const { Op, default: Sequelize } = require("@sequelize/core");
 const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, Databases, InspectorUser, InspectorScoreStat, InspectorClanMember, InspectorClan, InspectorOsuUser, AltScoreMods, AltModdedStars, AltTopScore, AltBeatmapPack } = require("./db");
 const { CorrectedSqlScoreMods, CorrectedSqlScoreModsCustom } = require("./misc");
 const { default: axios } = require("axios");

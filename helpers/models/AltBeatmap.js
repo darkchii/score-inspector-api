@@ -1,62 +1,62 @@
-const { Sequelize } = require("sequelize");
+const { DataTypes } = require("@sequelize/core");
 const moment = require("moment");
 
 const AltBeatmapModel = (db) => db.define('Beatmap', {
-    beatmap_id: { type: Sequelize.INTEGER, primaryKey: true, allowNull: false, },
-    approved: { type: Sequelize.INTEGER, allowNull: false, },
+    beatmap_id: { type: DataTypes.INTEGER, primaryKey: true, allowNull: false, },
+    approved: { type: DataTypes.INTEGER, allowNull: false, },
     submit_date: {
-        type: Sequelize.DATE, allowNull: false,
+        type: DataTypes.DATE, allowNull: false,
         get() {
             const rawValue = this.getDataValue('submit_date');
             return moment(rawValue).format('YYYY-MM-DDTHH:mm:ss[Z]');
         },
     },
-    approved_date: { type: Sequelize.DATE, allowNull: false, 
+    approved_date: { type: DataTypes.DATE, allowNull: false, 
         get() {
             const rawValue = this.getDataValue('approved_date');
             return moment(rawValue).format('YYYY-MM-DDTHH:mm:ss[Z]');
         },
     },
-    last_update: { type: Sequelize.DATE, allowNull: false,
+    last_update: { type: DataTypes.DATE, allowNull: false,
         get() {
             const rawValue = this.getDataValue('last_update');
             return moment(rawValue).format('YYYY-MM-DDTHH:mm:ss[Z]');
         },
      },
-    artist: { type: Sequelize.STRING, allowNull: false, },
-    set_id: { type: Sequelize.INTEGER, allowNull: false, },
-    bpm: { type: Sequelize.FLOAT, allowNull: false, },
-    creator: { type: Sequelize.STRING, allowNull: false, },
-    creator_id: { type: Sequelize.INTEGER, allowNull: false, },
-    stars: { type: Sequelize.FLOAT, allowNull: false, },
-    diff_aim: { type: Sequelize.FLOAT, allowNull: false, },
-    diff_speed: { type: Sequelize.FLOAT, allowNull: false, },
-    cs: { type: Sequelize.FLOAT, allowNull: false, },
-    od: { type: Sequelize.FLOAT, allowNull: false, },
-    ar: { type: Sequelize.FLOAT, allowNull: false, },
-    hp: { type: Sequelize.FLOAT, allowNull: false, },
-    drain: { type: Sequelize.FLOAT, allowNull: false, },
-    source: { type: Sequelize.STRING, allowNull: false, },
-    genre: { type: Sequelize.INTEGER, allowNull: false, },
-    language: { type: Sequelize.INTEGER, allowNull: false, },
-    title: { type: Sequelize.STRING, allowNull: false, },
-    length: { type: Sequelize.INTEGER, allowNull: false, },
-    diffname: { type: Sequelize.STRING, allowNull: false, },
-    file_md5: { type: Sequelize.STRING, allowNull: false, },
-    mode: { type: Sequelize.INTEGER, allowNull: false, },
-    tags: { type: Sequelize.STRING, allowNull: false, },
-    favorites: { type: Sequelize.INTEGER, allowNull: false, },
-    rating: { type: Sequelize.FLOAT, allowNull: false, },
-    playcount: { type: Sequelize.INTEGER, allowNull: false, },
-    passcount: { type: Sequelize.INTEGER, allowNull: false, },
-    circles: { type: Sequelize.INTEGER, allowNull: false, },
-    sliders: { type: Sequelize.INTEGER, allowNull: false, },
-    spinners: { type: Sequelize.INTEGER, allowNull: false, },
-    maxcombo: { type: Sequelize.INTEGER, allowNull: false, },
-    storyboard: { type: Sequelize.INTEGER, allowNull: false, },
-    video: { type: Sequelize.INTEGER, allowNull: false, },
-    download_unavailable: { type: Sequelize.INTEGER, allowNull: false, },
-    audio_unavailable: { type: Sequelize.INTEGER, allowNull: false, }
+    artist: { type: DataTypes.STRING, allowNull: false, },
+    set_id: { type: DataTypes.INTEGER, allowNull: false, },
+    bpm: { type: DataTypes.FLOAT, allowNull: false, },
+    creator: { type: DataTypes.STRING, allowNull: false, },
+    creator_id: { type: DataTypes.INTEGER, allowNull: false, },
+    stars: { type: DataTypes.FLOAT, allowNull: false, },
+    diff_aim: { type: DataTypes.FLOAT, allowNull: false, },
+    diff_speed: { type: DataTypes.FLOAT, allowNull: false, },
+    cs: { type: DataTypes.FLOAT, allowNull: false, },
+    od: { type: DataTypes.FLOAT, allowNull: false, },
+    ar: { type: DataTypes.FLOAT, allowNull: false, },
+    hp: { type: DataTypes.FLOAT, allowNull: false, },
+    drain: { type: DataTypes.FLOAT, allowNull: false, },
+    source: { type: DataTypes.STRING, allowNull: false, },
+    genre: { type: DataTypes.INTEGER, allowNull: false, },
+    language: { type: DataTypes.INTEGER, allowNull: false, },
+    title: { type: DataTypes.STRING, allowNull: false, },
+    length: { type: DataTypes.INTEGER, allowNull: false, },
+    diffname: { type: DataTypes.STRING, allowNull: false, },
+    file_md5: { type: DataTypes.STRING, allowNull: false, },
+    mode: { type: DataTypes.INTEGER, allowNull: false, },
+    tags: { type: DataTypes.STRING, allowNull: false, },
+    favorites: { type: DataTypes.INTEGER, allowNull: false, },
+    rating: { type: DataTypes.FLOAT, allowNull: false, },
+    playcount: { type: DataTypes.INTEGER, allowNull: false, },
+    passcount: { type: DataTypes.INTEGER, allowNull: false, },
+    circles: { type: DataTypes.INTEGER, allowNull: false, },
+    sliders: { type: DataTypes.INTEGER, allowNull: false, },
+    spinners: { type: DataTypes.INTEGER, allowNull: false, },
+    maxcombo: { type: DataTypes.INTEGER, allowNull: false, },
+    storyboard: { type: DataTypes.INTEGER, allowNull: false, },
+    video: { type: DataTypes.INTEGER, allowNull: false, },
+    download_unavailable: { type: DataTypes.INTEGER, allowNull: false, },
+    audio_unavailable: { type: DataTypes.INTEGER, allowNull: false, }
 }, {
     tableName: 'beatmaps',
     timestamps: false

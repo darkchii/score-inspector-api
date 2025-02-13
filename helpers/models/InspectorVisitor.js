@@ -1,11 +1,11 @@
-const { Sequelize } = require("sequelize");
+const { DataTypes } = require("@sequelize/core");
 
 const InspectorVisitorModel = (db) => db.define('Visitor', {
-    id: { type: Sequelize.INTEGER, primaryKey: true, autoIncrement: true, },
-    visitor_id: { type: Sequelize.INTEGER, allowNull: true, },
-    target_id: { type: Sequelize.INTEGER, allowNull: false, },
-    last_visit: { type: Sequelize.DATE, allowNull: false, },
-    count: { type: Sequelize.INTEGER, allowNull: false, },
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true, },
+    visitor_id: { type: DataTypes.INTEGER, allowNull: true, },
+    target_id: { type: DataTypes.INTEGER, allowNull: false, },
+    last_visit: { type: DataTypes.DATE, allowNull: false, },
+    count: { type: DataTypes.INTEGER, allowNull: false, },
 }, {
     tableName: 'inspector_visitors',
     timestamps: false

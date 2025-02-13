@@ -2,10 +2,10 @@ const express = require('express');
 var apicache = require('apicache');
 const { VerifyToken, getFullUsers, GetInspectorUser } = require('../../helpers/inspector');
 const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser, InspectorCompletionist, AltUser, GetHistoricalScoreRankModel, AltBeatmap, InspectorScoreStat } = require('../../helpers/db');
-const { Op, Sequelize } = require('sequelize');
 const { IsUserClanOwner } = require('../../helpers/clans');
 const { MODE_SLUGS } = require('../../helpers/osu');
 const { default: axios } = require('axios');
+const { default: Sequelize, Op } = require('@sequelize/core');
 const router = express.Router();
 require('dotenv').config();
 

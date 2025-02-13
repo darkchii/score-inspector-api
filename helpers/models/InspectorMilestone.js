@@ -1,10 +1,10 @@
-const { Sequelize } = require("sequelize");
+const { DataTypes } = require("@sequelize/core");
 
 const InspectorUserMilestoneModel = (db) => db.define('UserMilestone', {
-    user_id: { type: Sequelize.INTEGER, primaryKey: true, autoIncrement: false, },
-    achievement: { type: Sequelize.STRING, primaryKey: true, autoIncrement: false, },
-    time: { type: Sequelize.DATE, primaryKey: true, autoIncrement: false, },
-    count: { type: Sequelize.INTEGER, primaryKey: true, autoIncrement: false, },
+    user_id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: false, },
+    achievement: { type: DataTypes.STRING, primaryKey: true, autoIncrement: false, },
+    time: { type: DataTypes.DATE, primaryKey: true, autoIncrement: false, },
+    count: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: false, },
 }, {
     tableName: 'osu_users_achievement_history',
     timestamps: false

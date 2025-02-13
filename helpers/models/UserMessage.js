@@ -1,15 +1,15 @@
-const { Sequelize } = require("sequelize");
+const { DataTypes } = require("@sequelize/core");
 
 const UserMessageModel = (db) => db.define('UserMessage', {
-    id: { type: Sequelize.INTEGER, primaryKey: true, autoIncrement: true, },
-    user_id: { type: Sequelize.INTEGER, allowNull: false, },
-    username: { type: Sequelize.STRING, allowNull: false, },
-    message: { type: Sequelize.STRING, allowNull: false, },
-    date: { type: Sequelize.DATE, allowNull: false, },
-    channel: { type: Sequelize.STRING, allowNull: false, },
-    extra_data: { type: Sequelize.STRING, allowNull: true, },
-    message_type: { type: Sequelize.STRING, allowNull: false, },
-    is_banned: { type: Sequelize.BOOLEAN, allowNull: false, defaultValue: false, },
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true, },
+    user_id: { type: DataTypes.INTEGER, allowNull: false, },
+    username: { type: DataTypes.STRING, allowNull: false, },
+    message: { type: DataTypes.STRING, allowNull: false, },
+    date: { type: DataTypes.DATE, allowNull: false, },
+    channel: { type: DataTypes.STRING, allowNull: false, },
+    extra_data: { type: DataTypes.STRING, allowNull: true, },
+    message_type: { type: DataTypes.STRING, allowNull: false, },
+    is_banned: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, },
 }, {
     tableName: 'osu_chat_log',
     timestamps: false

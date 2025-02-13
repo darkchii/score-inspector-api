@@ -4,8 +4,8 @@ const router = express.Router();
 require('dotenv').config();
 const { InspectorUser, InspectorRole, InspectorOsuUser, InspectorClanMember, InspectorClan, InspectorBackgroundSource, InspectorBackgroundTag, AltBeatmap } = require('../../helpers/db');
 const { VerifyToken, GetInspectorUser } = require('../../helpers/inspector');
-const { Op } = require('sequelize');
 const { GetBeatmaps } = require('../../helpers/osu');
+const { Op } = require('@sequelize/core');
 
 async function HasEditAccess(user_id, session_token) {
     if (session_token == null || user_id == null) {

@@ -3,7 +3,7 @@ var express = require('express');
 const moment = require("moment/moment");
 const { InspectorUser, Databases, AltUser, AltScore, AltBeatmap } = require('../../helpers/db');
 const { getFullUsers } = require('../../helpers/inspector');
-const { Op } = require('sequelize');
+const { Op } = require('@sequelize/core');
 var router = express.Router();
 
 let cache = apicache.middleware;

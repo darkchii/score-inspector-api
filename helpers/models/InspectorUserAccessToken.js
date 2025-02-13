@@ -1,12 +1,12 @@
-const { Sequelize } = require("sequelize");
+const { DataTypes } = require("@sequelize/core");
 
 const InspectorUserAccessTokenModel = (db) => db.define('AccessToken', {
-    user_id: { type: Sequelize.INTEGER, primaryKey: true },
-    osu_id: { type: Sequelize.INTEGER, allowNull: false, },
-    access_token: { type: Sequelize.STRING, allowNull: false, },
-    refresh_token: { type: Sequelize.STRING, allowNull: false, },
-    expires_in: { type: Sequelize.INTEGER, allowNull: false, },
-    created_at: { type: Sequelize.DATE, allowNull: false, },
+    user_id: { type: DataTypes.INTEGER, primaryKey: true },
+    osu_id: { type: DataTypes.INTEGER, allowNull: false, },
+    access_token: { type: DataTypes.STRING, allowNull: false, },
+    refresh_token: { type: DataTypes.STRING, allowNull: false, },
+    expires_in: { type: DataTypes.INTEGER, allowNull: false, },
+    created_at: { type: DataTypes.DATE, allowNull: false, },
 }, {
     tableName: 'inspector_user_accesstoken',
     timestamps: false

@@ -5,8 +5,8 @@ const router = express.Router();
 require('dotenv').config();
 const { UserMessage } = require('../../helpers/db');
 const { getFullUsers } = require('../../helpers/inspector');
-const { Sequelize, Op } = require('sequelize');
 const { GetBeatmaps } = require('../../helpers/osu');
+const { Op, default: Sequelize } = require('@sequelize/core');
 let cache = apicache.middleware;
 
 router.get('/active_users', cache('1 hour'), async (req, res, next) => {
@@ -99,7 +99,7 @@ router.get('/popular_hours', cache('1 hour'), async (req, res, next) => {
             ],
             where: {
                 date: {
-                    [Sequelize.Op.gte]: new Date(new Date().setHours(0, 0, 0, 0))
+                    [Op.gte]: new Date(new Date().setHours(0, 0, 0, 0))
                 }
             },
             group: ['hour'],
@@ -179,7 +179,7 @@ router.get('/stats', cache('1 hour'), async (req, res, next) => {
             where: {
                 message_type: 'message',
                 date: {
-                    [Sequelize.Op.gte]: new Date(new Date().setHours(0, 0, 0, 0))
+                    [Op.gte]: new Date(new Date().setHours(0, 0, 0, 0))
                 }
             }
         });

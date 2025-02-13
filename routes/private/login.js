@@ -4,9 +4,9 @@ const router = express.Router();
 const crypto = require("crypto");
 require('dotenv').config();
 const { InspectorUser, InspectorComment, InspectorVisitor, AltUser, InspectorUserAccessToken, InspectorClanMember, InspectorClan, Databases, CheckConnection } = require('../../helpers/db');
-const { Sequelize } = require('sequelize');
 const { VerifyToken, GetInspectorUser, getFullUsers, GetToken } = require('../../helpers/inspector');
 const { OSU_CLIENT_ID, OSU_CLIENT_SECRET, GetOsuUsers } = require('../../helpers/osu');
+const { default: Sequelize } = require('@sequelize/core');
 
 router.post('/', async (req, res, next) => {
     let authResponse = null;

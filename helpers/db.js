@@ -1,4 +1,3 @@
-const { Sequelize } = require('sequelize');
 const { AltUserModel } = require('./models/AltUser');
 const { InspectorCommentModel } = require('./models/InspectorComment');
 const { InspectorUserModel } = require('./models/InspectorUser');
@@ -41,34 +40,39 @@ const { InspectorBackgroundTagPairModel } = require('./models/InspectorBackgroun
 const { InspectorBackgroundSongSourceModel } = require('./models/InspectorBeatmapSongSource.js');
 const { InspectorBeatmapDifficultyModel } = require('./models/InspectorBeatmapDifficulty.js');
 const { AltScoreModsModel } = require('./models/AltScoreMods.js');
+const { MariaDbDialect } = require('@sequelize/mariadb');
+const { PostgresDialect } = require('@sequelize/postgres');
+const { default: Sequelize } = require('@sequelize/core');
 require('dotenv').config();
 
 let databases = {
     inspector: new Sequelize(
-        process.env.MYSQL_DB, 
-        process.env.MYSQL_USER, 
-        process.env.MYSQL_PASS, 
-        { 
-            host: process.env.MYSQL_HOST, 
-            dialect: 'mariadb', 
-            timezone: 'Europe/Amsterdam', 
+        {
+            dialect: MariaDbDialect,
+            database: process.env.MYSQL_DB,
+            user: process.env.MYSQL_USER,
+            password: process.env.MYSQL_PASS,
+            host: process.env.MYSQL_HOST,
+            timezone: 'Europe/Amsterdam',
             logging: false,
             retry: {
                 max: 10
             }
-        }),
+        }
+    ),
     osuAlt: new Sequelize(
-        process.env.ALT_DB_DATABASE, 
-        process.env.ALT_DB_USER, 
-        process.env.ALT_DB_PASSWORD, 
-        { 
-            host: process.env.ALT_DB_HOST, 
-            dialect: 'postgres', 
+        {
+            dialect: PostgresDialect,
+            database: process.env.ALT_DB_DATABASE,
+            user: process.env.ALT_DB_USER,
+            password: process.env.ALT_DB_PASSWORD,
+            host: process.env.ALT_DB_HOST,
             logging: false,
             retry: {
                 max: 10
             }
-        })
+        }
+    )
 };
 module.exports.Databases = databases;
 
@@ -76,7 +80,7 @@ async function CheckConnection(database, timeout = 10000) {
     //just race between database.authenticate and a timeout
 
     let success = false;
-    
+
     await Promise.race([
         database.authenticate().then(() => {
             success = true;
@@ -88,7 +92,7 @@ async function CheckConnection(database, timeout = 10000) {
         })
     ]);
 
-    if(!success){
+    if (!success) {
         throw new Error('Connection failed');
     }
 
@@ -137,15 +141,14 @@ InspectorUserRole.belongsTo(InspectorUser, { as: 'user_roles', foreignKey: 'user
 InspectorComment.belongsTo(InspectorUser, { as: 'commentor', foreignKey: 'commentor_id', targetKey: 'osu_id' });
 InspectorVisitor.belongsTo(InspectorUser, { as: 'visitor_user', foreignKey: 'visitor_id', targetKey: 'osu_id' });
 InspectorVisitor.belongsTo(InspectorUser, { as: 'target_user', foreignKey: 'target_id', targetKey: 'osu_id' });
-InspectorUserMilestone.belongsTo(InspectorOsuUser, { as: 'user', foreignKey: 'user_id', targetKey: 'user_id' });
-InspectorUserMilestone.belongsTo(InspectorUser, { as: 'inspector_user', foreignKey: 'user_id', targetKey: 'osu_id' });
 InspectorClanStats.belongsTo(InspectorClan, { as: 'clan', foreignKey: 'clan_id', targetKey: 'id' });
 InspectorUser.hasOne(InspectorClanMember, { as: 'clan_member', foreignKey: 'osu_id', sourceKey: 'osu_id' });
 InspectorClanMember.hasOne(InspectorClan, { as: 'clan', foreignKey: 'id', sourceKey: 'clan_id' });
 InspectorClan.hasOne(InspectorClanStats, { as: 'clan_stats', foreignKey: 'clan_id', sourceKey: 'id' });
 InspectorClan.hasMany(InspectorClanMember, { as: 'clan_members', foreignKey: 'clan_id' });
-InspectorClanMember.hasOne(InspectorUser, { as: 'user', foreignKey: 'osu_id', sourceKey: 'osu_id' });
 InspectorClan.hasMany(InspectorClanLogs, { as: 'logs', foreignKey: 'clan_id' });
+// InspectorUserMilestone.hasOne(InspectorOsuUser, { as: 'osu_user', foreignKey: 'user_id', sourceKey: 'user_id' });
+// InspectorUserMilestone.hasOne(InspectorUser, { as: 'inspector_user', foreignKey: 'osu_id', sourceKey: 'user_id' });
 
 const AltUser = AltUserModel(databases.osuAlt);
 const AltPriorityUser = AltPriorityUserModel(databases.osuAlt);
@@ -164,40 +167,21 @@ const AltUserAchievement = AltUserAchievementModel(databases.osuAlt);
 const InspectorBeatmapDifficulty = InspectorBeatmapDifficultyModel(databases.inspector);
 
 AltUser.hasOne(AltPriorityUser, { as: 'priority', foreignKey: 'user_id', sourceKey: 'user_id' });
-AltPriorityUser.belongsTo(AltUser, { as: 'priority', foreignKey: 'user_id', targetKey: 'user_id' });
 
 AltScore.hasOne(AltBeatmap, { as: 'beatmap', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
-AltBeatmap.belongsTo(AltScore, { as: 'beatmap', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
 AltScore.hasOne(AltUser, { as: 'user', foreignKey: 'user_id', sourceKey: 'user_id' });
-AltUser.belongsTo(AltScore, { as: 'user', foreignKey: 'user_id', targetKey: 'user_id' });
-AltScore.hasOne(AltTopScore, { as: 'top_score', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
-AltTopScore.belongsTo(AltScore, { as: 'top_score', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
-//this one has user_id and beatmap_id as primary keys, we need both
 AltScore.hasOne(AltScoreMods, { as: 'modern_mods', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
-AltScoreMods.belongsTo(AltScore, { as: 'modern_mods', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
 
-AltScore.hasOne(AltModdedStars, { as: 'modded_sr', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
 AltBeatmap.hasOne(AltModdedStars, { as: 'modded_sr', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
-AltModdedStars.belongsTo(AltBeatmap, { as: 'modded_sr', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
 AltBeatmap.hasOne(AltBeatmapEyup, { as: 'eyup_sr', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
-AltBeatmapEyup.belongsTo(AltBeatmap, { as: 'eyup_sr', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
 AltBeatmap.hasOne(AltBeatmapSSRatio, { as: 'ss_ratio', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
-AltBeatmapSSRatio.belongsTo(AltBeatmap, { as: 'ss_ratio', foreignKey: 'beatmap_id', targetKey: 'beatmap_id' });
 
 AltBeatmap.hasMany(AltBeatmapPack, { as: 'packs', foreignKey: 'beatmap_id' });
-// AltBeatmapPack.belongsTo(AltBeatmap);
 
 AltUser.hasMany(AltUniqueSS, { as: 'unique_ss', foreignKey: 'user_id', sourceKey: 'user_id' });
-AltUniqueSS.belongsTo(AltUser, { as: 'unique_ss', foreignKey: 'user_id', targetKey: 'user_id' });
-
 AltUser.hasMany(AltUniqueFC, { as: 'unique_fc', foreignKey: 'user_id', sourceKey: 'user_id' });
-AltUniqueFC.belongsTo(AltUser, { as: 'unique_fc', foreignKey: 'user_id', targetKey: 'user_id' });
-
 AltUser.hasMany(AltUniqueDTFC, { as: 'unique_dt_fc', foreignKey: 'user_id', sourceKey: 'user_id' });
-AltUniqueDTFC.belongsTo(AltUser, { as: 'unique_dt_fc', foreignKey: 'user_id', targetKey: 'user_id' });
-
 AltUser.hasMany(AltUserAchievement, { as: 'medals', foreignKey: 'user_id', sourceKey: 'user_id' });
-AltUserAchievement.belongsTo(AltUser, { as: 'medals', foreignKey: 'user_id', targetKey: 'user_id' });
 
 module.exports.InspectorUser = InspectorUser;
 module.exports.InspectorUserAccessToken = InspectorUserAccessToken;

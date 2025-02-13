@@ -13,6 +13,9 @@
     ]
   },
   "dependencies": {
+    "@sequelize/core": "^7.0.0-alpha.42",
+    "@sequelize/mariadb": "^7.0.0-alpha.44",
+    "@sequelize/postgres": "^7.0.0-alpha.44",
     "apicache": "^1.6.3",
     "axios": "^1.2.1",
     "bparser-js": "^1.0.2",
@@ -33,7 +36,6 @@
     "persistent-cache": "^1.1.2",
     "pg": "^8.8.0",
     "request": "^2.88.2",
-    "sequelize": "^6.28.0",
     "systeminformation": "^5.21.11",
     "uuidv4": "^6.2.13",
     "validator": "^13.12.0"

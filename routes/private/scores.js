@@ -4,7 +4,7 @@ var router = express.Router();
 const { GetBestScores, GetBeatmapScores, GetScores } = require('../../helpers/osualt');
 const { getBeatmaps, getCompletionData } = require('../../helpers/inspector');
 const { AltScore, AltModdedStars, AltBeatmap, AltBeatmapPack, InspectorScoreStat, Databases, AltTopScore, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, AltUser, InspectorClanMember, InspectorClan, GetHistoricalScoreRankModel, CheckConnection, AltScoreMods } = require('../../helpers/db');
-const { Op, Sequelize } = require('sequelize');
+const { Op, default: Sequelize } = require('@sequelize/core');
 const { CorrectedSqlScoreMods, db_now, all_mods_short } = require('../../helpers/misc');
 const request = require("supertest");
 const { GetOsuUsers, MODE_SLUGS, ApplyDifficultyData } = require('../../helpers/osu');
@@ -654,18 +654,34 @@ router.get('/milestones/user/:id', cache('5 minutes'), async function (req, res,
         limit: limit,
         offset: offset,
         raw: true,
-        nest: true,
-        include: [
-            {
-                model: InspectorOsuUser,
-                as: 'user',
-                required: true
-            }, {
-                model: InspectorUser,
-                as: 'inspector_user'
-            }
-        ]
+        nest: true
     });
+
+    //user models are not able to be associated with the milestone model for some reason, so we "manually" fetch the user data
+    const user_ids = milestones.map(milestone => milestone.user_id);
+
+    let osu_users = await InspectorOsuUser.findAll({
+        where: {
+            user_id: user_ids
+        },
+        raw: true,
+        nest: true
+    });
+
+    let inspector_users = await InspectorUser.findAll({
+        where: {
+            osu_id: user_ids
+        },
+        raw: true,
+        nest: true
+    });
+
+    for (let index = 0; index < milestones.length; index++) {
+        const milestone = milestones[index];
+        milestone.osu_user = osu_users.find(user => user.id === milestone.user_id);
+        milestone.inspector_user = inspector_users.find(user => user.osu_id === milestone.user_id);
+    }
+
     res.json(milestones);
 });
 
@@ -687,15 +703,23 @@ router.get('/milestones', cache('5 minutes'), async function (req, res, next) {
         limit: limit,
         offset: (page - 1) * limit,
         raw: true,
-        nest: true,
-        include: [
-            {
-                model: InspectorOsuUser,
-                as: 'user',
-                required: true
-            }
-        ]
+        nest: true
     });
+
+    //user models are not able to be associated with the milestone model for some reason, so we "manually" fetch the user data
+    let user_ids = milestones.map(milestone => milestone.user_id);
+    let osu_users = await InspectorOsuUser.findAll({
+        where: {
+            user_id: user_ids
+        },
+        raw: true,
+        nest: true
+    });
+
+    for(let index = 0; index < milestones.length; index++){
+        const milestone = milestones[index];
+        milestone.user = osu_users.find(user => user.id === milestone.user_id);
+    }
 
     if (limit && limit <= 100) {
         const user_ids = milestones.map(milestone => milestone.user_id);

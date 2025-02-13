@@ -4,7 +4,7 @@ const { GetUsers, GetUserBeatmaps, MODE_SLUGS, GetOsuUser, GetOsuUserScores, Con
 const { IsRegistered, GetAllUsers, GetUser: GetAltUser, FindUser, GetPopulation, GetScores } = require('../../helpers/osualt');
 const { getFullUsers } = require('../../helpers/inspector');
 const { InspectorCompletionist, AltUser, Databases, AltBeatmap, InspectorOsuUser, GetHistoricalScoreRankModel } = require('../../helpers/db');
-const { Op, Sequelize } = require('sequelize');
+const { Op, default: Sequelize } = require('@sequelize/core');
 const { default: axios } = require('axios');
 const { validateString, getDataImageFromUrl } = require('../../helpers/misc');
 

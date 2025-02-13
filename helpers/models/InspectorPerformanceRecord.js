@@ -1,10 +1,10 @@
-const { Sequelize } = require("sequelize");
+const { DataTypes } = require("@sequelize/core");
 
 const InspectorPerformanceRecordModel = (db, version) => db.define('PPRecord', {
-    beatmap_id: { type: Sequelize.INTEGER, allowNull: false, primaryKey: true },
-    user_id: { type: Sequelize.INTEGER, allowNull: false, primaryKey: true },
-    pp: { type: Sequelize.FLOAT, allowNull: false, },
-    date_played: { type: Sequelize.DATE, allowNull: false, },
+    beatmap_id: { type: DataTypes.INTEGER, allowNull: false, primaryKey: true },
+    user_id: { type: DataTypes.INTEGER, allowNull: false, primaryKey: true },
+    pp: { type: DataTypes.FLOAT, allowNull: false, },
+    date_played: { type: DataTypes.DATE, allowNull: false, },
 }, {
     tableName: `scores_pp_records`,
     timestamps: false,

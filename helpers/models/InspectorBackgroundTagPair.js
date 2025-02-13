@@ -1,10 +1,10 @@
-const { Sequelize } = require("sequelize");
+const { DataTypes } = require("@sequelize/core");
 
 const InspectorBackgroundTagPairModel = (db) => db.define('BackgroundTagPair', {
-    beatmap_id: { type: Sequelize.INTEGER, primaryKey: true },
-    tag_id: { type: Sequelize.INTEGER, primaryKey: true },
-    added_by: { type: Sequelize.INTEGER },
-    added_at: { type: Sequelize.DATE },
+    beatmap_id: { type: DataTypes.INTEGER, primaryKey: true },
+    tag_id: { type: DataTypes.INTEGER, primaryKey: true },
+    added_by: { type: DataTypes.INTEGER },
+    added_at: { type: DataTypes.DATE },
 }, {
     tableName: 'inspector_beatmap_bg_tags_pair',
     timestamps: false,

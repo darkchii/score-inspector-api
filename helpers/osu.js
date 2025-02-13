@@ -1,4 +1,3 @@
-const { Sequelize, where, sql } = require('sequelize');
 const { AltUser, AltScore, Raw, InspectorCountryStat, InspectorOsuUser, InspectorBeatmapDifficultyAttrib, InspectorBeatmapDifficulty, Databases, AltBeatmap } = require('./db');
 const { CorrectedSqlScoreModsCustom, CorrectModScore, CorrectMod } = require('./misc');
 

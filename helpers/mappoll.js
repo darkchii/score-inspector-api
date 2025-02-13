@@ -1,4 +1,4 @@
-const { Sequelize, Op } = require("sequelize");
+const { default: Sequelize, Op } = require("@sequelize/core");
 const { InspectorMapPoll, AltBeatmap } = require("./db");
 const { db_now } = require("./misc");
 const { v4: uuidv4 } = require('uuid');

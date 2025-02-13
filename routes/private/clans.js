@@ -1,7 +1,7 @@
 const express = require('express');
 var apicache = require('apicache');
 const { VerifyToken, getFullUsers, GetInspectorUser } = require('../../helpers/inspector');
-const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser, InspectorUser, InspectorUserRole, InspectorClanLogs, InspectorClanRanking, AltScoreMods, AltModdedStars } = require('../../helpers/db');
+const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser, InspectorUser, InspectorUserRole, InspectorClanLogs, InspectorClanRanking, AltScoreMods, AltModdedStars, Databases, Raw } = require('../../helpers/db');
 const { Op, Sequelize } = require('sequelize');
 const { IsUserClanOwner, IsUserClanModerator } = require('../../helpers/clans');
 const { validateString, CorrectedSqlScoreModsCustom, CorrectModScore, validateImageUrl } = require('../../helpers/misc');
@@ -439,7 +439,7 @@ router.all('/get/:id', async (req, res, next) => {
             _members.push(_data);
         }
     };
-
+    
     const pending_members = _members.filter(m => m.pending == true);
     const full_members = _members.filter(m => m.pending == false);
 
@@ -465,6 +465,19 @@ router.all('/get/:id', async (req, res, next) => {
 
         const index = sorted.findIndex(s => s.clan_id == clan_id);
         rankings[rank.key] = index + 1;
+
+        // console.log(`Checking ${rank.key}`);
+        // const query = `
+        //     SELECT row_index FROM (
+        //         SELECT clan_id, ROW_NUMBER() OVER (ORDER BY ${rank.key} DESC) as row_index
+        //         FROM inspector_clan_stats
+        //     ) ranked
+        //     WHERE clan_id = ${clan_id}
+        //     `;
+        // console.log(query);
+        // const sorted_res = await Raw(query);
+
+        // console.log(sorted_res);
     }
 
     const logs = await InspectorClanLogs.findAll({
@@ -1306,7 +1319,7 @@ router.post('/leave', async (req, res, next) => {
     res.json({ success: true });
 });
 
-router.get('/rankings/:date?', cache('1 hour'),  async (req, res, next) => {
+router.get('/rankings/:date?', cache('1 hour'), async (req, res, next) => {
     //month is month or current month (utc)
     try {
         let _date = req.params.date;
@@ -1441,7 +1454,7 @@ router.get('/rankings/:date?', cache('1 hour'),  async (req, res, next) => {
     }
 });
 
-router.get('/rankings/months', async (req, res, next) => {
+router.get('/rankings/months', cache('1 hour'), async (req, res, next) => {
     //get all clan ranking months that are available
     const months = await InspectorClanRanking.findAll({
         attributes: ['date']

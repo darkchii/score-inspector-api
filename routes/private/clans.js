@@ -1,4 +1,5 @@
 const express = require('express');
+var apicache = require('apicache');
 const { VerifyToken, getFullUsers, GetInspectorUser } = require('../../helpers/inspector');
 const { InspectorClanMember, InspectorClan, InspectorClanStats, AltScore, InspectorOsuUser, InspectorUser, InspectorUserRole, InspectorClanLogs, InspectorClanRanking, AltScoreMods, AltModdedStars } = require('../../helpers/db');
 const { Op, Sequelize } = require('sequelize');
@@ -8,6 +9,8 @@ const { GetScores } = require('../../helpers/osualt');
 const { ApplyDifficultyData } = require('../../helpers/osu');
 const router = express.Router();
 require('dotenv').config();
+
+let cache = apicache.middleware;
 
 const CLAN_MEMBER_LIMIT = 100;
 const CLAN_MEMBER_LIMIT_PREMIUM = 150;
@@ -1303,7 +1306,7 @@ router.post('/leave', async (req, res, next) => {
     res.json({ success: true });
 });
 
-router.get('/rankings/:date?', async (req, res, next) => {
+router.get('/rankings/:date?', cache('1 hour'),  async (req, res, next) => {
     //month is month or current month (utc)
     try {
         let _date = req.params.date;
@@ -1331,26 +1334,58 @@ router.get('/rankings/:date?', async (req, res, next) => {
 
         const parsed_data = JSON.parse(data.data);
 
-        // parsed_data.top_play
-        for await (const clan of parsed_data.top_play) {
+        let inspector_users = {};
+        let requested_ids = [];
+
+        for(const clan of parsed_data.top_play){
             const score = clan.ranking_prepared.top_play;
-            const user = await GetInspectorUser(score.user_id);
-            score.user = user;
+            requested_ids.push(score.user_id);
         }
 
-        for await (const clan of parsed_data.top_score) {
+        for(const clan of parsed_data.top_score){
             const score = clan.ranking_prepared.top_score;
-            const user = await GetInspectorUser(score.user_id);
-            score.user = user;
+            requested_ids.push(score.user_id);
         }
 
-        // console.log(parsed_data.total_scores[0].owner);
+        for (const stat of Object.keys(parsed_data)) {
+            const stat_obj = parsed_data[stat];
+            if (stat_obj && Array.isArray(stat_obj)) {
+                for (const clan of stat_obj) {
+                    const user_id = clan.owner;
+                    requested_ids.push(user_id);
+                }
+            }
+        }
+
+        requested_ids = [...new Set(requested_ids)];
+
+        //use Promise.all to fetch all users at once
+        //(map them to key: user_id, value: user)
+        const users = await Promise.all(requested_ids.map(async (id) => {
+            return await GetInspectorUser(id);
+        }));
+
+        for (const user of users) {
+            inspector_users[user.osu_id] = user;
+        }
+
+        for (const clan of parsed_data.top_play) {
+            const score = clan.ranking_prepared.top_play;
+            score.user = inspector_users[score.user_id];
+        }
+
+        for (const clan of parsed_data.top_score) {
+            const score = clan.ranking_prepared.top_score;
+            score.user = inspector_users[score.user_id];
+        }
+
         //we need to fetch user data for each clan owner
         for await (const stat of Object.keys(parsed_data)) {
             const stat_obj = parsed_data[stat];
             if (stat_obj && Array.isArray(stat_obj)) {
                 for await (const clan of stat_obj) {
-                    const user = await GetInspectorUser(clan.owner);
+                    // const user = await GetInspectorUser(clan.owner);
+                    const user = inspector_users[clan.owner];
                     clan.owner_user = user;
 
                     if (clan.ranking_prepared?.[stat] !== undefined && clan.ranking_prepared?.[stat]?.beatmap_id !== undefined) {
@@ -1372,19 +1407,21 @@ router.get('/rankings/:date?', async (req, res, next) => {
                             }
                         });
 
-                        const legacy_modded_sr = await AltModdedStars.findOne({
-                            where: {
-                                beatmap_id: {
-                                    [Op.eq]: score.beatmap_id
-                                },
-                                mods_enum: {
-                                    [Op.eq]: CorrectModScore(score.enabled_mods)
+                        if(!modded_sr){
+                            const legacy_modded_sr = await AltModdedStars.findOne({
+                                where: {
+                                    beatmap_id: {
+                                        [Op.eq]: score.beatmap_id
+                                    },
+                                    mods_enum: {
+                                        [Op.eq]: CorrectModScore(score.enabled_mods)
+                                    }
                                 }
-                            }
-                        });
+                            });
+                            clan.ranking_prepared[stat].beatmap.modded_sr = legacy_modded_sr?.dataValues ?? null;
+                        }
 
                         clan.ranking_prepared[stat].modern_mods = modded_sr?.dataValues ?? null;
-                        clan.ranking_prepared[stat].beatmap.modded_sr = legacy_modded_sr?.dataValues ?? null;
 
                         const prep = await ApplyDifficultyData([clan.ranking_prepared[stat]]);
                         clan.ranking_prepared[stat] = prep[0];

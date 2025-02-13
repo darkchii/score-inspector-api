@@ -85,7 +85,8 @@ router.get('/osu/completionists', cache('1 hour'), async (req, res) => {
       return {
         osu_id: c.osu_id,
         mode: c.mode,
-        completion_date: c.completion_date,
+        // completion_date: c.completion_date,
+        completion_date: c.completion_date.toISOString().split('T')[0],
         scores: c.scores,
         user: user
       }

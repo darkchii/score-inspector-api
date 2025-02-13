@@ -319,6 +319,44 @@ router.all('/user/:id?', async (req, res, next) => {
     res.json(merged_data);
 });
 
+router.all('/get/:id/recent', cache('30 minutes'), async (req, res, next) => {
+    const clan_id = req.params.id;
+    const clan = await InspectorClan.findOne({
+        where: {
+            id: clan_id
+        }
+    });
+
+    if (!clan) {
+        res.json({ error: "Clan not found" });
+        return;
+    }
+
+    const members = await InspectorClanMember.findAll({
+        where: {
+            clan_id: clan_id,
+            pending: false
+        }
+    });
+
+    let activities = undefined;
+    const s = await GetScores({
+        query: {
+            user_id: members.map(m => m.osu_id),
+            limit: CLAN_RECENT_ACTIVITY_LIMIT,
+            order: 'date_played',
+            order_dir: 'DESC',
+            min_played_date: new Date(new Date().getTime() - 2592000000) //30 days
+        }
+    });
+
+    activities = {
+        scores: s
+    }
+
+    res.json(activities);
+});
+
 router.all('/get/:id', async (req, res, next) => {
     const login_user_id = req.body.login_user_id;
     const login_token = req.body.login_user_token;
@@ -439,7 +477,7 @@ router.all('/get/:id', async (req, res, next) => {
             _members.push(_data);
         }
     };
-    
+
     const pending_members = _members.filter(m => m.pending == true);
     const full_members = _members.filter(m => m.pending == false);
 
@@ -502,23 +540,6 @@ router.all('/get/:id', async (req, res, next) => {
         }
     });
 
-    let activities = undefined;
-    if (req.query.activities == 'true') {
-        const s = await GetScores({
-            query: {
-                user_id: full_members.map(m => m.user?.osu?.id ?? m.user?.alt?.user_id),
-                limit: CLAN_RECENT_ACTIVITY_LIMIT,
-                order: 'date_played',
-                order_dir: 'DESC',
-                min_played_date: new Date(new Date().getTime() - 2592000000) //30 days
-            }
-        });
-
-        activities = {
-            scores: s
-        }
-    }
-
     let competition = [];
     const comp_data = await InspectorClanRanking.findAll();
     for (const comp of comp_data) {
@@ -541,7 +562,6 @@ router.all('/get/:id', async (req, res, next) => {
 
     res.json({
         clan: clan,
-        activities: activities,
         competition: competition,
         stats: stats,
         members: full_members,
@@ -1338,12 +1358,12 @@ router.get('/rankings/:date?', cache('1 hour'), async (req, res, next) => {
         let inspector_users = {};
         let requested_ids = [];
 
-        for(const clan of parsed_data.top_play){
+        for (const clan of parsed_data.top_play) {
             const score = clan.ranking_prepared.top_play;
             requested_ids.push(score.user_id);
         }
 
-        for(const clan of parsed_data.top_score){
+        for (const clan of parsed_data.top_score) {
             const score = clan.ranking_prepared.top_score;
             requested_ids.push(score.user_id);
         }
@@ -1408,7 +1428,7 @@ router.get('/rankings/:date?', cache('1 hour'), async (req, res, next) => {
                             }
                         });
 
-                        if(!modded_sr){
+                        if (!modded_sr) {
                             const legacy_modded_sr = await AltModdedStars.findOne({
                                 where: {
                                     beatmap_id: {

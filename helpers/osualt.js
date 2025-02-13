@@ -222,7 +222,7 @@ async function GetAltUsers(id_array, include_sub_data = true, forceLocalAlt = fa
 
         data = _rows;
     } catch (err) {
-        console.log(err);
+        console.error(err);
         throw new Error(err.message);
     }
     return data;
@@ -427,7 +427,7 @@ async function GetBestScores(period, stat, limit, loved = false) {
         //limit to the requested amount
         data = data.slice(0, limit);
     } catch (err) {
-        console.log(err);
+        console.error(err);
         throw new Error(err.message);
     }
     return data;

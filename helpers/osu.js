@@ -367,10 +367,6 @@ async function GetBeatmapAttributes(beatmap_id, mods, timeout = 10000) {
 module.exports.ConvertOsuScoreResultToInspectorScore = ConvertOsuScoreResultToInspectorScore;
 async function ConvertOsuScoreResultToInspectorScore(score, user) {
     const attributes = await GetBeatmapAttributes(score.beatmap.id, score.mods);
-    if (score.beatmap.id == 2844649) {
-        console.log(score);
-    }
-
 
     let inspector_score = {
         user_id: score.user.id,

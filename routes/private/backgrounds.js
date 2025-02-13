@@ -60,8 +60,6 @@ router.get('/find/:query', async (req, res, next) => {
             artist: input.artist, //background artist
         }
 
-        console.log(search_query);
-
         const beatmaps = await AltBeatmap.findAll({
             // where: {
             //     //always lowercase, trim and LIKE

@@ -191,8 +191,6 @@ router.get('/full/:ids', cache('10 minutes'), async (req, res, next) => {
 
     const data = await getFullUsers(ids, skippedData, false, req.query.force_alt_data === 'true', true);
 
-    console.log(data[0]?.inspector_user);
-
     if (ids.length === 1 && (req.query.force_array === undefined || req.query.force_array === 'false')) {
       //old way of returning user, we keep it for compatibility so we don't have to change the frontend
       res.json({
@@ -463,7 +461,6 @@ router.get('/wrapped/:id', cache('1 hour'), async (req, res) => {
     osu_top_plays = osu_top_plays?.filter(score => new Date(score.ended_at).getFullYear() === WRAPPED_YEAR);
     osu_top_plays = osu_top_plays.slice(0, WRAPPED_SCORE_COUNT);
 
-    console.log(`osu_top_plays: ${osu_top_plays.length}`);
     for await (const score of osu_top_plays) {
       const inspector_score = await ConvertOsuScoreResultToInspectorScore(score, user);
       data.top_pp_scores.push(inspector_score);

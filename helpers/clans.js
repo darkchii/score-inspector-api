@@ -100,8 +100,6 @@ async function UpdateClan(id) {
         stats[key] = data[key];
     }
 
-    console.log(`Updated clan ${id}`);
-
     await stats.save();
 }
 module.exports.UpdateClan = UpdateClan;

@@ -297,7 +297,6 @@ function getCompletionData(scores, beatmaps) {
         let filtered_scores = scores.filter(score => moment(score.beatmap.approved_date).utc().isSame(moment_year, 'year'));
         let filtered_beatmaps = beatmaps.filter(beatmap => moment(beatmap.approved_date).isSame(moment_year, 'year'));
 
-        //console.log(new Date(scores[0].approved_date).getFullYear());
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
         completion.years.push({
             range: year, completion: perc, scores: filtered_scores.length, beatmaps: filtered_beatmaps.length
@@ -396,7 +395,6 @@ async function VerifyToken(session_token, user_id, refresh = false) {
             throw new Error('Invalid token');
         }
 
-        //console.log(`[TOKEN DEBUG] Found token for ${user_id}`);
         const created_at = new Date(result.created_at);
         const expires_in = result.expires_in;
         const now = new Date();
@@ -406,7 +404,6 @@ async function VerifyToken(session_token, user_id, refresh = false) {
     }
 
     if (!valid && refresh) {
-        //console.log(`[TOKEN DEBUG] Token for ${user_id} is expired`);
         //try to refresh token
         const refresh_token = result.refresh_token;
         let refresh_result = null;
@@ -423,7 +420,6 @@ async function VerifyToken(session_token, user_id, refresh = false) {
         }
         if (refresh_result?.data?.access_token !== null) {
             //update token
-            //console.log(`[TOKEN DEBUG] Refreshed token for ${user_id}`);
             await InspectorUserAccessToken.update({
                 access_token: refresh_result.data.access_token,
                 refresh_token: refresh_result.data.refresh_token,

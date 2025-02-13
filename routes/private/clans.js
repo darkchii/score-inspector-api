@@ -459,25 +459,16 @@ router.all('/get/:id', async (req, res, next) => {
     const rankings = {};
 
     for (const rank of stat_rankings) {
-        const sorted = await InspectorClanStats.findAll({
-            order: [[rank.key, 'DESC']],
-        });
+        const query = `
+            SELECT row_index FROM (
+                SELECT clan_id, ROW_NUMBER() OVER (ORDER BY ${rank.key} DESC) as row_index
+                FROM inspector_clan_stats
+            ) ranked
+            WHERE clan_id = ${clan_id}
+            `;
+        const sorted_res = await Raw(query);
 
-        const index = sorted.findIndex(s => s.clan_id == clan_id);
-        rankings[rank.key] = index + 1;
-
-        // console.log(`Checking ${rank.key}`);
-        // const query = `
-        //     SELECT row_index FROM (
-        //         SELECT clan_id, ROW_NUMBER() OVER (ORDER BY ${rank.key} DESC) as row_index
-        //         FROM inspector_clan_stats
-        //     ) ranked
-        //     WHERE clan_id = ${clan_id}
-        //     `;
-        // console.log(query);
-        // const sorted_res = await Raw(query);
-
-        // console.log(sorted_res);
+        rankings[rank.key] = Number(sorted_res[0]?.[0]?.row_index ?? 0);
     }
 
     const logs = await InspectorClanLogs.findAll({
@@ -852,7 +843,7 @@ router.post('/accept_request', async (req, res, next) => {
             return;
         }
     } catch (error) {
-        console.log(error);
+        console.error(error);
         res.json({ error: "An error occurred" });
         return;
     }
@@ -1186,7 +1177,6 @@ router.post('/update_moderator', async (req, res, next) => {
                 return;
             }
         } catch (error) {
-            console.log(req.body);
             console.error(error);
             res.json({ error: "An error occurred" });
             return;
@@ -1262,7 +1252,7 @@ router.post('/update_moderator', async (req, res, next) => {
 
         res.json({ success: true });
     } catch (err) {
-        console.log(err);
+        console.error(err);
         res.json({ error: "An error occurred" });
     }
 });
@@ -1331,8 +1321,6 @@ router.get('/rankings/:date?', cache('1 hour'), async (req, res, next) => {
             }
             _date = `${__date.getUTCFullYear()}-${month}`;
         }
-
-        console.log(_date);
 
         const data = await InspectorClanRanking.findOne({
             where: {

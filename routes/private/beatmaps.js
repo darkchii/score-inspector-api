@@ -137,7 +137,6 @@ router.get('/count_periodic', cache('1 hour'), async (req, res) => {
 
 router.get('/:id', cache('1 hour'), async (req, res) => {
     const mode = req.query.mode !== undefined ? req.query.mode : 0;
-    const mods = req.query.mods_enum !== undefined ? req.query.mods_enum : null;
     const include_scores = req.query.include_scores !== undefined ? req.query.include_scores : false;
     const include_score_data = req.query.include_score_data !== undefined ? req.query.include_score_data : false;
     const score_limit = req.query.score_limit !== undefined ? req.query.score_limit : 10;
@@ -153,37 +152,6 @@ router.get('/:id', cache('1 hour'), async (req, res) => {
 
         if (result !== null) {
             result = JSON.parse(JSON.stringify(result));
-        }
-
-        if (mods) {
-            let res = {};
-            const correctedMods = CorrectMod(parseInt(mods));
-
-            const sr_result = await AltModdedStars.findOne({
-                where: {
-                    beatmap_id: req.params.id,
-                    mods_enum: correctedMods
-                }
-            });
-            res = { ...JSON.parse(JSON.stringify(sr_result)) };
-
-            sr_results.forEach(sr => {
-                const version = sr.version;
-                res[version] = sr;
-            });
-
-            if (res !== null) {
-                result.modded_sr = res;
-            }
-        } else {
-            const sr_result = await AltModdedStars.findAll({
-                where: {
-                    beatmap_id: req.params.id
-                }
-            });
-            if (sr_result !== null) {
-                result.modded_sr = sr_result;
-            }
         }
 
         const set_id = result.set_id;

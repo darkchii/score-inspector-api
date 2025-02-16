@@ -150,6 +150,11 @@ router.get('/:id', cache('1 hour'), async (req, res) => {
             }
         });
 
+        if(result === null) {
+            res.status(404).json({});
+            return;
+        }
+
         if (result !== null) {
             result = JSON.parse(JSON.stringify(result));
         }

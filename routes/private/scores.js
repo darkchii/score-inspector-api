@@ -3,9 +3,9 @@ var apicache = require('apicache');
 var router = express.Router();
 const { GetBestScores, GetBeatmapScores, GetScores } = require('../../helpers/osualt');
 const { getBeatmaps, getCompletionData } = require('../../helpers/inspector');
-const { AltScore, AltModdedStars, AltBeatmap, AltBeatmapPack, InspectorScoreStat, Databases, AltTopScore, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, AltUser, InspectorClanMember, InspectorClan, GetHistoricalScoreRankModel, CheckConnection, AltScoreMods } = require('../../helpers/db');
+const { AltScore, InspectorScoreStat, Databases, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, GetHistoricalScoreRankModel, CheckConnection } = require('../../helpers/db');
 const { Op, default: Sequelize } = require('@sequelize/core');
-const { CorrectedSqlScoreMods, db_now, all_mods_short } = require('../../helpers/misc');
+const { db_now } = require('../../helpers/misc');
 const request = require("supertest");
 const { GetOsuUsers, MODE_SLUGS, ApplyDifficultyData } = require('../../helpers/osu');
 var _ = require('lodash');
@@ -551,16 +551,6 @@ router.get('/ranking', cache('1 hour'), async function (req, res, next) {
                         attributes: ['id', 'title', 'description', 'color', 'icon', 'is_visible', 'is_admin', 'is_listed'],
                         through: { attributes: [] },
                         as: 'roles'
-                    },
-                    {
-                        model: InspectorClanMember,
-                        attributes: ['osu_id', 'clan_id', 'join_date', 'pending', 'is_moderator'],
-                        as: 'clan_member',
-                        include: [{
-                            model: InspectorClan,
-                            attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
-                            as: 'clan',
-                        }]
                     }
                 ]
             });

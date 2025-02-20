@@ -2,7 +2,7 @@ const { default: axios } = require('axios');
 const express = require('express');
 const router = express.Router();
 require('dotenv').config();
-const { InspectorUser, InspectorRole, InspectorOsuUser, InspectorClanMember, InspectorClan, InspectorBackgroundSource, InspectorBackgroundTag, AltBeatmap } = require('../../helpers/db');
+const { InspectorBackgroundSource, InspectorBackgroundTag, AltBeatmap } = require('../../helpers/db');
 const { VerifyToken, GetInspectorUser } = require('../../helpers/inspector');
 const { GetBeatmaps } = require('../../helpers/osu');
 const { Op } = require('@sequelize/core');

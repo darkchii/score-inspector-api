@@ -2,7 +2,7 @@ const { Client } = require("pg");
 const { GetOsuUser, GetOsuUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET } = require("./osu");
 const { default: axios } = require("axios");
 const { range } = require("./misc");
-const { InspectorBeatmap, Databases, InspectorUser, InspectorRole, InspectorUserAccessToken, InspectorClan, InspectorClanMember } = require("./db");
+const { Databases, InspectorUser, InspectorRole, InspectorUserAccessToken } = require("./db");
 const { GetAltUsers } = require("./osualt");
 const moment = require("moment");
 const { DefaultInspectorUser } = require("./user");
@@ -21,16 +21,6 @@ async function GetInspectorUser(id) {
                         attributes: ['id', 'title', 'description', 'color', 'icon', 'is_visible', 'is_admin', 'is_listed'],
                         through: { attributes: [] },
                         as: 'roles'
-                    },
-                    {
-                        model: InspectorClanMember,
-                        attributes: ['osu_id', 'clan_id', 'join_date', 'pending', 'is_moderator'],
-                        as: 'clan_member',
-                        include: [{
-                            model: InspectorClan,
-                            attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
-                            as: 'clan',
-                        }]
                     }
                 ]
             });
@@ -478,13 +468,6 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { alt: fal
                 attributes: ['id', 'title', 'description', 'color', 'icon', 'is_visible', 'is_admin', 'is_listed'],
                 through: { attributes: [] },
                 as: 'roles'
-            }, {
-                model: InspectorClanMember,
-                as: 'clan_member',
-                include: [{
-                    model: InspectorClan,
-                    as: 'clan',
-                }]
             }]
         }).then(users => {
             inspector_users = users;

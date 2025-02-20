@@ -1,6 +1,6 @@
 const moment = require("moment/moment");
 const { Op, default: Sequelize } = require("@sequelize/core");
-const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, Databases, InspectorUser, InspectorScoreStat, InspectorClanMember, InspectorClan, InspectorOsuUser, AltScoreMods, AltModdedStars, AltTopScore, AltBeatmapPack } = require("./db");
+const { AltPriorityUser, AltUser, AltUniqueSS, AltUniqueFC, AltUniqueDTFC, AltUserAchievement, AltScore, AltBeatmap, Databases, InspectorUser, InspectorScoreStat, InspectorOsuUser, AltScoreMods, AltModdedStars, AltBeatmapPack } = require("./db");
 const { CorrectedSqlScoreMods, CorrectedSqlScoreModsCustom } = require("./misc");
 const { default: axios } = require("axios");
 const { GetOsuUsers, ApplyDifficultyData } = require("./osu");
@@ -255,19 +255,7 @@ async function FindUser(query, single, requirePriority = true) {
 
             const user_ids = rows.map(x => x.user_id);
             const inspector_users = await InspectorUser.findAll({
-                where: { osu_id: { [Op.in]: user_ids } },
-                include: [
-                    {
-                        model: InspectorClanMember,
-                        attributes: ['osu_id', 'clan_id', 'join_date', 'pending', 'is_moderator'],
-                        as: 'clan_member',
-                        include: [{
-                            model: InspectorClan,
-                            attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
-                            as: 'clan',
-                        }]
-                    }
-                ]
+                where: { osu_id: { [Op.in]: user_ids } }
             });
 
             let osu_users = [];
@@ -502,19 +490,7 @@ async function GetBeatmapScores(beatmap_id, limit = 0, offset = 0) {
         });
 
         const inspector_users = await InspectorUser.findAll({
-            where: { osu_id: user_ids },
-            include: [
-                {
-                    model: InspectorClanMember,
-                    attributes: ['osu_id', 'clan_id', 'join_date', 'pending', 'is_moderator'],
-                    as: 'clan_member',
-                    include: [{
-                        model: InspectorClan,
-                        attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
-                        as: 'clan',
-                    }]
-                }
-            ]
+            where: { osu_id: user_ids }
         });
 
         for await (let score of scores) {
@@ -730,19 +706,7 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
     if (!req.params?.id) {
         //add user data after the fact, since we don't need it in the massive query
         const inspectorUsers = await InspectorUser.findAll({
-            where: { osu_id: scores.map(row => row.user_id) },
-            include: [
-                {
-                    model: InspectorClanMember,
-                    attributes: ['osu_id', 'clan_id', 'join_date', 'pending', 'is_moderator'],
-                    as: 'clan_member',
-                    include: [{
-                        model: InspectorClan,
-                        attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
-                        as: 'clan',
-                    }]
-                }
-            ]
+            where: { osu_id: scores.map(row => row.user_id) }
         });
 
         for (let i = 0; i < scores.length; i++) {

@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const crypto = require("crypto");
 require('dotenv').config();
-const { InspectorUser, InspectorComment, InspectorVisitor, AltUser, InspectorUserAccessToken, InspectorClanMember, InspectorClan, Databases, CheckConnection } = require('../../helpers/db');
+const { InspectorUser, InspectorVisitor, AltUser, InspectorUserAccessToken, Databases, CheckConnection } = require('../../helpers/db');
 const { VerifyToken, GetInspectorUser, getFullUsers, GetToken } = require('../../helpers/inspector');
 const { OSU_CLIENT_ID, OSU_CLIENT_SECRET, GetOsuUsers } = require('../../helpers/osu');
 const { default: Sequelize } = require('@sequelize/core');
@@ -282,15 +282,7 @@ router.all('/visitors/get/:id', async (req, res, next) => {
         //for each user, add the inspector user object if it exists
         for await (let user of users) {
             let inspector_user = await InspectorUser.findOne({
-                where: { osu_id: user.id },
-                include: [{
-                    model: InspectorClanMember,
-                    as: 'clan_member',
-                    include: [{
-                        model: InspectorClan,
-                        as: 'clan',
-                    }]
-                }]
+                where: { osu_id: user.id }
             });
             if (inspector_user != null) {
                 user.inspector_user = inspector_user;

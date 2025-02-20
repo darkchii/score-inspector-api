@@ -1,11 +1,11 @@
 var express = require('express');
 var apicache = require('apicache');
 var router = express.Router();
-const { HasScores, GetBeatmaps } = require('../../helpers/osualt');
+const { GetBeatmaps } = require('../../helpers/osualt');
 const { GetBeatmapCount } = require('../../helpers/inspector');
 const e = require('express');
 const { CorrectedSqlScoreMods_2, parse } = require('../../helpers/misc');
-const { InspectorUser, Raw, Databases, InspectorClanMember, InspectorClan } = require('../../helpers/db');
+const { InspectorUser, Databases } = require('../../helpers/db');
 const { GetOsuUsers } = require('../../helpers/osu');
 require('dotenv').config();
 let cache = apicache.middleware;
@@ -390,18 +390,7 @@ router.get('/:stat', cache('1 hour'), async function (req, res, next) {
                 }
 
                 const inspectorUsers = await InspectorUser.findAll({
-                    where: { osu_id: rows.map(row => row.user_id) },
-                    include: [
-                        {
-                            model: InspectorClanMember,
-                            as: 'clan_member',
-                            include: [{
-                                model: InspectorClan,
-                                attributes: ['id', 'name', 'tag', 'color', 'creation_date', 'description', 'owner'],
-                                as: 'clan',
-                            }]
-                        }
-                    ]
+                    where: { osu_id: rows.map(row => row.user_id) }
                 });
                 if (inspectorUsers) {
                     inspectorUsers.forEach(inspector_user => {

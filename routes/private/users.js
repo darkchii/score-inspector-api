@@ -373,8 +373,7 @@ router.get('/wrapped/:id', cache('1 hour'), async (req, res) => {
       playcount: 0,
       replays_watched: 0,
       achievements: 0,
-      badges: 0,
-      clan_data: full_user.inspector_user?.clan_member,
+      badges: 0
     };
 
     //check user.osu.monthly_playcounts

@@ -707,6 +707,7 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
                 ],
                 // raw: true,
                 nest: true,
+                logging: console.log
             });
             let scores = _scores.map(row => row.toJSON());
             resolve(scores);

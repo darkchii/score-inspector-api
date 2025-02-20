@@ -133,6 +133,9 @@ router.get('/list', async (req, res, next) => {
 });
 
 router.post('/create', async (req, res, next) => {
+    res.json({ error: "Clans are archived. This is disabled!" });
+    return;
+
     //first we check osu_id and token, to see if the user is valid
     const user_id = req.body.user.id;
     const token = req.body.user.token;
@@ -591,6 +594,9 @@ router.all('/get/:id', async (req, res, next) => {
 });
 
 router.post('/update', async (req, res, next) => {
+    res.json({ error: "Clans are archived. This is disabled!" });
+    return;
+
     try {
 
 
@@ -768,6 +774,9 @@ router.post('/update', async (req, res, next) => {
 });
 
 router.post('/delete', async (req, res, next) => {
+    res.json({ error: "Clans are archived. This is disabled!" });
+    return;
+
     const user_id = req.body.user.id;
     const token = req.body.user.token;
 
@@ -818,6 +827,9 @@ router.post('/delete', async (req, res, next) => {
 });
 
 router.post('/join_request', async (req, res, next) => {
+    res.json({ error: "Clans are archived. This is disabled!" });
+    return;
+
     const user_id = req.body.user_id;
     const token = req.body.token;
     const clan_id = req.body.clan_id;
@@ -871,6 +883,9 @@ router.post('/join_request', async (req, res, next) => {
 });
 
 router.post('/accept_request', async (req, res, next) => {
+    res.json({ error: "Clans are archived. This is disabled!" });
+    return;
+
     const moderator_id = req.body.moderator_id;
     const token = req.body.token;
     const user_id = req.body.join_request_id;
@@ -995,6 +1010,9 @@ router.post('/accept_request', async (req, res, next) => {
 });
 
 router.post('/reject_request', async (req, res, next) => {
+    res.json({ error: "Clans are archived. This is disabled!" });
+    return;
+
     const moderator_id = req.body.moderator_id;
     const token = req.body.token;
     const user_id = req.body.join_request_id;
@@ -1051,6 +1069,9 @@ router.post('/reject_request', async (req, res, next) => {
 });
 
 router.post('/remove_member', async (req, res, next) => {
+    res.json({ error: "Clans are archived. This is disabled!" });
+    return;
+
     const moderator_id = req.body.moderator_id;
     const token = req.body.token;
     const user_id = req.body.member_id;
@@ -1122,6 +1143,9 @@ router.post('/remove_member', async (req, res, next) => {
 });
 
 router.post('/transfer_owner', async (req, res, next) => {
+    res.json({ error: "Clans are archived. This is disabled!" });
+    return;
+
     const owner_id = req.body.owner_id;
     const token = req.body.token;
     const user_id = req.body.member_id;
@@ -1205,6 +1229,9 @@ router.post('/transfer_owner', async (req, res, next) => {
 });
 
 router.post('/update_moderator', async (req, res, next) => {
+    res.json({ error: "Clans are archived. This is disabled!" });
+    return;
+
     try {
         const owner_id = req.body.owner_id;
         const token = req.body.token;
@@ -1300,6 +1327,9 @@ router.post('/update_moderator', async (req, res, next) => {
 });
 
 router.post('/leave', async (req, res, next) => {
+    res.json({ error: "Clans are archived. This is disabled!" });
+    return;
+    
     const user_id = req.body.user_id;
     const token = req.body.token;
     const clan_id = req.body.clan_id;

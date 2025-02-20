@@ -524,6 +524,7 @@ async function ApplyDifficultyData(scores, force_all_mods = false, custom_mods =
             score.beatmap.difficulty_data.slider_factor = modded_sr.slider_factor;
             score.beatmap.difficulty_data.speed_note_count = modded_sr.speed_note_count;
 
+            score.beatmap.difficulty_data.aim_difficult_slider_count = 0;
             score.beatmap.difficulty_data.aim_difficult_strain_count = 0;
             score.beatmap.difficulty_data.speed_difficult_strain_count = 0;
 

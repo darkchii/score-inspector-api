@@ -284,7 +284,7 @@ router.all('/user/:id?', async (req, res, next) => {
     ids = ids.filter(id => !fetched_cached_data.find(d => d.osu_id == id));
 
     //remove empty strings
-    ids = ids.filter(id => id.length > 0);
+    ids = ids.filter(id => id !== null && id !== '');    
 
     if (ids.length == 0 && fetched_cached_data.length == 0) {
         res.status(400).json({ error: "Invalid user id" });
@@ -1329,7 +1329,7 @@ router.post('/update_moderator', async (req, res, next) => {
 router.post('/leave', async (req, res, next) => {
     res.json({ error: "Clans are archived. This is disabled!" });
     return;
-    
+
     const user_id = req.body.user_id;
     const token = req.body.token;
     const clan_id = req.body.clan_id;

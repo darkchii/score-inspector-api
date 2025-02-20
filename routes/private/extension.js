@@ -149,6 +149,9 @@ router.post('/clans/users', async (req, res, next) => {
     //dont fetch users that are in fetched_cached_data (fetched_cached_data.data.osu_id)
     ids = ids.filter(id => !fetched_cached_data.find(d => d.osu_id == id));
 
+    //remove empty strings
+    ids = ids.filter(id => id.length > 0);
+
     if (ids.length == 0 && fetched_cached_data.length == 0) {
         res.status(400).json({ error: "Invalid user id" });
         return;

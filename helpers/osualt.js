@@ -423,16 +423,15 @@ async function GetBestScores(period, stat, limit, loved = false) {
 
 module.exports.GetBeatmaps = GetBeatmaps;
 async function GetBeatmaps(config) {
-    let whereClause = {
-        mode: { [Op.in]: config.mode ? config.mode.split(',') : [0] },
-        approved: { [Op.in]: config.approved ? config.approved.split(',') : [1, 2, ...(config.include_qualified ? [3] : []), ...(config.include_loved ? [4] : [])] },
-        stars: { [Op.between]: [config.stars_min ?? 0, config.stars_max ?? 100000] },
-        ar: { [Op.between]: [config.ar_min ?? 0, config.ar_max ?? 100000] },
-        od: { [Op.between]: [config.od_min ?? 0, config.od_max ?? 100000] },
-        cs: { [Op.between]: [config.cs_min ?? 0, config.cs_max ?? 100000] },
-        hp: { [Op.between]: [config.hp_min ?? 0, config.hp_max ?? 100000] },
-        length: { [Op.between]: [config.length_min ?? 0, config.length_max ?? 100000] }
-    }
+    let whereClause = {}
+    if(config.ar_min || config.ar_max){ whereClause.ar = { [Op.between]: [config.ar_min ?? 0, config.ar_max ?? 100000] }; }
+    if(config.od_min || config.od_max){ whereClause.od = { [Op.between]: [config.od_min ?? 0, config.od_max ?? 100000] }; }
+    if(config.cs_min || config.cs_max){ whereClause.cs = { [Op.between]: [config.cs_min ?? 0, config.cs_max ?? 100000] }; }
+    if(config.hp_min || config.hp_max){ whereClause.hp = { [Op.between]: [config.hp_min ?? 0, config.hp_max ?? 100000] }; }
+    if(config.length_min || config.length_max){ whereClause.length = { [Op.between]: [config.length_min ?? 0, config.length_max ?? 100000] }; }
+    if(config.stars_min || config.stars_max){ whereClause.stars = { [Op.between]: [config.stars_min ?? 0, config.stars_max ?? 100000] }; }
+    if(config.approved){ whereClause.approved = { [Op.in]: config.approved.split(',') }; }
+    if(config.mode){ whereClause.mode = { [Op.in]: config.mode.split(',') }; }
 
     if (config.isSetID && config.id) {
         whereClause.set_id = { [Op.in]: Array.isArray(config.id) ? config.id : config.id.split(',') };
@@ -457,7 +456,7 @@ async function GetBeatmaps(config) {
     }
 
     const beatmaps = await AltBeatmap.findAll({
-        where: whereClause,
+        where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
         limit: config.limit ?? undefined,
         offset: config.offset ?? 0,
         ...(

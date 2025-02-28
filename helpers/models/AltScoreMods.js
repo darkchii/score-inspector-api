@@ -19,9 +19,9 @@ const AltScoreModsModel = (db) => db.define('ScoreMods', {
     speed_difficulty: { type: DataTypes.FLOAT },
     speed_note_count: { type: DataTypes.FLOAT },
     flashlight_difficulty: { type: DataTypes.FLOAT },
+    aim_difficult_slider_count: { type: DataTypes.FLOAT },
     aim_difficult_strain_count: { type: DataTypes.FLOAT },
     speed_difficult_strain_count: { type: DataTypes.FLOAT },
-    approach_rate: { type: DataTypes.FLOAT },
     overall_difficulty: { type: DataTypes.FLOAT },
     drain_rate: { type: DataTypes.FLOAT },
     slider_factor: { type: DataTypes.FLOAT },
@@ -34,6 +34,7 @@ const AltScoreModsModel = (db) => db.define('ScoreMods', {
     },
     statistics: { type: DataTypes.JSONB },
     maximum_statistics: { type: DataTypes.JSONB },
+    recalc: { type: DataTypes.BOOLEAN },
 }, {
     tableName: 'scoresmods',
     timestamps: false,

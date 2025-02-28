@@ -445,7 +445,6 @@ async function ConvertOsuScoreResultToInspectorScore(score, user) {
             flashlight_difficulty: attributes.flashlight_difficulty ?? null,
             aim_difficult_strain_count: attributes.aim_difficult_strain_count,
             speed_difficult_strain_count: attributes.speed_difficult_strain_count,
-            approach_rate: attributes.approach_rate,
             overall_difficulty: attributes.overall_difficulty,
             drain_rate: attributes.hp,
             slider_factor: attributes.slider_factor,

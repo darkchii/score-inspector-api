@@ -436,13 +436,15 @@ async function GetBeatmaps(config) {
     if (config.isSetID && config.id) {
         whereClause.set_id = { [Op.in]: Array.isArray(config.id) ? config.id : config.id.split(',') };
     } else {
-        whereClause.beatmap_id = { [Op.and]: [] };
         if (config.id) {
-            // whereClause.beatmap_id = { [Op.in]: config.id.split(',') };
+            whereClause.beatmap_id = whereClause.beatmap_id ?? {};
+            whereClause.beatmap_id[Op.and] = whereClause.beatmap_id[Op.and] ?? [];
             whereClause.beatmap_id[Op.and].push({ [Op.in]: Array.isArray(config.id) ? config.id : config.id.split(',') });
         }
         if (config.pack) {
             //whereClause.pack_id = { [Op.in]: config.pack.split(',') };
+            whereClause.beatmap_id = whereClause.beatmap_id ?? {};
+            whereClause.beatmap_id[Op.and] = whereClause.beatmap_id[Op.and] ?? [];
             whereClause.beatmap_id[Op.and].push({
                 [Op.in]:
                     Sequelize.literal(`
@@ -454,6 +456,7 @@ async function GetBeatmaps(config) {
             });
         }
     }
+
 
     const beatmaps = await AltBeatmap.findAll({
         where: Object.keys(whereClause).length > 0 ? whereClause : undefined,

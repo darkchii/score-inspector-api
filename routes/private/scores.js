@@ -3,7 +3,7 @@ var apicache = require('apicache');
 var router = express.Router();
 const { GetBestScores, GetBeatmapScores, GetScores } = require('../../helpers/osualt');
 const { getBeatmaps, getCompletionData } = require('../../helpers/inspector');
-const { AltScore, InspectorScoreStat, Databases, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, GetHistoricalScoreRankModel, CheckConnection } = require('../../helpers/db');
+const { AltScore, InspectorScoreStat, Databases, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, GetHistoricalScoreRankModel, CheckConnection, Raw } = require('../../helpers/db');
 const { Op, default: Sequelize } = require('@sequelize/core');
 const { db_now } = require('../../helpers/misc');
 const request = require("supertest");
@@ -357,7 +357,8 @@ router.get('/activity', cache('20 minutes'), async function (req, res, next) {
         ) AS time_entries;
     `;
 
-        const [rows] = await Databases.osuAlt.query(query);
+        // const [rows] = await Databases.osuAlt.query(query);
+        const [rows] = await Raw(query, 'osuAlt');
         res.json(rows);
     } catch (e) {
         console.error(e);
@@ -442,7 +443,7 @@ router.get('/today', cache('10 minutes'), async function (req, res, next) {
 
         const result = await Databases.osuAlt.query(query);
 
-        const data = result?.[0];
+        const data = result[0];
 
         const user_ids = data.map(row => row.user_id);
         const client = request(req.app);

@@ -2,7 +2,7 @@ const { Client } = require("pg");
 const { GetOsuUser, GetOsuUsers, OSU_CLIENT_ID, OSU_CLIENT_SECRET } = require("./osu");
 const { default: axios } = require("axios");
 const { range } = require("./misc");
-const { Databases, InspectorUser, InspectorRole, InspectorUserAccessToken } = require("./db");
+const { Databases, InspectorUser, InspectorRole, InspectorUserAccessToken, Raw } = require("./db");
 const { GetAltUsers } = require("./osualt");
 const moment = require("moment");
 const { DefaultInspectorUser } = require("./user");
@@ -196,7 +196,7 @@ async function GetBeatmapCount(loved = true) {
     const qVar = _res[1];
 
     // const result = await connection.awaitQuery(`SELECT COUNT(*) as amount FROM beatmap ${q}`, qVar);
-    const result = await Databases.osuAlt.query(`SELECT COUNT(*) as amount FROM beatmaps ${q}`, {
+    const result = await Raw(`SELECT COUNT(*) as amount FROM beatmaps ${q}`, 'osuAlt', {
         replacements: qVar,
         type: Sequelize.QueryTypes.SELECT
     });
@@ -285,7 +285,7 @@ function getCompletionData(scores, beatmaps) {
         // let filtered_scores = scores.filter(score => moment(score.beatmap.approved_date).local().isSame(moment_year, 'year'));
         // let filtered_beatmaps = beatmaps.filter(beatmap => moment(beatmap.approved_date).local().isSame(moment_year, 'year'));
         let filtered_scores = scores.filter(score => moment(score.beatmap.approved_date).utc().isSame(moment_year, 'year'));
-        let filtered_beatmaps = beatmaps.filter(beatmap => moment(beatmap.approved_date).isSame(moment_year, 'year'));
+        let filtered_beatmaps = beatmaps.filter(beatmap => moment(beatmap.approved_date).utc().isSame(moment_year, 'year'));
 
         perc = filtered_scores.length / filtered_beatmaps.length * 100;
         completion.years.push({

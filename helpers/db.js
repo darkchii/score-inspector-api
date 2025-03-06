@@ -234,8 +234,16 @@ module.exports.InspectorClanLogs = InspectorClanLogs;
 module.exports.InspectorClanRanking = InspectorClanRanking;
 
 module.exports.Raw = Raw;
-async function Raw(query, db = 'inspector') {
-    return await databases[db].query(query);
+async function Raw(query, db = 'inspector', options = {}) {
+    // return await databases[db].query(query);
+    //run as a promise to avoid blocking
+    return new Promise((resolve, reject) => {
+        databases[db].query(query, options).then((result) => {
+            resolve(result);
+        }).catch((err) => {
+            reject(err);
+        })
+    });
 }
 
 module.exports.CloseConnections = CloseConnections;

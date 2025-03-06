@@ -466,7 +466,16 @@ async function GetBeatmaps(config) {
             config.isSetID ? {
                 group: ['beatmap_id', 'set_id'],
             } : {}
-        )
+        ),
+        //join packs
+        include: [
+            {
+                model: AltBeatmapPack,
+                as: 'packs',
+                required: false,
+                attributes: ['pack_id'],
+            }
+        ]
     });
 
     return beatmaps;
@@ -542,8 +551,17 @@ async function GetSystemInfo() {
                 period: 'any'
             }
         });
-
+        
         data = JSON.parse(_data.value);
+
+        const _activity_data = await InspectorScoreStat.findOne({
+            where: {
+                key: 'active_players',
+                period: 'misc'
+            }
+        });
+
+        data.active_players = JSON.parse(_activity_data.value);
     } catch (err) {
         throw new Error(err.message);
     }

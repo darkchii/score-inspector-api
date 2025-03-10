@@ -161,6 +161,8 @@ router.post('/profile', async (req, res, next) => {
                 sortBy: "0",
                 sortOrder: "0",
                 u1: username
+            }, {
+                timeout: 3000
             }),
             axios.get(`https://score.respektive.pw/u/${id}?m=${mode}`, {
                 headers: { "Accept-Encoding": "gzip,deflate,compress" }

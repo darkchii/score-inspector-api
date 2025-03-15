@@ -677,6 +677,10 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
                                     as: 'modded_sr',
                                     where: {
                                         [Op.and]: {
+                                            //only if modern_mods is null
+                                            '$modern_mods.star_rating$': {
+                                                [Op.eq]: null
+                                            },
                                             mods_enum: {
                                                 [Op.eq]: Sequelize.literal(CorrectedSqlScoreMods)
                                             },

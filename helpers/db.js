@@ -43,6 +43,8 @@ const { AltScoreModsModel } = require('./models/AltScoreMods.js');
 const { MariaDbDialect } = require('@sequelize/mariadb');
 const { PostgresDialect } = require('@sequelize/postgres');
 const { default: Sequelize } = require('@sequelize/core');
+const { OsuTeamModel } = require('./models/OsuTeam.js');
+const { OsuTeamMemberModel } = require('./models/OsuTeamMember.js');
 require('dotenv').config();
 
 let databases = {
@@ -50,6 +52,20 @@ let databases = {
         {
             dialect: MariaDbDialect,
             database: process.env.MYSQL_DB,
+            user: process.env.MYSQL_USER,
+            password: process.env.MYSQL_PASS,
+            host: process.env.MYSQL_HOST,
+            timezone: 'Europe/Amsterdam',
+            logging: false,
+            retry: {
+                max: 10
+            }
+        }
+    ),
+    inspector_teams: new Sequelize(
+        {
+            dialect: MariaDbDialect,
+            database: process.env.MYSQL_DB_TEAM,
             user: process.env.MYSQL_USER,
             password: process.env.MYSQL_PASS,
             host: process.env.MYSQL_HOST,
@@ -133,6 +149,11 @@ const InspectorBeatmapSongSource = InspectorBackgroundSongSourceModel(databases.
 const UserMessage = UserMessageModel(databases.inspector);
 const Tournament = TournamentModel(databases.inspector);
 
+const OsuTeam = OsuTeamModel(databases.inspector_teams);
+const OsuTeamMember = OsuTeamMemberModel(databases.inspector_teams);
+
+OsuTeamMember.belongsTo(OsuTeam, { as: 'team', foreignKey: 'team_id', targetKey: 'id' });
+
 InspectorUser.belongsToMany(InspectorRole, { as: 'roles', through: 'inspector_user_roles', foreignKey: 'user_id', otherKey: 'role_id' });
 InspectorRole.belongsTo(InspectorUser, { as: 'roles', through: 'inspector_user_roles', foreignKey: 'user_id', otherKey: 'role_id' });
 InspectorOsuUser.belongsTo(InspectorUser, { as: 'osu_user', foreignKey: 'user_id', targetKey: 'osu_id' });
@@ -212,6 +233,9 @@ module.exports.InspectorBeatmapDifficulty = InspectorBeatmapDifficulty;
 module.exports.UserMessage = UserMessage;
 
 module.exports.Tournament = Tournament;
+
+module.exports.OsuTeam = OsuTeam;
+module.exports.OsuTeamMember = OsuTeamMember;
 
 module.exports.AltUser = AltUser;
 module.exports.AltPriorityUser = AltPriorityUser;

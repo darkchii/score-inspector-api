@@ -2,7 +2,7 @@ var express = require('express');
 var apicache = require('apicache');
 var router = express.Router();
 const { GetBeatmaps } = require('../../helpers/osualt');
-const { GetBeatmapCount } = require('../../helpers/inspector');
+const { GetBeatmapCount, GetInspectorUsers } = require('../../helpers/inspector');
 const e = require('express');
 const { CorrectedSqlScoreMods_2, parse } = require('../../helpers/misc');
 const { InspectorUser, Databases } = require('../../helpers/db');
@@ -389,9 +389,10 @@ router.get('/:stat', cache('1 hour'), async function (req, res, next) {
                     });
                 }
 
-                const inspectorUsers = await InspectorUser.findAll({
-                    where: { osu_id: rows.map(row => row.user_id) }
-                });
+                // const inspectorUsers = await InspectorUser.findAll({
+                //     where: { osu_id: rows.map(row => row.user_id) }
+                // });
+                const inspectorUsers = await GetInspectorUsers(rows.map(row => row.user_id));
                 if (inspectorUsers) {
                     inspectorUsers.forEach(inspector_user => {
                         const row = rows.find(row => row.user_id === inspector_user.osu_id);

@@ -281,20 +281,7 @@ router.all('/visitors/get/:id', async (req, res, next) => {
 
         //for each user, add the inspector user object if it exists
         for await (let user of users) {
-            let inspector_user = await InspectorUser.findOne({
-                where: { osu_id: user.id }
-            });
-            if (inspector_user != null) {
-                user.inspector_user = inspector_user;
-            } else {
-                //generate a new inspector user
-                user.inspector_user = {
-                    id: null,
-                    osu_id: user.id,
-                    known_username: user.username,
-                    roles: []
-                }
-            }
+            user.inspector_user = await GetInspectorUser(user.id);
         }
 
         //add correct user to each result

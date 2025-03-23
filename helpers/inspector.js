@@ -7,6 +7,7 @@ const { GetAltUsers } = require("./osualt");
 const moment = require("moment");
 const { DefaultInspectorUser } = require("./user");
 const { default: Sequelize } = require("@sequelize/core");
+const { GetUsersTeams, GetUserTeam } = require("./teams");
 require('dotenv').config();
 
 module.exports.GetInspectorUser = GetInspectorUser;
@@ -24,8 +25,41 @@ async function GetInspectorUser(id) {
                     }
                 ]
             });
-        return inspector_user;
 
+        const team = await GetUserTeam(id);
+        return DefaultInspectorUser(inspector_user, null, id, team);
+        // return inspector_user;
+    } catch (e) {
+        return null;
+    }
+}
+
+module.exports.GetInspectorUsers = GetInspectorUsers;
+async function GetInspectorUsers(ids) {
+    try {
+        const inspector_users = await InspectorUser.findAll(
+            {
+                where: { osu_id: ids },
+                include: [
+                    {
+                        model: InspectorRole,
+                        attributes: ['id', 'title', 'description', 'color', 'icon', 'is_visible', 'is_admin', 'is_listed'],
+                        through: { attributes: [] },
+                        as: 'roles'
+                    }
+                ]
+            });
+
+        const teams = await GetUsersTeams(ids);
+
+        let users = [];
+
+        inspector_users.forEach(inspector_user => {
+            const team = teams.find(team => team.user_id == inspector_user.osu_id)?.team || null;
+            users.push(DefaultInspectorUser(inspector_user, null, inspector_user.osu_id, team));
+        });
+
+        return users;
     } catch (e) {
         return null;
     }
@@ -439,7 +473,7 @@ async function GetToken(user_id) {
     return result;
 }
 
-module.exports.getFullUsers = async function (user_ids, skippedData = { alt: false, score: false, osu: false, extras: false }, allowFallback = false, forceLocalAlt = false) {
+module.exports.getFullUsers = async function (user_ids, skippedData = { alt: false, score: false, osu: false, extras: false, teams: false }, allowFallback = false, forceLocalAlt = false) {
     //split ids in array of integers
     let ids = user_ids;
 
@@ -456,6 +490,7 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { alt: fal
     let osu_users = [];
     let alt_users = [];
     let score_ranks = [];
+    let teams = [];
 
     await Promise.all([
         //inspector users
@@ -484,6 +519,12 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { alt: fal
         skippedData.alt ? null : GetAltUsers(ids, ids.length === 1 && !skippedData.extras, forceLocalAlt).then(users => {
             alt_users = users;
         }).catch(err => {
+        }),
+        //teams
+        skippedData.teams ? null : GetUsersTeams(ids).then(_teams => {
+            teams = _teams;
+        }).catch(err => {
+            console.log(err);
         }),
         //score ranks
         skippedData.score || skippedData.osu ? null : axios.get(`https://score.respektive.pw/u/${ids.join(',')}`, {
@@ -514,6 +555,7 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { alt: fal
         let alt_user = alt_users.find(user => user.user_id == id);
         let osu_user = osu_users.find(user => user.id == id);
         let score_rank = score_ranks.find(user => user.user_id == id);
+        let team = teams.find(team => team.user_id == id)?.team || null;
 
         let username = !osu_user ? alt_user?.username : osu_user?.username;
         if (!username && !allowFallback) return;
@@ -525,8 +567,8 @@ module.exports.getFullUsers = async function (user_ids, skippedData = { alt: fal
         // if (!skippedData.osu) { user.osu = { ...osu_user, score_rank }; }
         user.alt = alt_user || null;
         user.osu = osu_user ? { ...osu_user, score_rank } : null;
-
-        user.inspector_user = DefaultInspectorUser(inspector_user, username, parseInt(id));
+        // user.team = team;
+        user.inspector_user = DefaultInspectorUser(inspector_user, username, parseInt(id), team);
 
         data.push(user);
     });

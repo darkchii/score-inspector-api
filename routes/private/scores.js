@@ -2,7 +2,7 @@ var express = require('express');
 var apicache = require('apicache');
 var router = express.Router();
 const { GetBestScores, GetBeatmapScores, GetScores } = require('../../helpers/osualt');
-const { getBeatmaps, getCompletionData } = require('../../helpers/inspector');
+const { getBeatmaps, getCompletionData, GetInspectorUsers } = require('../../helpers/inspector');
 const { AltScore, InspectorScoreStat, Databases, InspectorUser, InspectorRole, InspectorUserMilestone, InspectorOsuUser, GetHistoricalScoreRankModel, CheckConnection, Raw } = require('../../helpers/db');
 const { Op, default: Sequelize } = require('@sequelize/core');
 const { db_now } = require('../../helpers/misc');
@@ -544,17 +544,7 @@ router.get('/ranking', cache('1 hour'), async function (req, res, next) {
 
             const osuUsers = await GetOsuUsers(data.map(row => row.osu_id));
 
-            const inspectorUsers = await InspectorUser.findAll({
-                where: { osu_id: data.map(row => row.osu_id) },
-                include: [
-                    {
-                        model: InspectorRole,
-                        attributes: ['id', 'title', 'description', 'color', 'icon', 'is_visible', 'is_admin', 'is_listed'],
-                        through: { attributes: [] },
-                        as: 'roles'
-                    }
-                ]
-            });
+            const inspectorUsers = await GetInspectorUsers(data.map(row => row.osu_id));
 
             if (osuUsers && inspectorUsers) {
                 osuUsers.forEach(osu_user => {

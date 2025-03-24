@@ -5,6 +5,7 @@ const { CorrectedSqlScoreMods, CorrectedSqlScoreModsCustom } = require("./misc")
 const { default: axios } = require("axios");
 const { GetOsuUsers, ApplyDifficultyData } = require("./osu");
 const { DefaultInspectorUser } = require("./user");
+const request = require("supertest");
 require('dotenv').config();
 
 const beatmap_columns = `
@@ -323,7 +324,7 @@ async function FindUser(query, single, requirePriority = true) {
 }
 
 module.exports.GetBestScores = GetBestScores;
-async function GetBestScores(period, stat, limit, loved = false) {
+async function GetBestScores(req, period, stat, limit, loved = false) {
     let data;
     try {
         let period_check_query = null;
@@ -368,7 +369,10 @@ async function GetBestScores(period, stat, limit, loved = false) {
 
         data = rows[0];
 
-        const users = await GetOsuUsers(data.map(x => x.user_id));
+        // const users = await GetOsuUsers(data.map(x => x.user_id));
+        const client = request(req.app);
+        const users = await client.get(`/users/full/${data.map(x => x.user_id).join(',')}?force_array=false`).set('Origin', req.headers.origin || req.headers.host);
+
         //find by user_id,beatmap_id pair
         const modded_sr_rows = await AltScoreMods.findAll({
             where: {
@@ -395,9 +399,9 @@ async function GetBestScores(period, stat, limit, loved = false) {
                 }
             }
 
-            if (users) {
-                users.forEach(osu_user => {
-                    if (osu_user.id == score.user_id) {
+            if (users.body) {
+                users.body.forEach(osu_user => {
+                    if (osu_user.osu?.id == score.user_id) {
                         score.user = osu_user;
                     }
                 });

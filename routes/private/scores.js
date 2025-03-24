@@ -112,7 +112,7 @@ router.get('/best', cache('1 hour'), async function (req, res, next) {
 
     let scores;
     try {
-        scores = await GetBestScores(period, stat, limit, loved);
+        scores = await GetBestScores(req, period, stat, limit, loved);
     } catch (e) {
         res.status(500).json({ "error": "Error while fetching scores" });
         return;

@@ -192,8 +192,9 @@ AltUser.hasOne(AltPriorityUser, { as: 'priority', foreignKey: 'user_id', sourceK
 AltScore.hasOne(AltBeatmap, { as: 'beatmap', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
 AltScore.hasOne(AltUser, { as: 'user', foreignKey: 'user_id', sourceKey: 'user_id' });
 AltScore.hasOne(AltScoreMods, { as: 'modern_mods', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
+AltScore.hasOne(AltModdedStars, { as: 'modded_sr', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
 
-AltBeatmap.hasOne(AltModdedStars, { as: 'modded_sr', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
+// AltBeatmap.hasOne(AltModdedStars, { as: 'modded_sr', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
 AltBeatmap.hasOne(AltBeatmapEyup, { as: 'eyup_sr', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
 AltBeatmap.hasOne(AltBeatmapSSRatio, { as: 'ss_ratio', foreignKey: 'beatmap_id', sourceKey: 'beatmap_id' });
 

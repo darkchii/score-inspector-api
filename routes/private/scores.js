@@ -30,7 +30,7 @@ router.get('/all', cache('1 hour'), async function (req, res, next) {
                 id: undefined
             }
         }
-        const rows = await GetScores(_req);
+        const rows = await GetScores(_req, false);
         res.json(rows);
     } catch (e) {
 
@@ -68,7 +68,7 @@ router.get('/completion/:id', cache('1 hour'), async function (req, res, next) {
     try {
         req.query.user_id = req.params.id;
         req.query.ignore_modded_stars = 'true';
-        const scores = await GetScores(req, ['beatmap_id'], ['beatmap_id', 'approved_date', 'length', 'stars', 'cs', 'ar', 'od', 'hp', 'approved', 'max_combo']);
+        const scores = await GetScores(req);
         const beatmaps = await getBeatmaps({
             ...req.query, customAttributeSet: [
                 'beatmap_id',

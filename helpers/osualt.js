@@ -424,14 +424,14 @@ async function GetBestScores(period, stat, limit, loved = false) {
 module.exports.GetBeatmaps = GetBeatmaps;
 async function GetBeatmaps(config) {
     let whereClause = {}
-    if(config.ar_min || config.ar_max){ whereClause.ar = { [Op.between]: [config.ar_min ?? 0, config.ar_max ?? 100000] }; }
-    if(config.od_min || config.od_max){ whereClause.od = { [Op.between]: [config.od_min ?? 0, config.od_max ?? 100000] }; }
-    if(config.cs_min || config.cs_max){ whereClause.cs = { [Op.between]: [config.cs_min ?? 0, config.cs_max ?? 100000] }; }
-    if(config.hp_min || config.hp_max){ whereClause.hp = { [Op.between]: [config.hp_min ?? 0, config.hp_max ?? 100000] }; }
-    if(config.length_min || config.length_max){ whereClause.length = { [Op.between]: [config.length_min ?? 0, config.length_max ?? 100000] }; }
-    if(config.stars_min || config.stars_max){ whereClause.stars = { [Op.between]: [config.stars_min ?? 0, config.stars_max ?? 100000] }; }
-    if(config.approved){ whereClause.approved = { [Op.in]: config.approved.split(',') }; }
-    if(config.mode){ whereClause.mode = { [Op.in]: config.mode.split(',') }; }
+    if (config.ar_min || config.ar_max) { whereClause.ar = { [Op.between]: [config.ar_min ?? 0, config.ar_max ?? 100000] }; }
+    if (config.od_min || config.od_max) { whereClause.od = { [Op.between]: [config.od_min ?? 0, config.od_max ?? 100000] }; }
+    if (config.cs_min || config.cs_max) { whereClause.cs = { [Op.between]: [config.cs_min ?? 0, config.cs_max ?? 100000] }; }
+    if (config.hp_min || config.hp_max) { whereClause.hp = { [Op.between]: [config.hp_min ?? 0, config.hp_max ?? 100000] }; }
+    if (config.length_min || config.length_max) { whereClause.length = { [Op.between]: [config.length_min ?? 0, config.length_max ?? 100000] }; }
+    if (config.stars_min || config.stars_max) { whereClause.stars = { [Op.between]: [config.stars_min ?? 0, config.stars_max ?? 100000] }; }
+    if (config.approved) { whereClause.approved = { [Op.in]: config.approved.split(',') }; }
+    if (config.mode) { whereClause.mode = { [Op.in]: config.mode.split(',') }; }
 
     if (config.isSetID && config.id) {
         whereClause.set_id = { [Op.in]: Array.isArray(config.id) ? config.id : config.id.split(',') };
@@ -459,6 +459,9 @@ async function GetBeatmaps(config) {
 
 
     const beatmaps = await AltBeatmap.findAll({
+        ...(config.compact ? {
+            attributes: ['beatmap_id', 'set_id', 'artist', 'title', 'diffname', 'length', 'cs', 'od', 'ar', 'hp', 'stars', 'approved_date', 'maxcombo'],
+        } : {}),
         where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
         limit: config.limit ?? undefined,
         offset: config.offset ?? 0,
@@ -474,8 +477,13 @@ async function GetBeatmaps(config) {
                 as: 'packs',
                 required: false,
                 attributes: ['pack_id'],
+                //where pack_id not -1 (varying characters)
+                where: {
+                    pack_id: { [Op.ne]: Sequelize.literal("'-1'") }
+                }
             }
-        ]
+        ],
+        logging: console.log
     });
 
     return beatmaps;
@@ -551,7 +559,7 @@ async function GetSystemInfo() {
                 period: 'any'
             }
         });
-        
+
         data = JSON.parse(_data.value);
 
         const _activity_data = await InspectorScoreStat.findOne({
@@ -585,7 +593,7 @@ async function GetPopulation() {
 }
 
 module.exports.GetScores = GetScores;
-async function GetScores(req, score_attributes = undefined, beatmap_attributes = undefined) {
+async function GetScores(req, include_beatmaps = true) {
     const include_modded = req.query.ignore_modded_stars !== 'true';
     const _mods = req.query.mods;
     const split_mods = _mods ? _mods.split(',') : [];
@@ -620,7 +628,7 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
 
     //wrap in promise so it doesn't block anything else
     let scores = await new Promise(async (resolve, reject) => {
-        try{
+        try {
             let _scores = await AltScore.findAll({
                 where: {
                     ..._user_id ? { user_id: { [Op.in]: _user_id } } : {},
@@ -668,31 +676,29 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
                             ...(req.query.beatmap_id ? { beatmap_id: req.query.beatmap_id } : {}), //for development purposes
                             ...(req.query.min_approved_date || req.query.max_approved_date ? { approved_date: { [Op.between]: [req.query.min_approved_date ?? '2000-01-01', req.query.max_approved_date ?? '2100-01-01'] } } : {}),
                         },
-                        required: true,
-                        include: [
-                            ...(include_modded ? [
-                                {
-                                    required: false,
-                                    model: AltModdedStars,
-                                    as: 'modded_sr',
-                                    where: {
-                                        [Op.and]: {
-                                            //only if modern_mods is null
-                                            '$modern_mods.star_rating$': {
-                                                [Op.eq]: null
-                                            },
-                                            mods_enum: {
-                                                [Op.eq]: Sequelize.literal(CorrectedSqlScoreMods)
-                                            },
-                                            beatmap_id: {
-                                                [Op.eq]: Sequelize.literal('beatmap.beatmap_id')
-                                            },
-                                            ...(req.query.min_stars || req.query.max_stars ? { star_rating: { [Op.between]: [req.query.min_stars ?? 0, req.query.max_stars ?? 1000000000] } } : {}),
-                                        }
-                                    }
-                                }] : [])
-                        ],
+                        required: true
                     },
+                    ...(include_modded ? [
+                        {
+                            required: false,
+                            model: AltModdedStars,
+                            as: 'modded_sr',
+                            where: {
+                                [Op.and]: {
+                                    //only if modern_mods is null
+                                    '$modern_mods.star_rating$': {
+                                        [Op.eq]: null
+                                    },
+                                    mods_enum: {
+                                        [Op.eq]: Sequelize.literal(CorrectedSqlScoreMods)
+                                    },
+                                    beatmap_id: {
+                                        [Op.eq]: Sequelize.col('Score.beatmap_id')
+                                    },
+                                    ...(req.query.min_stars || req.query.max_stars ? { star_rating: { [Op.between]: [req.query.min_stars ?? 0, req.query.max_stars ?? 1000000000] } } : {}),
+                                }
+                            }
+                        }] : []),
                     ...(!req.params?.id ? [{
                         model: AltUser,
                         as: 'user',
@@ -710,7 +716,7 @@ async function GetScores(req, score_attributes = undefined, beatmap_attributes =
             });
             let scores = _scores.map(row => row.toJSON());
             resolve(scores);
-        }catch(err){
+        } catch (err) {
             reject(err);
         }
     });

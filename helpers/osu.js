@@ -487,7 +487,7 @@ async function ApplyDifficultyData(scores, force_all_mods = false, custom_mods =
 
     scores.forEach(score => {
         if (!score.mods?.star_rating) {
-            let modded_sr = score.beatmap.modded_sr;
+            let modded_sr = score.modded_sr;
 
             if (!modded_sr) {
                 //fallback of the fallback
@@ -530,7 +530,7 @@ async function ApplyDifficultyData(scores, force_all_mods = false, custom_mods =
             score.beatmap.difficulty_data.is_legacy = true;
             score.beatmap.difficulty_data.unranked = modded_sr.unranked;
 
-            delete score.beatmap.modded_sr;
+            delete score.modded_sr;
             delete score.mods;
         } else {
             score.beatmap.difficulty_data = score.mods;

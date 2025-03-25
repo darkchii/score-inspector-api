@@ -464,7 +464,7 @@ async function GetBeatmaps(config) {
 
     const beatmaps = await AltBeatmap.findAll({
         ...(config.compact ? {
-            attributes: ['beatmap_id', 'set_id', 'artist', 'title', 'diffname', 'length', 'cs', 'od', 'ar', 'hp', 'stars', 'approved_date', 'maxcombo'],
+            attributes: ['beatmap_id', 'set_id', 'artist', 'title', 'diffname', 'length', 'cs', 'od', 'ar', 'hp', 'stars', 'mode', 'approved', 'approved_date', 'maxcombo'],
         } : {}),
         where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
         limit: config.limit ?? undefined,

@@ -1,7 +1,7 @@
 const express = require('express');
 var apicache = require('apicache');
-const { InspectorOsuUser, InspectorCompletionist, GetHistoricalScoreRankModel, InspectorScoreStat } = require('../../helpers/db');
-const { MODE_SLUGS } = require('../../helpers/osu');
+const { InspectorOsuUser, InspectorCompletionist, GetHistoricalScoreRankModel, InspectorScoreStat, OsuTeam, OsuTeamMember } = require('../../helpers/db');
+const { MODE_SLUGS, GetBeatmap, GetBeatmapAttributes, GetUserBeatmapScores } = require('../../helpers/osu');
 const { default: axios } = require('axios');
 const { default: Sequelize, Op } = require('@sequelize/core');
 const router = express.Router();
@@ -92,11 +92,37 @@ router.get('/rank/:stat/:page/:country?', cache('1 hour'), async (req, res) => {
     }
 
     try {
-        const users = await InspectorOsuUser.findAll({
+        let users = await InspectorOsuUser.findAll({
             where: country ? { country_code: country } : {},
             order: [[Sequelize.literal(RANK_STATS[statIndex].order), RANK_STATS[statIndex].dir]],
             limit: RANK_PAGE_SIZE,
             offset: (page - 1) * RANK_PAGE_SIZE
+        });
+
+        users = JSON.parse(JSON.stringify(users));
+
+        //get teams
+        const ids = users.map(user => user.user_id);
+        const teams = await OsuTeamMember.findAll({
+            where: {
+                user_id: ids
+            },
+            include: [{
+                model: OsuTeam,
+                required: true
+            }]
+        });
+
+        //map teams to users
+        const teamsMap = teams.reduce((acc, team) => {
+            if (!acc[team.user_id]) {
+                acc[team.user_id] = team.team;
+            }
+            return acc;
+        }, {});
+
+        users.forEach(user => {
+            user.team = teamsMap[user.user_id] || null;
         });
 
         res.json(users);
@@ -127,7 +153,7 @@ router.post('/profile', async (req, res, next) => {
             return;
         }
 
-        if(beatmap_count_cache == -1 || (new Date() - beatmap_count_cache_last_updated) > 3600000) {
+        if (beatmap_count_cache == -1 || (new Date() - beatmap_count_cache_last_updated) > 3600000) {
             const c = await InspectorScoreStat.findOne({
                 where: {
                     key: 'system_info'
@@ -138,8 +164,15 @@ router.post('/profile', async (req, res, next) => {
             beatmap_count_cache_last_updated = new Date();
         }
 
-        const [user, scoreRankHistory, top50sData, currentScoreRank, completion] = await Promise.allSettled([
+        const [user, team, scoreRankHistory, top50sData, currentScoreRank, completion] = await Promise.allSettled([
             mode == 0 ? InspectorOsuUser.findOne({ where: { user_id: id }, raw: true }) : null,
+            OsuTeamMember.findOne({
+                where: { user_id: id },
+                include: [{
+                    model: OsuTeam,
+                    required: true
+                }]
+            }),
             (GetHistoricalScoreRankModel(MODE_SLUGS[mode])).findAll({
                 where: {
                     [Op.and]: [
@@ -179,6 +212,7 @@ router.post('/profile', async (req, res, next) => {
                 ...user.value,
                 completion: (100 / beatmap_count_cache) * (user.value.alt_ssh_count + user.value.alt_ss_count + user.value.alt_sh_count + user.value.alt_s_count + user.value.alt_a_count + user.value.b_count + user.value.c_count + user.value.d_count)
             } : null,
+            team: team?.value?.team ?? null,
             stats: {
                 top50s: top50sData?.value?.data?.[1] ?? [],
                 scoreRank: currentScoreRank?.value?.data?.[0]?.rank ?? 0
@@ -211,15 +245,15 @@ let coe_attendees_cache = {
 };
 
 router.get('/coe/:id', cache('1 hour'), async (req, res) => {
-    try{
+    try {
         let coe_attendees = [];
-    
-        if(coe_attendees_cache.expires && coe_attendees_cache.expires > new Date()) {
+
+        if (coe_attendees_cache.expires && coe_attendees_cache.expires > new Date()) {
             coe_attendees = coe_attendees_cache.data;
         } else {
             const _data = await axios.get('https://cavoeboy.com/api/attendees');
             coe_attendees = _data.data;
-    
+
             coe_attendees_cache = {
                 data: coe_attendees,
                 //cache for 1 hour
@@ -228,13 +262,13 @@ router.get('/coe/:id', cache('1 hour'), async (req, res) => {
         }
 
         let user = coe_attendees.find(u => u.user.osuUser?.id == req.params.id);
-        if(!user) {
+        if (!user) {
             res.status(404).json({ error: 'User not found' });
             return;
         }
 
         res.json(user);
-    }catch(err){
+    } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Unable to get data', message: err.message });
     }
@@ -274,6 +308,93 @@ router.post('/score_rank_history/:mode', async (req, res) => {
         res.json(_scoreRankHistoryArray);
     } catch (err) {
         res.status(500).json({ error: 'Unable to get data', message: err.message });
+    }
+});
+
+router.all('/difficulty/:id/:ruleset', async (req, res) => {
+    //gets beatmap data, and difficulty data if mods are provided
+    const beatmap_id = req.params.id;
+    const mods = req.body.mods || null;
+    const ruleset = req.params.ruleset || 0;
+
+    try {
+        const attributes = await GetBeatmapAttributes(beatmap_id, mods, ruleset);
+
+        res.json({
+            beatmap_id: beatmap_id,
+            mods: mods,
+            ruleset: ruleset,
+            attributes: attributes,
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Unable to get beatmap', message: err.message });
+    }
+});
+
+router.get('/scores/:beatmap_id/:user_id/:ruleset', async (req, res) => {
+    const beatmap_id = req.params.beatmap_id;
+    const user_id = req.params.user_id;
+    const ruleset = req.params.ruleset || 'osu';
+    const ruleset_id = MODE_SLUGS.findIndex(r => r == ruleset);
+
+    try {
+        const scores = await GetUserBeatmapScores(user_id, beatmap_id, ruleset);
+        const beatmap = await GetBeatmap(beatmap_id, ruleset);
+        const attributes = await GetBeatmapAttributes(beatmap_id, null, ruleset_id);
+
+        if (!scores || scores.length === 0) {
+            res.status(404).json({ error: 'No scores found' });
+            return;
+        }
+
+        if (!beatmap) {
+            res.status(404).json({ error: 'Beatmap not found' });
+            return;
+        }
+
+        if (!attributes) {
+            res.status(404).json({ error: 'Beatmap attributes not found' });
+            return;
+        }
+
+        res.json({
+            beatmap: beatmap,
+            attributes: attributes,
+            scores: scores?.scores,
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Unable to get scores', message: err.message });
+    }
+});
+
+//get all teams for given user IDs
+router.post('/users/teams', async (req, res) => {
+    let ids = req.body.ids;
+    if (ids && ids.length > 0) {
+        //filter non-numbers
+        ids = ids.filter(id => !isNaN(id));
+    }
+    if (!ids || ids.length === 0) {
+        res.status(400).json({ error: 'No IDs provided' });
+        return;
+    }
+
+    try {
+        const teams = await OsuTeamMember.findAll({
+            where: {
+                user_id: ids
+            },
+            include: [{
+                model: OsuTeam,
+                required: true
+            }]
+        });
+
+        res.json(teams);
+    } catch (err) {
+        res.status(500).json({ error: 'Unable to get teams', message: err.message });
     }
 });
 

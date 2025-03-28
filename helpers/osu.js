@@ -123,6 +123,16 @@ async function GetUserBeatmaps(username, type = 'ranked', limit = 100, offset = 
     }
 }
 
+module.exports.GetUserBeatmapScores = GetUserBeatmapScores;
+async function GetUserBeatmapScores(username, beatmap_id, mode = 'osu', timeout = 10000) {
+    const res = await AuthorizedApiCall(`https://osu.ppy.sh/api/v2/beatmaps/${beatmap_id}/scores/users/${username}/all?ruleset=${mode}`, 'get', null, timeout);
+    try {
+        return res.data;
+    } catch (err) {
+        throw new Error('Unable to get user beatmaps: ' + err.message);
+    }
+}
+
 module.exports.GetBeatmaps = GetBeatmaps;
 async function GetBeatmaps(beatmap_ids, timeout = 10000) {
     const res = await AuthorizedApiCall(`https://osu.ppy.sh/api/v2/beatmaps?ids[]=${beatmap_ids.join('&ids[]=')}`, 'get', null, timeout);
@@ -130,6 +140,16 @@ async function GetBeatmaps(beatmap_ids, timeout = 10000) {
         return res.data;
     } catch (err) {
         throw new Error('Unable to get beatmaps: ' + err.message);
+    }
+}
+
+module.exports.GetBeatmap = GetBeatmap;
+async function GetBeatmap(beatmap_id, ruleset = 'osu', timeout = 10000) {
+    const res = await AuthorizedApiCall(`https://osu.ppy.sh/api/v2/beatmaps/${beatmap_id}`, 'get', null, timeout);
+    try {
+        return res.data;
+    } catch (err) {
+        throw new Error('Unable to get beatmap: ' + err.message);
     }
 }
 
@@ -346,17 +366,13 @@ async function GetOsuUserScores(username, type = 'best', mode = 'osu', limit = 1
 
 
 module.exports.GetBeatmapAttributes = GetBeatmapAttributes;
-async function GetBeatmapAttributes(beatmap_id, mods, timeout = 10000) {
-    let api_url = 'http://192.168.178.115:5001';
+async function GetBeatmapAttributes(beatmap_id, mods, ruleset = 0, timeout = 10000) {
+    let api_url = 'http://192.168.178.59:5001';
     try {
-        // const res = await AuthorizedApiCall(`https://osu.ppy.sh/api/v2/beatmaps/${beatmap_id}`, 'get', null, timeout, {
-        //     mods: mods,
-        //     ruleset_id: 0
-        // });
         const res = await axios.post(`${api_url}/attributes`, {
             beatmap_id: beatmap_id,
             mods: mods,
-            ruleset: 0
+            ruleset_id: ruleset,
         })
         return res.data;
     } catch (err) {

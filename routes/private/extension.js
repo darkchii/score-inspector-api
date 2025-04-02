@@ -1,7 +1,7 @@
 const express = require('express');
 var apicache = require('apicache');
-const { InspectorOsuUser, InspectorCompletionist, GetHistoricalScoreRankModel, InspectorScoreStat, OsuTeam, OsuTeamMember } = require('../../helpers/db');
-const { MODE_SLUGS, GetBeatmap, GetBeatmapAttributes, GetUserBeatmapScores } = require('../../helpers/osu');
+const { InspectorOsuUser, InspectorCompletionist, GetHistoricalScoreRankModel, InspectorScoreStat, OsuTeam, OsuTeamMember, OsuTeamRuleset } = require('../../helpers/db');
+const { MODE_SLUGS, GetBeatmap, GetBeatmapAttributes, GetUserBeatmapScores, GetOsuUserScores } = require('../../helpers/osu');
 const { default: axios } = require('axios');
 const { default: Sequelize, Op } = require('@sequelize/core');
 const router = express.Router();
@@ -164,13 +164,29 @@ router.post('/profile', async (req, res, next) => {
             beatmap_count_cache_last_updated = new Date();
         }
 
-        const [user, team, scoreRankHistory, top50sData, currentScoreRank, completion] = await Promise.allSettled([
+        await OsuTeamMember.findOne({
+            where: { user_id: id },
+            include: [{
+                model: OsuTeam,
+                required: true,
+                include: [{
+                    model: OsuTeamRuleset,
+                    required: false
+                }]
+            }]
+        });
+
+        const [user, team, scoreRankHistory, top50sData, currentScoreRank, completion, scoresPinned, scoresBest, scoresRecent] = await Promise.allSettled([
             mode == 0 ? InspectorOsuUser.findOne({ where: { user_id: id }, raw: true }) : null,
             OsuTeamMember.findOne({
                 where: { user_id: id },
                 include: [{
                     model: OsuTeam,
-                    required: true
+                    required: true,
+                    include: [{
+                        model: OsuTeamRuleset,
+                        required: false
+                    }]
                 }]
             }),
             (GetHistoricalScoreRankModel(MODE_SLUGS[mode])).findAll({
@@ -235,6 +251,7 @@ router.post('/profile', async (req, res, next) => {
 
         res.json(_data);
     } catch (err) {
+        console.error(err);
         res.status(500).json({ error: 'Unable to get user', message: err.message });
     }
 });
@@ -279,12 +296,12 @@ router.post('/score_rank_history/:mode', async (req, res) => {
         const mode = req.params.mode;
         const ids = req.body.ids;
 
-        //for each ID, get the oldest date, max 30 days old
+        //for each ID, get the oldest date, max 35 days old
         const scoreRankHistory = await GetHistoricalScoreRankModel(MODE_SLUGS[mode]).findAll({
             where: {
                 [Op.and]: [
                     { osu_id: ids },
-                    { date: { [Op.gte]: new Date(new Date() - 30 * 24 * 60 * 60 * 1000) } }
+                    { date: { [Op.gte]: new Date(new Date() - 31 * 24 * 60 * 60 * 1000) } }
                 ]
             },
             order: [
@@ -292,15 +309,19 @@ router.post('/score_rank_history/:mode', async (req, res) => {
             ],
         });
 
-        //for each user, get the oldest date entry only
-        const _scoreRankHistory = scoreRankHistory.reduce((acc, current) => {
-            if (!acc[current.osu_id]) {
-                acc[current.osu_id] = current;
-            } else if (current.date < acc[current.osu_id].date) {
-                acc[current.osu_id] = current;
+        console.log(`Found ${scoreRankHistory.length} score rank history entries`);
+
+        //for each user, get the oldest entry
+        let _scoreRankHistory = {};
+        scoreRankHistory.forEach(entry => {
+            if (!_scoreRankHistory[entry.osu_id]) {
+                _scoreRankHistory[entry.osu_id] = entry;
+            } else {
+                if (entry.date < _scoreRankHistory[entry.osu_id].date) {
+                    _scoreRankHistory[entry.osu_id] = entry;
+                }
             }
-            return acc;
-        }, {});
+        });
 
         //convert to array, we dont need the keys
         const _scoreRankHistoryArray = Object.values(_scoreRankHistory);

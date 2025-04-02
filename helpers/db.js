@@ -45,6 +45,7 @@ const { PostgresDialect } = require('@sequelize/postgres');
 const { default: Sequelize } = require('@sequelize/core');
 const { OsuTeamModel } = require('./models/OsuTeam.js');
 const { OsuTeamMemberModel } = require('./models/OsuTeamMember.js');
+const { OsuTeamRulesetModel } = require('./models/OsuTeamRuleset.js');
 require('dotenv').config();
 
 let databases = {
@@ -151,8 +152,11 @@ const Tournament = TournamentModel(databases.inspector);
 
 const OsuTeam = OsuTeamModel(databases.inspector_teams);
 const OsuTeamMember = OsuTeamMemberModel(databases.inspector_teams);
+const OsuTeamRuleset = OsuTeamRulesetModel(databases.inspector_teams);
 
 OsuTeamMember.belongsTo(OsuTeam, { as: 'team', foreignKey: 'team_id', targetKey: 'id' });
+// OsuTeamRuleset.belongsTo(OsuTeam, { as: 'team', foreignKey: 'team_id', targetKey: 'id' });
+OsuTeam.hasMany(OsuTeamRuleset, { as: 'rulesets', foreignKey: 'id' });
 
 InspectorUser.belongsToMany(InspectorRole, { as: 'roles', through: 'inspector_user_roles', foreignKey: 'user_id', otherKey: 'role_id' });
 InspectorRole.belongsTo(InspectorUser, { as: 'roles', through: 'inspector_user_roles', foreignKey: 'user_id', otherKey: 'role_id' });
@@ -237,6 +241,7 @@ module.exports.Tournament = Tournament;
 
 module.exports.OsuTeam = OsuTeam;
 module.exports.OsuTeamMember = OsuTeamMember;
+module.exports.OsuTeamRuleset = OsuTeamRuleset;
 
 module.exports.AltUser = AltUser;
 module.exports.AltPriorityUser = AltPriorityUser;

@@ -109,7 +109,10 @@ router.get('/rank/:stat/:page/:country?', cache('1 hour'), async (req, res) => {
             },
             include: [{
                 model: OsuTeam,
-                required: true
+                required: true,
+                where: {
+                    deleted: false
+                },
             }]
         });
 
@@ -164,18 +167,6 @@ router.post('/profile', async (req, res, next) => {
             beatmap_count_cache_last_updated = new Date();
         }
 
-        await OsuTeamMember.findOne({
-            where: { user_id: id },
-            include: [{
-                model: OsuTeam,
-                required: true,
-                include: [{
-                    model: OsuTeamRuleset,
-                    required: false
-                }]
-            }]
-        });
-
         const [user, team, scoreRankHistory, top50sData, currentScoreRank, completion, scoresPinned, scoresBest, scoresRecent] = await Promise.allSettled([
             mode == 0 ? InspectorOsuUser.findOne({ where: { user_id: id }, raw: true }) : null,
             OsuTeamMember.findOne({
@@ -186,7 +177,10 @@ router.post('/profile', async (req, res, next) => {
                     include: [{
                         model: OsuTeamRuleset,
                         required: false
-                    }]
+                    }],
+                    where: {
+                        deleted: false
+                    }
                 }]
             }),
             (GetHistoricalScoreRankModel(MODE_SLUGS[mode])).findAll({
@@ -409,7 +403,10 @@ router.post('/users/teams', async (req, res) => {
             },
             include: [{
                 model: OsuTeam,
-                required: true
+                required: true,
+                where: {
+                    deleted: false
+                },
             }]
         });
 

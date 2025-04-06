@@ -1,7 +1,7 @@
 const express = require('express');
 var apicache = require('apicache');
 const { InspectorOsuUser, InspectorCompletionist, GetHistoricalScoreRankModel, InspectorScoreStat, OsuTeam, OsuTeamMember, OsuTeamRuleset } = require('../../helpers/db');
-const { MODE_SLUGS, GetBeatmap, GetBeatmapAttributes, GetUserBeatmapScores, GetOsuUserScores } = require('../../helpers/osu');
+const { MODE_SLUGS, GetBeatmap, GetBeatmapAttributes, GetUserBeatmapScores, GetOsuUserScores, GetBeatmapStrains } = require('../../helpers/osu');
 const { default: axios } = require('axios');
 const { default: Sequelize, Op } = require('@sequelize/core');
 const router = express.Router();
@@ -92,14 +92,18 @@ router.get('/rank/:stat/:page/:country?', cache('1 hour'), async (req, res) => {
     }
 
     try {
+        let where = country ? { country_code: country } : {};
         let users = await InspectorOsuUser.findAll({
-            where: country ? { country_code: country } : {},
+            where: where,
             order: [[Sequelize.literal(RANK_STATS[statIndex].order), RANK_STATS[statIndex].dir]],
             limit: RANK_PAGE_SIZE,
             offset: (page - 1) * RANK_PAGE_SIZE
         });
 
         users = JSON.parse(JSON.stringify(users));
+        const total_count = await InspectorOsuUser.count({
+            where: where
+        });
 
         //get teams
         const ids = users.map(user => user.user_id);
@@ -128,6 +132,14 @@ router.get('/rank/:stat/:page/:country?', cache('1 hour'), async (req, res) => {
             user.team = teamsMap[user.user_id] || null;
         });
 
+        //pass the total count through headers
+        res.setHeader('X-Total-Count', total_count);
+        res.setHeader('X-Page', page);
+        res.setHeader('X-Page-Size', RANK_PAGE_SIZE);
+        res.setHeader('X-Total-Pages', Math.ceil(total_count / RANK_PAGE_SIZE));
+
+        //access-control-expose-headers
+        res.setHeader('Access-Control-Expose-Headers', 'X-Total-Count, X-Page, X-Page-Size, X-Total-Pages');
         res.json(users);
     } catch (err) {
         res.status(500).json({ error: 'Unable to get users', message: err.message });
@@ -340,6 +352,27 @@ router.all('/difficulty/:id/:ruleset', async (req, res) => {
             mods: mods,
             ruleset: ruleset,
             attributes: attributes,
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Unable to get beatmap', message: err.message });
+    }
+});
+
+router.all('/strains/:id/:ruleset', async (req, res) => {
+    //gets beatmap data, and difficulty data if mods are provided
+    const beatmap_id = req.params.id;
+    const mods = req.body.mods || null;
+    const ruleset = req.params.ruleset || 0;
+
+    try {
+        const strains = await GetBeatmapStrains(beatmap_id, mods, ruleset);
+
+        res.json({
+            beatmap_id: beatmap_id,
+            mods: mods,
+            ruleset: ruleset,
+            strains: strains,
         });
     } catch (err) {
         console.error(err);

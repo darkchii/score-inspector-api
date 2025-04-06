@@ -380,6 +380,21 @@ async function GetBeatmapAttributes(beatmap_id, mods, ruleset = 0, timeout = 100
     }
 }
 
+module.exports.GetBeatmapStrains = GetBeatmapStrains;
+async function GetBeatmapStrains(beatmap_id, mods, ruleset = 0, timeout = 10000) {
+    let api_url = 'http://192.168.178.59:5001';
+    try {
+        const res = await axios.post(`${api_url}/strain`, {
+            beatmap_id: beatmap_id,
+            mods: mods,
+            ruleset_id: ruleset,
+        })
+        return res.data;
+    } catch (err) {
+        throw new Error('Unable to get beatmap strains: ' + err.message);
+    }
+}
+
 module.exports.ConvertOsuScoreResultToInspectorScore = ConvertOsuScoreResultToInspectorScore;
 async function ConvertOsuScoreResultToInspectorScore(score, user) {
     const attributes = await GetBeatmapAttributes(score.beatmap.id, score.mods);

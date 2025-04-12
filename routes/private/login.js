@@ -367,7 +367,7 @@ router.post('/update_visitor', async (req, res, next) => {
         //update visit date
         await InspectorVisitor.update({
             last_visit: Sequelize.literal('CURRENT_TIMESTAMP'),
-            count: Sequelize.literal(`IF(${diff} > 600000, count + 1, count)`)
+            count: Sequelize.literal(`IF(${diff} > 21600000, count + 1, count)`)
         },
             {
                 where: {

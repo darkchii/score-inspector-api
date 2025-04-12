@@ -172,17 +172,6 @@ router.get('/visitors/get', async (req, res, next) => {
             group: ['target_id'],
             order: [[Sequelize.literal(order_by), 'DESC']],
             limit: limit,
-            // include: [{
-            //     model: InspectorUser,
-            //     as: 'target_user',
-            //     required: false,
-            //     include: [{
-            //         model: InspectorRole,
-            //         through: { attributes: [] },
-            //         as: 'roles',
-            //         required: false,
-            //     }]
-            // }],
             raw: true,
         });
 

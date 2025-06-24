@@ -290,6 +290,10 @@ router.get('/coe/:id', cache('1 hour'), async (req, res) => {
             return;
         }
 
+        if(!user.user.roles){
+            user.user.roles = [];
+        }
+
         res.json(user);
     } catch (err) {
         console.error(err);

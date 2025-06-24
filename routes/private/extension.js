@@ -274,8 +274,8 @@ router.get('/coe/:id', cache('1 hour'), async (req, res) => {
         if (coe_attendees_cache.expires && coe_attendees_cache.expires > new Date()) {
             coe_attendees = coe_attendees_cache.data;
         } else {
-            const _data = await axios.get('https://cavoeboy.com/api/attendees');
-            coe_attendees = _data.data;
+            const _data = await axios.get('https://cavoe.events/api/events/3/attendees');
+            coe_attendees = _data.data?.attendees;
 
             coe_attendees_cache = {
                 data: coe_attendees,

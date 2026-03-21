@@ -324,7 +324,7 @@ router.get('/today', cache('10 minutes'), async function (req, res, next) {
     try {
         // await Databases.osuAlt.authenticate();
         await CheckConnection(Databases.osuAlt);
-        const blacklist = [];
+        const blacklist = [0];
 
         const users_limit = req.query.users_limit || 10;
         const specific_user_id = req.query.user_id || undefined;

@@ -81,7 +81,7 @@ router.get('/osu/completionists', cache('1 hour'), async (req, res) => {
     const full_users = await getFullUsers(ids, { alt: false, score: false, osu: false });
 
     const data = completionists.map(c => {
-      const user = full_users.find(u => u.osu.id == c.osu_id);
+      const user = full_users.find(u => u.osu?.id == c.osu_id);
       return {
         osu_id: c.osu_id,
         mode: c.mode,

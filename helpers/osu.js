@@ -367,7 +367,7 @@ async function GetOsuUserScores(username, type = 'best', mode = 'osu', limit = 1
 
 module.exports.GetBeatmapAttributes = GetBeatmapAttributes;
 async function GetBeatmapAttributes(beatmap_id, mods, ruleset = 0, timeout = 10000) {
-    let api_url = 'http://192.168.178.59:5001';
+    let api_url = 'http://kirinonode:5001';
     try {
         const res = await axios.post(`${api_url}/attributes`, {
             beatmap_id: beatmap_id,
@@ -382,7 +382,7 @@ async function GetBeatmapAttributes(beatmap_id, mods, ruleset = 0, timeout = 100
 
 module.exports.GetBeatmapStrains = GetBeatmapStrains;
 async function GetBeatmapStrains(beatmap_id, mods, ruleset = 0, timeout = 10000) {
-    let api_url = 'http://192.168.178.59:5001';
+    let api_url = 'http://kirinonode:5001';
     try {
         const res = await axios.post(`${api_url}/strain`, {
             beatmap_id: beatmap_id,
